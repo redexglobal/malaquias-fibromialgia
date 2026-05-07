@@ -1211,6 +1211,15 @@ async function loadProfile() {
 }
 
 function enterApp() {
+  if (!currentProfile) {
+    const errEl = document.getElementById('login-error');
+    if (errEl) { errEl.textContent = 'Usuário não configurado. Contate o administrador.'; errEl.style.display = 'block'; }
+    const btn = document.getElementById('btn-login');
+    if (btn) { btn.innerHTML = '<i class="fas fa-arrow-right"></i> Entrar'; btn.disabled = false; }
+    sb.auth.signOut();
+    return;
+  }
+
   document.getElementById('page-login').style.display = 'none';
   document.getElementById('app-shell').style.display = 'block';
 
