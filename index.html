@@ -3071,5 +3071,654 @@ _themeObserver.observe(document.body, { attributes: true, attributeFilter: ['dat
 })();
 </script>
 
+
+<style>
+/* ============================
+   1. FUNDO VERDE ESCURO VIBRANTE
+   ============================ */
+[data-theme="dark"] {
+  --bg-primary: #071a0f !important;
+  --bg-secondary: #0a2416 !important;
+  --bg-card: rgba(10,36,22,0.88) !important;
+  --bg-glass: rgba(7,26,15,0.65) !important;
+  --border-glass: rgba(0,200,83,0.18) !important;
+  --text-primary: #e8f5e9 !important;
+  --text-secondary: #81c784 !important;
+  --text-muted: #4caf50 !important;
+  --shadow-card: 0 8px 32px rgba(0,40,0,0.55) !important;
+  --input-bg: rgba(7,26,15,0.7) !important;
+  --input-border: rgba(0,200,83,0.22) !important;
+  --hover-bg: rgba(0,200,83,0.1) !important;
+}
+body[data-theme="dark"] { background: #071a0f !important; }
+[data-theme="dark"] .sidebar,
+[data-theme="dark"] .header:not(.header-admin) {
+  background: rgba(7,26,15,0.97) !important;
+}
+[data-theme="dark"] .table-card,
+[data-theme="dark"] .chart-card,
+[data-theme="dark"] .form-card {
+  background: rgba(10,36,22,0.88) !important;
+  border-color: rgba(0,200,83,0.14) !important;
+}
+[data-theme="dark"] input.form-input,
+[data-theme="dark"] select.form-input,
+[data-theme="dark"] textarea.form-input {
+  background: rgba(7,26,15,0.7) !important;
+  border-color: rgba(0,200,83,0.2) !important;
+  color: #e8f5e9 !important;
+}
+[data-theme="dark"] .nav-item.active {
+  background: rgba(0,200,83,0.12) !important;
+  color: #4ade80 !important;
+}
+[data-theme="dark"] .bg-mesh {
+  background: radial-gradient(ellipse 600px 400px at 20% 20%, rgba(0,100,50,0.18), transparent),
+              radial-gradient(ellipse 400px 300px at 80% 80%, rgba(0,180,80,0.1), transparent) !important;
+}
+
+/* ============================
+   2. REMOVE FEED (ATIVIDADE AO VIVO)
+   ============================ */
+.adv-feed-panel,
+.adv-feed-toggle,
+#adv-feed-panel { display: none !important; }
+
+/* ============================
+   3. FORM 4 ESTÁGIOS — CSS
+   ============================ */
+.stg-wrapper { max-width: 760px; margin: 0 auto; }
+.stg-progress {
+  display: flex; align-items: flex-start; justify-content: center;
+  margin-bottom: 32px; padding: 0 8px;
+}
+.stg-dot-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.stg-dot {
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 2px solid rgba(0,200,83,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 15px; font-family: 'DM Sans',sans-serif;
+  color: var(--text-muted); transition: all 0.3s;
+  background: var(--input-bg);
+}
+.stg-dot-wrap.active .stg-dot {
+  background: #00c853; border-color: #00c853;
+  color: #071a0f; box-shadow: 0 0 18px rgba(0,200,83,0.5);
+}
+.stg-dot-wrap.done .stg-dot {
+  background: rgba(0,200,83,0.15); border-color: #00c853; color: #00c853;
+}
+.stg-dot-label {
+  font-size: 10px; color: var(--text-muted); text-align: center;
+  white-space: nowrap; letter-spacing: .04em; text-transform: uppercase;
+}
+.stg-dot-wrap.active .stg-dot-label { color: #00c853; }
+.stg-connector {
+  flex: 1; height: 2px; background: rgba(0,200,83,0.2);
+  margin: 19px 6px 0; transition: background 0.3s; min-width: 40px;
+}
+.stg-connector.done { background: #00c853; }
+
+.stg-panel { display: none; }
+.stg-panel.active { display: block; animation: stgFade .25s ease; }
+@keyframes stgFade { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+.stg-card {
+  background: var(--bg-card); border: 1px solid var(--border-glass);
+  border-radius: 16px; padding: 24px; backdrop-filter: blur(12px);
+}
+.stg-section-title {
+  font-size: 13px; font-weight: 700; color: #00c853;
+  letter-spacing: .06em; text-transform: uppercase;
+  margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+}
+.stg-section-title::before { content:''; width:3px; height:14px; background:#00c853; border-radius:2px; }
+.stg-actions {
+  display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;
+  padding-top: 16px; border-top: 1px solid var(--border-glass);
+}
+.btn-stg-next {
+  background: #00c853; color: #071a0f; border: none;
+  padding: 10px 24px; border-radius: 10px; font-weight: 700;
+  font-size: 14px; cursor: pointer; transition: all .2s;
+  font-family: 'DM Sans', sans-serif;
+}
+.btn-stg-next:hover { background: #00e676; box-shadow: 0 0 20px rgba(0,200,83,.4); }
+.btn-stg-back {
+  background: none; border: 1px solid var(--border-glass);
+  color: var(--text-secondary); padding: 10px 20px;
+  border-radius: 10px; cursor: pointer; font-size: 14px; transition: all .2s;
+  font-family: 'DM Sans', sans-serif;
+}
+.btn-stg-back:hover { border-color: #00c853; color: #00c853; }
+
+/* Dor slider */
+.dor-big { font-family: 'Playfair Display',serif; font-size: 3.5rem; font-weight: 700; text-align: center; line-height: 1; margin: 10px 0; transition: color .2s; }
+.dor-track {
+  width: 100%; -webkit-appearance: none; appearance: none;
+  height: 10px; border-radius: 5px; outline: none; cursor: pointer;
+  transition: background .2s;
+}
+.dor-track::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 24px; height: 24px;
+  border-radius: 50%; background: #fff; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,.4);
+}
+.dor-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+
+/* Checkboxes */
+.chk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px,1fr)); gap: 8px; }
+.chk-lbl {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  background: var(--input-bg); border: 1px solid var(--input-border);
+  border-radius: 8px; cursor: pointer; font-size: 13px;
+  color: var(--text-secondary); transition: all .2s; user-select: none;
+}
+.chk-lbl:hover { border-color: #00c853; }
+.chk-lbl input[type=checkbox] { accent-color: #00c853; width: 15px; height: 15px; cursor: pointer; flex-shrink: 0; }
+.chk-lbl input:checked ~ span { color: #00c853; font-weight: 600; }
+
+/* Resumo stage 4 */
+.stg-resumo {
+  background: rgba(0,200,83,.06); border: 1px solid rgba(0,200,83,.2);
+  border-radius: 12px; padding: 16px; margin-bottom: 16px;
+}
+.stg-resumo-title { font-size: 12px; font-weight: 700; color: #00c853; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
+.stg-resumo-row { display: flex; gap: 10px; font-size: 13px; margin-bottom: 5px; }
+.stg-resumo-row:last-child { margin-bottom: 0; }
+.stg-resumo-key { color: var(--text-muted); min-width: 130px; flex-shrink: 0; }
+.stg-resumo-val { color: var(--text-primary); font-weight: 500; }
+
+.btn-finalizar {
+  width: 100%; background: linear-gradient(135deg, #00c853, #00e676);
+  color: #071a0f; border: none; padding: 14px; border-radius: 12px;
+  font-size: 16px; font-weight: 800; cursor: pointer; transition: all .2s;
+  font-family: 'DM Sans', sans-serif; letter-spacing: .04em;
+}
+.btn-finalizar:hover { box-shadow: 0 0 28px rgba(0,200,83,.5); transform: translateY(-1px); }
+.btn-finalizar:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+
+@media(max-width:600px) {
+  .stg-dot-label { display: none; }
+  .stg-connector { min-width: 20px; }
+  .chk-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+
+<script>
+/* ============================
+   MEGAFIX — Dr. Malaquias
+   ============================ */
+(function(){
+'use strict';
+
+/* ---- 1. Remove feed panel do DOM ---- */
+const fp = document.getElementById('adv-feed-panel');
+if(fp) fp.remove();
+
+/* ---- Dados dos estágios ---- */
+let _stg = 1;
+let _dat = {};
+
+/* ---- 2. Builders dos 4 estágios ---- */
+function _buildStg1() {
+  return `
+    <div class="stg-card">
+      <div class="stg-section-title">Identificação do Paciente</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Nome completo *</label>
+          <input type="text" class="form-input" id="s1-nome" placeholder="Nome do paciente" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Telefone / WhatsApp *</label>
+          <input type="tel" class="form-input" id="s1-whats" placeholder="(00) 00000-0000">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Idade</label>
+          <input type="number" class="form-input" id="s1-idade" placeholder="Ex: 35" min="1" max="120">
+        </div>
+      </div>
+      <div class="stg-actions">
+        <button class="btn-stg-next" onclick="_stgGo(2)">Próximo →</button>
+      </div>
+    </div>`;
+}
+
+function _buildStg2Fibro() {
+  return `
+    <div class="stg-card">
+      <div class="stg-section-title">Quadro de Sintomas</div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Sintomas principais *</label>
+        <textarea class="form-input" id="s2-sintomas" rows="3" placeholder="Descreva os principais sintomas..."></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Há quanto tempo tem os sintomas</label>
+          <select class="form-input" id="s2-tempo">
+            <option value="">Selecione...</option>
+            <option>Menos de 6 meses</option><option>6 a 12 meses</option>
+            <option>1 a 2 anos</option><option>2 a 5 anos</option><option>Mais de 5 anos</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Medicações em uso</label>
+          <input type="text" class="form-input" id="s2-med" placeholder="Ex: Amitriptilina, Ciclobenzaprina...">
+        </div>
+      </div>
+      <div class="stg-actions">
+        <button class="btn-stg-back" onclick="_stgGo(1)">← Voltar</button>
+        <button class="btn-stg-next" onclick="_stgGo(3)">Próximo →</button>
+      </div>
+    </div>`;
+}
+
+function _buildStg2Oculos() {
+  return `
+    <div class="stg-card">
+      <div class="stg-section-title">Receita Médica</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Grau OD — Olho Direito</label>
+          <input type="text" class="form-input" id="s2-od" placeholder="Ex: -2.50 -0.75 180°">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Grau OE — Olho Esquerdo</label>
+          <input type="text" class="form-input" id="s2-oe" placeholder="Ex: -1.75 -0.50 170°">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Adição (leitura)</label>
+          <input type="text" class="form-input" id="s2-adicao" placeholder="Ex: +2.00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nome do médico</label>
+          <input type="text" class="form-input" id="s2-medico" placeholder="Dr. ...">
+        </div>
+      </div>
+      <div class="stg-actions">
+        <button class="btn-stg-back" onclick="_stgGo(1)">← Voltar</button>
+        <button class="btn-stg-next" onclick="_stgGo(3)">Próximo →</button>
+      </div>
+    </div>`;
+}
+
+function _buildStg3Fibro() {
+  const pontos=['Cabeça','Pescoço','Ombros','Costas sup.','Costas inf.','Braços','Antebraços','Quadris','Coxas','Joelhos','Pernas','Pés'];
+  return `
+    <div class="stg-card">
+      <div class="stg-section-title">Avaliação de Dor</div>
+      <div class="form-group" style="margin-bottom:20px">
+        <label class="form-label">Nível de Dor (0 – 10)</label>
+        <div class="dor-big" id="s3-dor-display" style="color:#4ade80">5</div>
+        <input type="range" class="dor-track" id="s3-dor" min="0" max="10" value="5"
+          oninput="_dorColor(this.value)"
+          style="background:linear-gradient(to right,#4ade80 50%,rgba(0,200,83,.2) 50%)">
+        <div class="dor-labels"><span>0 — Sem dor</span><span>5 — Moderada</span><span>10 — Insuportável</span></div>
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Pontos de dor no corpo</label>
+        <div class="chk-grid" id="s3-pontos">
+          ${pontos.map(p=>`<label class="chk-lbl"><input type="checkbox" value="${p}"><span>${p}</span></label>`).join('')}
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Data da consulta</label>
+        <input type="date" class="form-input" id="s3-data" value="${new Date().toISOString().split('T')[0]}">
+      </div>
+      <div class="stg-actions">
+        <button class="btn-stg-back" onclick="_stgGo(2)">← Voltar</button>
+        <button class="btn-stg-next" onclick="_stgGo(4)">Próximo →</button>
+      </div>
+    </div>`;
+}
+
+function _buildStg3Oculos() {
+  const trts=['Antirreflexo','Blue Light','Fotossensível','Polarizado','UV 400','Anti-risco','Espelhado'];
+  return `
+    <div class="stg-card">
+      <div class="stg-section-title">Escolha do Produto</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Armação escolhida</label>
+          <input type="text" class="form-input" id="s3-armacao" placeholder="Modelo / código">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo de lente</label>
+          <select class="form-input" id="s3-lente">
+            <option value="">Selecione...</option>
+            <option>Monofocal</option><option>Bifocal</option>
+            <option>Progressiva</option><option>Lente de contato</option><option>Outro</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Tratamentos da lente</label>
+        <div class="chk-grid" id="s3-trts">
+          ${trts.map(t=>`<label class="chk-lbl"><input type="checkbox" value="${t}"><span>${t}</span></label>`).join('')}
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Valor do pedido (R$)</label>
+        <input type="number" class="form-input" id="s3-valor" placeholder="0,00" min="0" step="0.01">
+      </div>
+      <div class="stg-actions">
+        <button class="btn-stg-back" onclick="_stgGo(2)">← Voltar</button>
+        <button class="btn-stg-next" onclick="_stgGo(4)">Próximo →</button>
+      </div>
+    </div>`;
+}
+
+function _buildStg4Fibro() {
+  return `
+    <div class="stg-card">
+      <div class="stg-resumo" id="stg4-resumo"></div>
+      <div class="stg-section-title">Conclusão</div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Observações finais</label>
+        <textarea class="form-input" id="s4-obs" rows="3" placeholder="Anotações, encaminhamentos, conduta..."></textarea>
+      </div>
+      <div class="form-group" style="margin-bottom:18px">
+        <label class="form-label">Próximo retorno</label>
+        <input type="date" class="form-input" id="s4-retorno">
+      </div>
+      <div class="stg-actions">
+        <button class="btn-stg-back" onclick="_stgGo(3)">← Voltar</button>
+        <button class="btn-finalizar" id="btn-finalizar" onclick="_stgSave()">✅ Finalizar Cadastro</button>
+      </div>
+    </div>`;
+}
+
+function _buildStg4Oculos() {
+  return `
+    <div class="stg-card">
+      <div class="stg-resumo" id="stg4-resumo"></div>
+      <div class="stg-section-title">Conclusão</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Status do pedido</label>
+          <select class="form-input" id="s4-status">
+            <option value="aguardando">⏳ Aguardando</option>
+            <option value="em_producao">⚙️ Em produção</option>
+            <option value="pronto">✅ Pronto</option>
+            <option value="entregue">📦 Entregue</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data de entrega prevista</label>
+          <input type="date" class="form-input" id="s4-entrega">
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:18px">
+        <label class="form-label">Observações</label>
+        <textarea class="form-input" id="s4-obs" rows="3" placeholder="Observações adicionais, prazo, orientações..."></textarea>
+      </div>
+      <div class="stg-actions">
+        <button class="btn-stg-back" onclick="_stgGo(3)">← Voltar</button>
+        <button class="btn-finalizar" id="btn-finalizar" onclick="_stgSave()">✅ Finalizar Pedido</button>
+      </div>
+    </div>`;
+}
+
+/* ---- 3. Monta o formulário completo ---- */
+function buildNovoForm(proj) {
+  const sec = document.getElementById('sec-novo');
+  if (!sec) return;
+  _stg = 1; _dat = {};
+
+  const isOculos = proj === 'oculos';
+  const labels = isOculos
+    ? ['Identificação','Receita Médica','Produto','Conclusão']
+    : ['Identificação','Sintomas','Avaliação','Conclusão'];
+
+  const progressHTML = labels.map((l,i) => `
+    <div class="stg-dot-wrap ${i===0?'active':''}" id="stg-dw-${i+1}">
+      <div class="stg-dot">${i+1}</div>
+      <div class="stg-dot-label">${l}</div>
+    </div>
+    ${i<3?`<div class="stg-connector" id="stg-cn-${i+1}"></div>`:''}`
+  ).join('');
+
+  sec.innerHTML = `
+    <h1 class="page-title">Novo Cadastro</h1>
+    <p class="page-subtitle" id="novo-sub">Registrar novo ${isOculos?'pedido — Óculos':'paciente — Fibromialgia'}</p>
+    <div class="stg-wrapper">
+      <div class="stg-progress">${progressHTML}</div>
+      <div class="stg-panel active" id="stg-p-1">${_buildStg1()}</div>
+      <div class="stg-panel" id="stg-p-2">${isOculos?_buildStg2Oculos():_buildStg2Fibro()}</div>
+      <div class="stg-panel" id="stg-p-3">${isOculos?_buildStg3Oculos():_buildStg3Fibro()}</div>
+      <div class="stg-panel" id="stg-p-4">${isOculos?_buildStg4Oculos():_buildStg4Fibro()}</div>
+    </div>`;
+}
+
+/* ---- 4. Navegar entre estágios ---- */
+window._stgGo = function(n) {
+  if (n > _stg && !_stgValidate(_stg)) return;
+  _stgCollect(_stg);
+  document.querySelectorAll('.stg-panel').forEach(p=>p.classList.remove('active'));
+  const target = document.getElementById('stg-p-'+n);
+  if (target) target.classList.add('active');
+  for(let i=1;i<=4;i++){
+    const dw=document.getElementById('stg-dw-'+i);
+    if(!dw)continue;
+    dw.classList.remove('active','done');
+    if(i===n)dw.classList.add('active');
+    else if(i<n)dw.classList.add('done');
+  }
+  for(let i=1;i<=3;i++){
+    const cn=document.getElementById('stg-cn-'+i);
+    if(cn)cn.classList.toggle('done',i<n);
+  }
+  _stg=n;
+  if(n===4)_stgResumo();
+  window.scrollTo({top:0,behavior:'smooth'});
+};
+
+/* ---- Validação ---- */
+function _stgValidate(s) {
+  if(s===1){
+    if(!(document.getElementById('s1-nome')?.value.trim())){_toast('Nome completo é obrigatório',true);return false;}
+    if(!(document.getElementById('s1-whats')?.value.trim())){_toast('WhatsApp é obrigatório',true);return false;}
+  }
+  if(s===2){
+    const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
+    if(proj!=='oculos'&&!(document.getElementById('s2-sintomas')?.value.trim())){_toast('Descreva os sintomas',true);return false;}
+  }
+  return true;
+}
+
+/* ---- Coleta dados do estágio atual ---- */
+function _stgCollect(s) {
+  const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
+  if(s===1){
+    _dat.nome=document.getElementById('s1-nome')?.value.trim()||'';
+    _dat.whatsapp=document.getElementById('s1-whats')?.value.trim()||null;
+    _dat.idade=parseInt(document.getElementById('s1-idade')?.value)||null;
+  } else if(s===2){
+    if(proj==='oculos'){
+      _dat.grau_od=document.getElementById('s2-od')?.value.trim()||null;
+      _dat.grau_oe=document.getElementById('s2-oe')?.value.trim()||null;
+      _dat.adicao=document.getElementById('s2-adicao')?.value.trim()||null;
+      _dat.nome_medico=document.getElementById('s2-medico')?.value.trim()||null;
+    } else {
+      _dat.sintomas=document.getElementById('s2-sintomas')?.value.trim()||null;
+      _dat.tempo_sintomas=document.getElementById('s2-tempo')?.value||null;
+      _dat.medicacoes=document.getElementById('s2-med')?.value.trim()||null;
+    }
+  } else if(s===3){
+    if(proj==='oculos'){
+      _dat.armacao=document.getElementById('s3-armacao')?.value.trim()||null;
+      _dat.tipo_lente=document.getElementById('s3-lente')?.value||null;
+      const trts=[...document.querySelectorAll('#s3-trts input:checked')].map(c=>c.value);
+      _dat.tratamentos_lente=trts.length?trts.join(', '):null;
+      _dat.valor_pedido=parseFloat(document.getElementById('s3-valor')?.value)||null;
+    } else {
+      _dat.nivel_dor=parseInt(document.getElementById('s3-dor')?.value)||0;
+      const pts=[...document.querySelectorAll('#s3-pontos input:checked')].map(c=>c.value);
+      _dat.pontos_dor=pts.length?pts.join(', '):null;
+      _dat.data_consulta=document.getElementById('s3-data')?.value||null;
+    }
+  }
+}
+
+/* ---- Resumo estágio 4 ---- */
+function _stgResumo() {
+  _stgCollect(_stg-1);
+  const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
+  const el=document.getElementById('stg4-resumo');
+  if(!el)return;
+  const rows=[];
+  if(_dat.nome)rows.push(['Paciente',_dat.nome]);
+  if(_dat.whatsapp)rows.push(['WhatsApp',_dat.whatsapp]);
+  if(_dat.idade)rows.push(['Idade',_dat.idade+' anos']);
+  if(proj==='oculos'){
+    if(_dat.grau_od)rows.push(['Grau OD',_dat.grau_od]);
+    if(_dat.grau_oe)rows.push(['Grau OE',_dat.grau_oe]);
+    if(_dat.adicao)rows.push(['Adição',_dat.adicao]);
+    if(_dat.nome_medico)rows.push(['Médico',_dat.nome_medico]);
+    if(_dat.armacao)rows.push(['Armação',_dat.armacao]);
+    if(_dat.tipo_lente)rows.push(['Lente',_dat.tipo_lente]);
+    if(_dat.tratamentos_lente)rows.push(['Tratamentos',_dat.tratamentos_lente]);
+    if(_dat.valor_pedido)rows.push(['Valor','R$ '+_dat.valor_pedido.toFixed(2)]);
+  } else {
+    if(_dat.sintomas)rows.push(['Sintomas',_dat.sintomas.length>50?_dat.sintomas.substring(0,50)+'...':_dat.sintomas]);
+    if(_dat.tempo_sintomas)rows.push(['Tempo',_dat.tempo_sintomas]);
+    if(_dat.medicacoes)rows.push(['Medicações',_dat.medicacoes]);
+    if(_dat.nivel_dor!=null)rows.push(['Nível de dor',_dat.nivel_dor+'/10']);
+    if(_dat.pontos_dor)rows.push(['Pontos de dor',_dat.pontos_dor]);
+    if(_dat.data_consulta)rows.push(['Data consulta',new Date(_dat.data_consulta+'T00:00:00').toLocaleDateString('pt-BR')]);
+  }
+  el.innerHTML=`<div class="stg-resumo-title">📋 Resumo do Cadastro</div>`+
+    rows.map(([k,v])=>`<div class="stg-resumo-row"><span class="stg-resumo-key">${k}:</span><span class="stg-resumo-val">${v}</span></div>`).join('');
+}
+
+/* ---- Salvar todos os 4 estágios ---- */
+window._stgSave = async function() {
+  _stgCollect(4);
+  const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
+  if(!_dat.nome){_toast('Nome é obrigatório',true);_stgGo(1);return;}
+
+  const btn=document.getElementById('btn-finalizar');
+  if(btn){btn.disabled=true;btn.textContent='Salvando...';}
+
+  const table=proj==='oculos'?'pacientes_oculos':'pacientes_fibro';
+
+  const payload={
+    nome:_dat.nome,
+    whatsapp:_dat.whatsapp||null,
+    idade:_dat.idade||null,
+    observacoes:document.getElementById('s4-obs')?.value.trim()||null,
+    cadastrado_por:typeof currentUser!=='undefined'?currentUser.id:null,
+  };
+
+  if(proj==='fibro'){
+    Object.assign(payload,{
+      sintomas:_dat.sintomas||null,
+      tempo_sintomas:_dat.tempo_sintomas||null,
+      medicacoes:_dat.medicacoes||null,
+      nivel_dor:_dat.nivel_dor!=null?_dat.nivel_dor:null,
+      pontos_dor:_dat.pontos_dor||null,
+      data_consulta:_dat.data_consulta||null,
+      proximo_retorno:document.getElementById('s4-retorno')?.value||null,
+    });
+  } else {
+    Object.assign(payload,{
+      grau_od:_dat.grau_od||null,
+      grau_oe:_dat.grau_oe||null,
+      adicao:_dat.adicao||null,
+      nome_medico:_dat.nome_medico||null,
+      armacao:_dat.armacao||null,
+      tipo_lente:_dat.tipo_lente||null,
+      tratamentos_lente:_dat.tratamentos_lente||null,
+      valor_pedido:_dat.valor_pedido||null,
+      status_pedido:document.getElementById('s4-status')?.value||'aguardando',
+      data_entrega:document.getElementById('s4-entrega')?.value||null,
+    });
+  }
+
+  /* Remove campos com coluna potencialmente faltando — tenta inserir, se falhar remove e tenta sem */
+  const newCols = proj==='fibro'
+    ? ['tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
+    : ['adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
+
+  let {error} = await sb.from(table).insert(payload);
+
+  if(error && error.message && error.message.includes('column')) {
+    /* Coluna nova não existe ainda — remove e tenta sem ela */
+    const clean={...payload};
+    newCols.forEach(c=>delete clean[c]);
+    const r2 = await sb.from(table).insert(clean);
+    error = r2.error;
+    if(!error) {
+      _toast('Salvo (algumas colunas novas ainda não existem no banco)', false);
+    }
+  }
+
+  if(btn){btn.disabled=false;btn.textContent=proj==='oculos'?'✅ Finalizar Pedido':'✅ Finalizar Cadastro';}
+
+  if(error){_toast('Erro: '+error.message,true);console.error(error);return;}
+
+  _toast(proj==='oculos'?'Pedido cadastrado com sucesso!':'Paciente cadastrado com sucesso!');
+  _stg=1;_dat={};
+  buildNovoForm(proj);
+  if(typeof loadData==='function') loadData();
+};
+
+/* ---- Cor do slider de dor ---- */
+window._dorColor = function(v) {
+  v=parseInt(v);
+  const el=document.getElementById('s3-dor-display');
+  const cols=['#4ade80','#4ade80','#84cc16','#84cc16','#eab308','#f97316','#f97316','#ef4444','#dc2626','#b91c1c','#991b1b'];
+  if(el){el.textContent=v;el.style.color=cols[v]||'#4ade80';}
+  const sl=document.getElementById('s3-dor');
+  if(sl)sl.style.background=`linear-gradient(to right,${cols[v]||'#4ade80'} ${v*10}%,rgba(0,200,83,.2) ${v*10}%)`;
+};
+
+/* ---- Toast helper ---- */
+function _toast(msg,isErr){
+  if(typeof showToast==='function')showToast(msg,isErr);
+  else console.log(msg);
+}
+
+/* ---- 5. Fix do switch de projeto: rebuild form e update textos ---- */
+const _prevSwitchMega = window.switchProject;
+window.switchProject = function(proj, btn) {
+  if(typeof _prevSwitchMega==='function') _prevSwitchMega(proj,btn);
+  /* Rebuild o formulário completo para o novo projeto */
+  buildNovoForm(proj);
+  /* Atualiza título na seção de cadastros */
+  const pc=document.querySelector('#sec-cadastros .page-title');
+  if(pc)pc.textContent=(proj==='oculos'?'Óculos':'Fibromialgia')+' — Registros';
+  const ps=document.querySelector('#sec-cadastros .page-subtitle');
+  if(ps)ps.textContent='Cadastros registrados — '+(proj==='oculos'?'Óculos':'Fibromialgia');
+};
+
+/* ---- 6. Inicializar quando o app estiver pronto ---- */
+function _megaInit(){
+  if(typeof currentProfile==='undefined'||!currentProfile)return false;
+  const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
+  buildNovoForm(proj);
+  /* Ativa aba "Novo Cadastro" para rebuild quando clicada */
+  document.querySelectorAll('[data-section="novo"]').forEach(navItem=>{
+    const orig=navItem.onclick;
+    navItem.onclick=function(e){
+      if(typeof orig==='function')orig.call(this,e);
+      setTimeout(()=>buildNovoForm(typeof currentProject!=='undefined'?currentProject:'fibro'),50);
+    };
+  });
+  return true;
+}
+if(!_megaInit()){
+  const _t=setInterval(()=>{if(_megaInit())clearInterval(_t);},400);
+  setTimeout(()=>clearInterval(_t),25000);
+}
+
+})();
+</script>
+
 </body>
 </html>
