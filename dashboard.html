@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dr. Malaquias — Dashboard Analytics</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0D0900;--bg2:#1A1200;--bg3:#261A00;--bg4:#332300;--gold:#D4AF37;--gold2:#FFD700;--gold3:#B8860B;--gold4:#8B6914;--w:#FFF;--w2:#F5E6B8;--w3:#C9A85C;--w4:#7A6030;--brd:rgba(212,175,55,.2);--brd2:rgba(212,175,55,.1);--r:#FF4D6D;--g:#00E676;--y:#FFD60A;}
+[data-theme="light"]{--bg:#FBF6E9;--bg2:#FFF;--bg3:#F5EDD6;--bg4:#EDE0C0;--w:#1A1000;--w2:#3D2800;--w3:#7A5A20;--w4:#B8960A;--brd:rgba(180,140,30,.3);--brd2:rgba(180,140,30,.15);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--w);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden;transition:background .3s,color .3s;}
+::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-thumb{background:var(--gold4);border-radius:2px;}
+body::after{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(212,175,55,.003) 3px,rgba(212,175,55,.003) 4px);}
+.gold-strip{height:4px;background:linear-gradient(90deg,#3D2800,var(--gold3),var(--gold2),var(--gold),var(--gold3),#3D2800);box-shadow:0 0 18px rgba(255,215,0,.5);}
+nav{position:sticky;top:0;z-index:200;height:62px;background:rgba(13,9,0,.94);backdrop-filter:blur(20px);border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;gap:1rem;}
+[data-theme="light"] nav{background:rgba(251,246,233,.95);}
+.nav-brand{display:flex;align-items:center;gap:.7rem;flex-shrink:0;}
+.nav-logo{width:36px;height:36px;border-radius:10px;background:rgba(212,175,55,.1);border:1px solid rgba(212,175,55,.3);display:grid;place-items:center;}
+.nav-title{font-family:'Space Grotesk',sans-serif;font-size:.9rem;font-weight:800;color:var(--w);}
+.nav-sub{font-size:.52rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-top:.1rem;}
+.nav-links{display:flex;gap:.2rem;}
+.nav-link{padding:.38rem .9rem;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;border:none;background:none;color:var(--w3);transition:all .2s;text-decoration:none;font-family:'Inter',sans-serif;}
+.nav-link:hover{color:var(--w);background:rgba(212,175,55,.08);}
+.nav-link.active{color:var(--gold);background:rgba(212,175,55,.12);border:1px solid var(--brd);}
+.proj-switch{display:flex;gap:4px;background:var(--bg3);border:1px solid var(--brd);border-radius:10px;padding:3px;}
+.proj-btn{padding:.32rem .85rem;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;border:none;background:none;color:var(--w3);transition:all .2s;font-family:'Space Grotesk',sans-serif;}
+.proj-btn.active{background:var(--gold);color:#0D0900;}
+.nav-right{display:flex;align-items:center;gap:.6rem;flex-shrink:0;}
+.admin-badge{font-family:'Space Grotesk',sans-serif;font-size:.62rem;font-weight:700;color:var(--gold);background:rgba(212,175,55,.1);border:1px solid rgba(212,175,55,.3);padding:.22rem .7rem;border-radius:50px;letter-spacing:.08em;}
+.btn-icon{width:34px;height:34px;border-radius:8px;border:1px solid var(--brd);background:var(--bg3);cursor:pointer;display:grid;place-items:center;transition:all .2s;color:var(--w3);}
+.btn-icon:hover{border-color:var(--gold);color:var(--gold);}
+.btn-logout{background:none;border:1px solid rgba(255,77,109,.3);color:var(--r);padding:.32rem .8rem;border-radius:8px;font-size:.72rem;font-weight:600;cursor:pointer;transition:all .2s;}
+.btn-logout:hover{background:rgba(255,77,109,.1);}
+
+main{padding:1.5rem;max-width:1600px;margin:0 auto;}
+
+/* FILTERS */
+.filters{display:flex;align-items:center;gap:.6rem;margin-bottom:1.5rem;flex-wrap:wrap;}
+.filter-label{font-size:.7rem;color:var(--w3);font-weight:600;}
+.filter-btn{padding:.36rem .9rem;border-radius:8px;border:1px solid var(--brd);background:none;color:var(--w3);font-size:.72rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:'Inter',sans-serif;}
+.filter-btn:hover{border-color:var(--gold);color:var(--gold);}
+.filter-btn.active{background:var(--gold);color:#0D0900;border-color:var(--gold);}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.75rem;}
+@media(max-width:900px){.kpi-grid{grid-template-columns:1fr 1fr;}}
+.kpi{background:var(--bg2);border:1px solid var(--brd);border-radius:16px;padding:1.3rem 1.5rem;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s;}
+.kpi:hover{transform:translateY(-2px);}
+.kpi::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(212,175,55,.04),transparent);pointer-events:none;}
+.kpi-icon{font-size:1.5rem;margin-bottom:.5rem;}
+.kpi-val{font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:800;line-height:1;color:var(--gold);}
+.kpi-label{font-size:.63rem;color:var(--w3);margin-top:.3rem;letter-spacing:.06em;text-transform:uppercase;}
+.kpi-delta{font-size:.65rem;font-weight:600;margin-top:.3rem;color:var(--w3);}
+
+/* CHARTS */
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;}
+@media(max-width:900px){.charts-grid{grid-template-columns:1fr;}}
+.chart-card{background:var(--bg2);border:1px solid var(--brd);border-radius:16px;padding:1.2rem;}
+.chart-title{font-family:'Space Grotesk',sans-serif;font-size:.82rem;font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;}
+.chart-title::before{content:'';width:3px;height:.85rem;background:var(--gold);border-radius:2px;}
+.chart-wrap{position:relative;height:240px;}
+
+/* RANKING */
+.ranking-card{background:var(--bg2);border:1px solid var(--brd);border-radius:16px;overflow:hidden;}
+.ranking-header{padding:1rem 1.2rem;border-bottom:1px solid var(--brd);font-family:'Space Grotesk',sans-serif;font-size:.82rem;font-weight:700;display:flex;align-items:center;gap:.5rem;}
+.ranking-header::before{content:'';width:3px;height:.85rem;background:var(--gold);border-radius:2px;}
+.rank-item{display:flex;align-items:center;gap:.8rem;padding:.75rem 1.2rem;border-bottom:1px solid var(--brd2);transition:background .2s;}
+.rank-item:last-child{border-bottom:none;}
+.rank-item:hover{background:rgba(212,175,55,.03);}
+.rank-pos{font-family:'Space Grotesk',sans-serif;font-size:.75rem;font-weight:800;width:24px;color:var(--gold);}
+.rank-pos.gold{color:#FFD700;}
+.rank-pos.silver{color:#C0C0C0;}
+.rank-pos.bronze{color:#CD7F32;}
+.rank-info{flex:1;}
+.rank-name{font-size:.82rem;font-weight:600;}
+.rank-sub{font-size:.65rem;color:var(--w3);margin-top:.1rem;}
+.rank-bar{flex:1;max-width:200px;}
+.bar-bg{height:6px;border-radius:3px;background:var(--brd);overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--gold3),var(--gold2));}
+.rank-count{font-family:'Space Grotesk',sans-serif;font-size:.8rem;font-weight:700;color:var(--gold);min-width:30px;text-align:right;}
+
+/* LOADER */
+.page-loader{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:9000;}
+.page-loader.hide{display:none;}
+.spinner{width:42px;height:42px;border:3px solid var(--brd);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<div class="page-loader" id="pageLoader"><div class="spinner"></div></div>
+<div class="gold-strip"></div>
+
+<nav>
+  <div class="nav-brand">
+    <div class="nav-logo">
+      <svg width="20" height="20" viewBox="0 0 40 40" fill="none">
+        <rect x="16" y="4" width="8" height="20" rx="2" fill="rgba(212,175,55,.15)" stroke="#D4AF37" stroke-width="1.5"/>
+        <rect x="8" y="12" width="24" height="8" rx="2" fill="rgba(212,175,55,.15)" stroke="#D4AF37" stroke-width="1.5"/>
+        <path d="M10 28 Q10 36 18 36 Q26 36 26 28" stroke="#D4AF37" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <circle cx="26" cy="28" r="2.5" fill="#D4AF37" opacity=".6"/>
+      </svg>
+    </div>
+    <div><div class="nav-title">Dr. Malaquias</div><div class="nav-sub">Dashboard</div></div>
+  </div>
+  <div class="nav-links">
+    <a class="nav-link" href="admin.html">🏠 Visão Geral</a>
+    <a class="nav-link active" href="dashboard.html">📊 Dashboard</a>
+    <a class="nav-link" href="relatorios.html">📋 Relatórios</a>
+  </div>
+  <div class="proj-switch">
+    <button class="proj-btn active" id="btn-fibro" onclick="switchProject('fibromialgia')">🫀 Fibromialgia</button>
+    <button class="proj-btn" id="btn-oculos" onclick="switchProject('oculos')">👓 Óculos</button>
+  </div>
+  <div class="nav-right">
+    <div class="admin-badge" id="adminBadge">—</div>
+    <button class="btn-icon" onclick="toggleTheme()">☀️</button>
+    <button class="btn-logout" onclick="logout()">Sair</button>
+  </div>
+</nav>
+
+<main>
+  <div class="filters">
+    <span class="filter-label">Período:</span>
+    <button class="filter-btn active" id="f-hoje" onclick="setPeriod(1,'f-hoje')">Hoje</button>
+    <button class="filter-btn" id="f-7" onclick="setPeriod(7,'f-7')">7 dias</button>
+    <button class="filter-btn" id="f-30" onclick="setPeriod(30,'f-30')">30 dias</button>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-icon">👥</div><div class="kpi-val" id="kpi-total">—</div><div class="kpi-label">Total no Período</div><div class="kpi-delta" id="kd-total">—</div></div>
+    <div class="kpi"><div class="kpi-icon">🎯</div><div class="kpi-val" id="kpi-media-dor">—</div><div class="kpi-label">Média de Dor</div><div class="kpi-delta" id="kd-dor">escala 1-10</div></div>
+    <div class="kpi"><div class="kpi-icon">📅</div><div class="kpi-val" id="kpi-hoje">—</div><div class="kpi-label">Hoje</div><div class="kpi-delta" id="kd-hoje">—</div></div>
+    <div class="kpi"><div class="kpi-icon">📍</div><div class="kpi-val" id="kpi-ativos">—</div><div class="kpi-label">Pontos Ativos</div><div class="kpi-delta" id="kd-ativos">no período</div></div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">Cadastros por Ponto</div>
+      <div class="chart-wrap"><canvas id="chartBar"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Evolução de Cadastros</div>
+      <div class="chart-wrap"><canvas id="chartLine"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Distribuição por Nível de Dor</div>
+      <div class="chart-wrap" style="height:220px;display:flex;align-items:center;justify-content:center;"><canvas id="chartPie" style="max-height:200px;max-width:200px;"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Tendência Semanal</div>
+      <div class="chart-wrap"><canvas id="chartArea"></canvas></div>
+    </div>
+  </div>
+
+  <div class="ranking-card">
+    <div class="ranking-header">🏆 Ranking — Pontos Mais Ativos</div>
+    <div id="rankingList"></div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const SUPA_URL='https://vuylzbefjwbtibhnczih.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ1eWx6YmVmandidGliaG5jemloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxMDUxNTIsImV4cCI6MjA5MzY4MTE1Mn0.c2SJ6Yw7O5bGK8lqBtDFkiWke2UNX4I9NJiJ25xprBM';
+const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
+
+let activeProject='fibromialgia';
+let periodDays=1;
+let allData=[];
+let pontosData=[];
+let charts={};
+
+Chart.defaults.color='#C9A85C';
+Chart.defaults.borderColor='rgba(212,175,55,.1)';
+Chart.defaults.font.family='Inter';
+
+(async()=>{
+  const theme=localStorage.getItem('adminTheme')||'dark';
+  document.documentElement.setAttribute('data-theme',theme);
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){window.location.href='index.html';return;}
+  const {data:prof}=await sb.from('profiles').select('*').eq('id',session.user.id).single();
+  if(!prof||prof.papel!=='admin'){window.location.href='index.html';return;}
+  document.getElementById('adminBadge').textContent=prof.nome||prof.email;
+  document.getElementById('pageLoader').classList.add('hide');
+  await loadAll();
+})();
+
+async function loadAll(){
+  const table=activeProject==='fibromialgia'?'pacientes_fibro':'pacientes_oculos';
+  const [{data:pontos},{data:patients}]=await Promise.all([
+    sb.from('profiles').select('id,nome,numero_ponto,tipo_ponto,nome_editavel').eq('papel','colaborador').eq('projeto',activeProject).order('numero_ponto'),
+    sb.from(table).select('*').order('created_at',{ascending:false}).limit(2000)
+  ]);
+  pontosData=pontos||[];
+  allData=patients||[];
+  renderAll();
+}
+
+function getFiltered(){
+  const cutoff=new Date();
+  cutoff.setDate(cutoff.getDate()-periodDays);
+  cutoff.setHours(0,0,0,0);
+  return allData.filter(p=>p.created_at&&new Date(p.created_at)>=cutoff);
+}
+
+function renderAll(){
+  const data=getFiltered();
+  renderKPIs(data);
+  renderCharts(data);
+  renderRanking(data);
+}
+
+function renderKPIs(data){
+  const hoje=new Date().toISOString().split('T')[0];
+  const todayCnt=allData.filter(p=>p.created_at&&p.created_at.startsWith(hoje)).length;
+  const dorVals=data.filter(p=>p.nivel_dor!=null).map(p=>p.nivel_dor);
+  const mediaDor=dorVals.length?Math.round(dorVals.reduce((a,b)=>a+b,0)/dorVals.length*10)/10:0;
+  const ativos=new Set(data.map(p=>p.ponto_id)).size;
+  animNum('kpi-total',data.length);
+  document.getElementById('kpi-media-dor').textContent=mediaDor.toFixed(1);
+  animNum('kpi-hoje',todayCnt);
+  animNum('kpi-ativos',ativos);
+  document.getElementById('kd-total').textContent='nos últimos '+(periodDays===1?'hoje':periodDays+' dias');
+}
+
+function renderCharts(data){
+  destroyCharts();
+  const isDark=document.documentElement.getAttribute('data-theme')==='dark';
+  const gridColor=isDark?'rgba(212,175,55,.08)':'rgba(180,140,30,.12)';
+
+  // BAR - cadastros por ponto
+  const pontoMap={};
+  pontosData.forEach(p=>pontoMap[p.id]={nome:p.nome_editavel||p.nome,num:p.numero_ponto,cnt:0});
+  data.forEach(p=>{if(pontoMap[p.ponto_id])pontoMap[p.ponto_id].cnt++;});
+  const sorted=Object.values(pontoMap).sort((a,b)=>b.cnt-a.cnt).slice(0,10);
+  charts.bar=new Chart(document.getElementById('chartBar'),{type:'bar',data:{labels:sorted.map(p=>'P'+String(p.num).padStart(2,'0')),datasets:[{label:'Cadastros',data:sorted.map(p=>p.cnt),backgroundColor:'rgba(212,175,55,.3)',borderColor:'#D4AF37',borderWidth:1.5,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gridColor}},y:{grid:{color:gridColor},beginAtZero:true,ticks:{stepSize:1}}}}});
+
+  // LINE - evolução diária
+  const days=[];const counts=[];
+  for(let i=Math.min(periodDays,14)-1;i>=0;i--){
+    const d=new Date();d.setDate(d.getDate()-i);const ds=d.toISOString().split('T')[0];
+    days.push(d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}));
+    counts.push(data.filter(p=>p.created_at&&p.created_at.startsWith(ds)).length);
+  }
+  charts.line=new Chart(document.getElementById('chartLine'),{type:'line',data:{labels:days,datasets:[{label:'Cadastros',data:counts,borderColor:'#D4AF37',backgroundColor:'rgba(212,175,55,.1)',fill:true,tension:.4,pointBackgroundColor:'#D4AF37',pointRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gridColor}},y:{grid:{color:gridColor},beginAtZero:true,ticks:{stepSize:1}}}}});
+
+  // PIE - distribuição dor
+  const dorGroups=[0,0,0];
+  data.forEach(p=>{if(p.nivel_dor<=3)dorGroups[0]++;else if(p.nivel_dor<=6)dorGroups[1]++;else if(p.nivel_dor<=10)dorGroups[2]++;});
+  charts.pie=new Chart(document.getElementById('chartPie'),{type:'doughnut',data:{labels:['Leve (1-3)','Moderado (4-6)','Alta (7-10)'],datasets:[{data:dorGroups,backgroundColor:['rgba(0,230,118,.5)','rgba(255,214,10,.5)','rgba(255,77,109,.5)'],borderColor:['#00E676','#FFD60A','#FF4D6D'],borderWidth:1.5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{padding:12,font:{size:11}}}}}});
+
+  // AREA - tendência semanal (últimas 4 semanas)
+  const weeks=[];const weekCounts=[];
+  for(let w=3;w>=0;w--){
+    const start=new Date();start.setDate(start.getDate()-w*7-6);start.setHours(0,0,0,0);
+    const end=new Date();end.setDate(end.getDate()-w*7);end.setHours(23,59,59,999);
+    weeks.push('Sem '+(4-w));
+    weekCounts.push(allData.filter(p=>p.created_at&&new Date(p.created_at)>=start&&new Date(p.created_at)<=end).length);
+  }
+  charts.area=new Chart(document.getElementById('chartArea'),{type:'line',data:{labels:weeks,datasets:[{label:'Atendimentos',data:weekCounts,borderColor:'#B8860B',backgroundColor:'rgba(184,134,11,.15)',fill:true,tension:.4,pointBackgroundColor:'#B8860B',pointRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gridColor}},y:{grid:{color:gridColor},beginAtZero:true,ticks:{stepSize:1}}}}});
+}
+
+function renderRanking(data){
+  const pontoMap={};
+  pontosData.forEach(p=>pontoMap[p.id]={nome:p.nome_editavel||p.nome,num:p.numero_ponto,cnt:0});
+  data.forEach(p=>{if(pontoMap[p.ponto_id])pontoMap[p.ponto_id].cnt++;});
+  const sorted=Object.values(pontoMap).sort((a,b)=>b.cnt-a.cnt);
+  const max=sorted[0]?.cnt||1;
+  const medals=['gold','silver','bronze'];
+  document.getElementById('rankingList').innerHTML=sorted.slice(0,10).map((p,i)=>`
+    <div class="rank-item">
+      <div class="rank-pos ${medals[i]||''}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</div>
+      <div class="rank-info"><div class="rank-name">Ponto ${String(p.num).padStart(2,'0')} — ${p.nome}</div><div class="rank-sub">${p.cnt} cadastro${p.cnt!==1?'s':''}</div></div>
+      <div class="rank-bar"><div class="bar-bg"><div class="bar-fill" style="width:${Math.round(p.cnt/max*100)}%"></div></div></div>
+      <div class="rank-count">${p.cnt}</div>
+    </div>`).join('');
+}
+
+function destroyCharts(){Object.values(charts).forEach(c=>c.destroy());charts={};}
+
+function setPeriod(d,btnId){
+  periodDays=d;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(btnId).classList.add('active');
+  renderAll();
+}
+
+function switchProject(proj){
+  activeProject=proj;
+  document.getElementById('btn-fibro').classList.toggle('active',proj==='fibromialgia');
+  document.getElementById('btn-oculos').classList.toggle('active',proj==='oculos');
+  loadAll();
+}
+
+function toggleTheme(){const c=document.documentElement.getAttribute('data-theme');const n=c==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',n);localStorage.setItem('adminTheme',n);destroyCharts();setTimeout(renderAll,50);}
+async function logout(){await sb.auth.signOut();window.location.href='index.html';}
+function animNum(id,target){const el=document.getElementById(id);if(!el)return;const dur=500,st=Date.now();(function t(){const p=Math.min((Date.now()-st)/dur,1);el.textContent=Math.round(target*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(t);})();}
+</script>
+</body>
+</html>

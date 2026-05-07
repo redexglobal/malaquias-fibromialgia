@@ -1,473 +1,94 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Dr. Malaquias — Projeto Fibromialgia</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dr. Malaquias — Acesso ao Sistema</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{
-  --bg:#010D05;--bg2:#021508;--bg3:#031e0a;--bg4:#042812;
-  --c:#00E676;--c2:#00C853;--c3:#69F0AE;
-  --w:#FFFFFF;--w2:#C8F0D8;--w3:#7DB89A;--w4:#3D6B4A;
-  --brd:rgba(0,230,118,.18);
-  --r:#FF4D6D;--y:#FFD60A;
-}
+:root{--bg:#010D05;--bg2:#021508;--bg3:#031e0a;--c:#00E676;--c3:#69F0AE;--w:#fff;--w3:#7DB89A;--w4:#3D6B4A;--brd:rgba(0,230,118,.18);--r:#FF4D6D;}
 *{margin:0;padding:0;box-sizing:border-box;}
-html{scroll-behavior:smooth;}
-body{background:var(--bg);color:var(--w);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden;}
-::-webkit-scrollbar{width:4px;}
-::-webkit-scrollbar-track{background:var(--bg);}
-::-webkit-scrollbar-thumb{background:rgba(0,230,118,.35);border-radius:2px;}
-
-nav{position:sticky;top:0;z-index:200;height:64px;background:rgba(1,13,5,.94);backdrop-filter:blur(20px);border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between;padding:0 2rem;}
-.nav-brand{display:flex;align-items:center;gap:.85rem;}
-.nav-icon{display:flex;align-items:center;filter:drop-shadow(0 0 10px rgba(0,230,118,.6));}
-.nav-text .title{font-family:'Space Grotesk',sans-serif;font-size:1rem;font-weight:800;letter-spacing:.04em;color:var(--w);}
-.nav-text .sub{font-family:'Space Grotesk',sans-serif;font-size:.58rem;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--c);margin-top:1px;}
-.nav-tabs{display:flex;gap:.2rem;}
-.nav-tab{padding:.42rem 1.1rem;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer;border:none;background:none;color:var(--w3);transition:all .2s;}
-.nav-tab:hover{color:var(--w);background:rgba(0,230,118,.06);}
-.nav-tab.active{color:var(--c);background:rgba(0,230,118,.1);border:1px solid var(--brd);}
-.nav-right{display:flex;align-items:center;gap:.6rem;}
-.nav-ponto{font-family:'Space Grotesk',sans-serif;font-size:.62rem;font-weight:700;color:var(--c);background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.25);padding:.25rem .75rem;border-radius:50px;letter-spacing:.1em;}
-.btn-novo{background:var(--c);border:none;color:#010D05;font-size:.75rem;font-weight:800;padding:.45rem 1.2rem;border-radius:8px;cursor:pointer;font-family:'Space Grotesk',sans-serif;letter-spacing:.06em;transition:all .2s;}
-.btn-novo:hover{background:var(--c3);box-shadow:0 0 20px rgba(0,230,118,.4);}
-
-.view{display:none;padding:1.5rem 2rem 3rem;}
-.view.active{display:block;}
-
-.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.75rem;}
-@media(max-width:900px){.kpi-grid{grid-template-columns:1fr 1fr;}}
-.kpi{background:var(--bg2);border:1px solid var(--brd);border-radius:16px;padding:1.3rem 1.5rem;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s;}
-.kpi:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,230,118,.08);}
-.kpi::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,230,118,.05),transparent);pointer-events:none;}
-.kpi-icon{font-size:1.5rem;margin-bottom:.5rem;}
-.kpi-val{font-family:'Space Grotesk',sans-serif;font-size:2.1rem;font-weight:800;line-height:1;color:var(--kc,var(--c));}
-.kpi-label{font-size:.68rem;color:var(--w3);margin-top:.3rem;letter-spacing:.06em;text-transform:uppercase;}
-.kpi-delta{font-size:.67rem;font-weight:600;margin-top:.35rem;}
-.kpi-delta.up{color:var(--c);}
-.kpi-delta.dn{color:var(--r);}
-
-.section-title{font-family:'Space Grotesk',sans-serif;font-size:.95rem;font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:.6rem;color:var(--w);}
-.section-title::before{content:'';width:3px;height:1rem;background:var(--c);border-radius:2px;box-shadow:0 0 8px rgba(0,230,118,.5);}
-
-.pontos-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:.7rem;margin-bottom:1.75rem;}
-@media(max-width:900px){.pontos-grid{grid-template-columns:repeat(4,1fr);}}
-@media(max-width:600px){.pontos-grid{grid-template-columns:repeat(3,1fr);}}
-.ponto-card{background:var(--bg2);border:1px solid var(--brd);border-radius:12px;padding:.9rem;text-align:center;cursor:pointer;transition:all .22s;position:relative;}
-.ponto-card:hover{border-color:var(--c);background:rgba(0,230,118,.05);transform:translateY(-2px);}
-.ponto-num{font-family:'Space Grotesk',sans-serif;font-size:1.15rem;font-weight:800;color:var(--c);}
-.ponto-name{font-size:.58rem;color:var(--w3);margin-top:.15rem;letter-spacing:.04em;}
-.ponto-count{font-size:.7rem;font-weight:600;color:var(--w2);margin-top:.3rem;}
-.ponto-status{position:absolute;top:.45rem;right:.45rem;width:7px;height:7px;border-radius:50%;}
-.ponto-status.ok{background:var(--c);box-shadow:0 0 6px var(--c);}
-.ponto-status.med{background:var(--y);box-shadow:0 0 6px var(--y);}
-.ponto-status.zero{background:var(--w4);}
-
-.table-wrap{background:var(--bg2);border:1px solid var(--brd);border-radius:16px;overflow:hidden;}
-.table-head{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.4rem;border-bottom:1px solid var(--brd);}
-.table-head h3{font-family:'Space Grotesk',sans-serif;font-size:.88rem;font-weight:700;color:var(--w);}
-.tbl{width:100%;border-collapse:collapse;}
-.tbl th{font-size:.58rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--w3);padding:.8rem 1.4rem;text-align:left;border-bottom:1px solid var(--brd);}
-.tbl td{font-size:.82rem;padding:.72rem 1.4rem;border-bottom:1px solid rgba(0,230,118,.05);color:var(--w);}
-.tbl tr:last-child td{border-bottom:none;}
-.tbl tr:hover td{background:rgba(0,230,118,.03);}
-.badge{font-size:.6rem;font-weight:700;padding:.17rem .55rem;border-radius:50px;letter-spacing:.05em;}
-.badge-triagem{background:rgba(0,230,118,.1);color:var(--c);border:1px solid rgba(0,230,118,.25);}
-.badge-completo{background:rgba(255,255,255,.08);color:var(--w);border:1px solid rgba(255,255,255,.2);}
-.btn-ver{font-size:.67rem;font-weight:600;color:var(--c);background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.2);padding:.2rem .6rem;border-radius:6px;cursor:pointer;transition:all .2s;}
-.btn-ver:hover{background:rgba(0,230,118,.16);}
-
-.stepper-wrap{max-width:780px;margin:0 auto;}
-.stepper{display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:2.5rem;}
-.step{display:flex;align-items:center;gap:.5rem;}
-.step-circle{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-size:.85rem;font-weight:800;border:2px solid var(--w4);color:var(--w4);transition:all .3s;}
-.step-circle.done{background:var(--c);border-color:var(--c);color:#010D05;}
-.step-circle.active{background:var(--c);border-color:var(--c);color:#010D05;box-shadow:0 0 18px rgba(0,230,118,.45);}
-.step-label{font-size:.68rem;font-weight:600;color:var(--w4);transition:color .3s;white-space:nowrap;}
-.step-label.active{color:var(--c);}
-.step-label.done{color:var(--c3);}
-.step-line{width:60px;height:2px;background:var(--w4);margin:0 .5rem;transition:background .3s;flex-shrink:0;}
-.step-line.done{background:var(--c);}
-@media(max-width:600px){.step-line{width:28px;}.step-label{display:none;}}
-
-.form-panel{background:var(--bg2);border:1px solid var(--brd);border-radius:20px;padding:2rem;display:none;}
-.form-panel.active{display:block;}
-.form-title{font-family:'Space Grotesk',sans-serif;font-size:1.15rem;font-weight:700;margin-bottom:1.5rem;display:flex;align-items:center;gap:.7rem;color:var(--w);}
-.form-title .icon{width:36px;height:36px;border-radius:10px;background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.25);display:flex;align-items:center;justify-content:center;font-size:1.1rem;}
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.2rem;}
-@media(max-width:600px){.form-grid{grid-template-columns:1fr;}}
-.form-group{display:flex;flex-direction:column;gap:.38rem;}
-.form-group.full{grid-column:span 2;}
-@media(max-width:600px){.form-group.full{grid-column:span 1;}}
-label{font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c);}
-input,select,textarea{background:var(--bg3);border:1px solid rgba(0,230,118,.18);color:var(--w);border-radius:10px;padding:.62rem .9rem;font-size:.87rem;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s;resize:none;}
-input:focus,select:focus,textarea:focus{border-color:var(--c);box-shadow:0 0 10px rgba(0,230,118,.15);}
-input::placeholder,textarea::placeholder{color:var(--w4);}
-select option{background:var(--bg3);}
-
-.ponto-selector{display:grid;grid-template-columns:repeat(10,1fr);gap:.38rem;margin-bottom:1.5rem;}
-@media(max-width:700px){.ponto-selector{grid-template-columns:repeat(5,1fr);}}
-.ps-btn{padding:.48rem;border-radius:8px;background:var(--bg3);border:1px solid var(--brd);color:var(--w3);font-size:.73rem;font-weight:700;cursor:pointer;text-align:center;transition:all .2s;font-family:'Space Grotesk',sans-serif;}
-.ps-btn:hover{border-color:rgba(0,230,118,.4);color:var(--w);}
-.ps-btn.sel{background:rgba(0,230,118,.1);border-color:var(--c);color:var(--c);}
-
-.dor-scale{display:flex;gap:.45rem;flex-wrap:wrap;margin-top:.5rem;}
-.dor-btn{width:42px;height:42px;border-radius:10px;border:1px solid var(--w4);background:none;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:.9rem;font-weight:700;color:var(--w3);transition:all .2s;}
-.dor-btn:hover{border-color:var(--c);}
-.dor-btn.d-low{background:rgba(0,230,118,.15);border-color:var(--c);color:var(--c);}
-.dor-btn.d-mid{background:rgba(255,214,10,.12);border-color:var(--y);color:var(--y);}
-.dor-btn.d-high{background:rgba(255,77,109,.15);border-color:var(--r);color:var(--r);}
-
-.proto-options{display:grid;grid-template-columns:repeat(2,1fr);gap:.75rem;margin-top:.5rem;}
-.proto-opt{background:var(--bg3);border:1px solid rgba(0,230,118,.15);border-radius:12px;padding:1rem;cursor:pointer;transition:all .2s;}
-.proto-opt:hover{border-color:rgba(0,230,118,.4);}
-.proto-opt.sel{border-color:var(--c);background:rgba(0,230,118,.08);box-shadow:0 0 14px rgba(0,230,118,.12);}
-.proto-opt h4{font-family:'Space Grotesk',sans-serif;font-size:.85rem;font-weight:700;margin-bottom:.2rem;color:var(--w);}
-.proto-opt p{font-size:.72rem;color:var(--w3);line-height:1.5;}
-
-.form-actions{display:flex;gap:.75rem;justify-content:flex-end;margin-top:1.5rem;}
-.btn-back{background:none;border:1px solid var(--brd);color:var(--w3);padding:.62rem 1.5rem;border-radius:10px;cursor:pointer;font-size:.84rem;font-weight:600;transition:all .2s;}
-.btn-back:hover{border-color:rgba(0,230,118,.3);color:var(--w);}
-.btn-next{background:var(--c);border:none;color:#010D05;padding:.62rem 1.75rem;border-radius:10px;cursor:pointer;font-size:.84rem;font-weight:800;font-family:'Space Grotesk',sans-serif;letter-spacing:.05em;transition:all .2s;}
-.btn-next:hover{background:var(--c3);box-shadow:0 0 18px rgba(0,230,118,.35);}
-.btn-save{background:var(--w);border:none;color:#010D05;padding:.62rem 1.75rem;border-radius:10px;cursor:pointer;font-size:.84rem;font-weight:800;font-family:'Space Grotesk',sans-serif;letter-spacing:.05em;transition:all .2s;}
-.btn-save:hover{background:var(--w2);box-shadow:0 0 18px rgba(255,255,255,.2);}
-
-.success-box{text-align:center;padding:3rem 2rem;background:var(--bg2);border:1px solid rgba(0,230,118,.3);border-radius:20px;display:none;}
-.success-box.show{display:block;}
-.success-icon{font-size:3.5rem;margin-bottom:.75rem;}
-.success-box h2{font-family:'Space Grotesk',sans-serif;font-size:1.5rem;font-weight:800;color:var(--c);margin-bottom:.4rem;}
-.success-box p{color:var(--w3);font-size:.9rem;margin-bottom:1.5rem;}
-
-.relatorio-header{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.75rem;}
-.rel-card{background:var(--bg2);border:1px solid var(--brd);border-radius:16px;padding:1.4rem;}
-.rel-card h3{font-family:'Space Grotesk',sans-serif;font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--w3);margin-bottom:.6rem;}
-.rel-val{font-family:'Space Grotesk',sans-serif;font-size:2.4rem;font-weight:800;line-height:1;color:var(--c);}
-.rel-val.white{color:var(--w);}
-.rel-period{font-size:.7rem;color:var(--w3);margin-top:.35rem;}
-.pontos-table{background:var(--bg2);border:1px solid var(--brd);border-radius:16px;overflow:hidden;}
-.rel-tbl{width:100%;border-collapse:collapse;}
-.rel-tbl th{font-size:.58rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--w3);padding:.85rem 1.2rem;text-align:left;border-bottom:1px solid var(--brd);background:var(--bg3);}
-.rel-tbl td{font-size:.82rem;padding:.72rem 1.2rem;border-bottom:1px solid rgba(0,230,118,.05);color:var(--w);}
-.rel-tbl tr:last-child td{border-bottom:none;}
-.bar{height:5px;border-radius:3px;background:rgba(0,230,118,.1);overflow:hidden;min-width:80px;}
-.bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--c),var(--c3));}
-.btn-export{background:var(--bg3);border:1px solid var(--brd);color:var(--w3);padding:.55rem 1.2rem;border-radius:9px;cursor:pointer;font-size:.78rem;font-weight:600;transition:all .2s;display:flex;align-items:center;gap:.4rem;}
-.btn-export:hover{border-color:var(--c);color:var(--c);}
-
-body::after{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,230,118,.004) 3px,rgba(0,230,118,.004) 4px);}
+body{background:var(--bg);color:var(--w);font-family:'Inter',sans-serif;min-height:100vh;display:grid;place-items:center;padding:1rem;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(0,230,118,.07),transparent);pointer-events:none;}
+body::after{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,230,118,.003) 3px,rgba(0,230,118,.003) 4px);}
+.card{width:100%;max-width:420px;background:var(--bg2);border:1px solid var(--brd);border-radius:24px;padding:2.8rem 2.5rem;position:relative;overflow:hidden;}
+.card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,230,118,.04),transparent 60%);pointer-events:none;}
+.top{display:flex;flex-direction:column;align-items:center;margin-bottom:2rem;}
+.icon-wrap{width:72px;height:72px;border-radius:20px;background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.2);display:grid;place-items:center;margin-bottom:.9rem;filter:drop-shadow(0 0 20px rgba(0,230,118,.25));}
+.brand{font-family:'Space Grotesk',sans-serif;font-size:1.5rem;font-weight:800;letter-spacing:.04em;}
+.brand-sub{font-size:.58rem;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:var(--c);margin-top:.2rem;}
+.field{margin-bottom:1rem;}
+.field label{display:block;font-size:.58rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--c);margin-bottom:.4rem;}
+.field input{width:100%;background:var(--bg3);border:1px solid var(--brd);color:var(--w);border-radius:10px;padding:.78rem 1rem;font-size:.9rem;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s,box-shadow .2s;}
+.field input:focus{border-color:var(--c);box-shadow:0 0 14px rgba(0,230,118,.12);}
+.field input::placeholder{color:var(--w4);}
+.btn{width:100%;background:var(--c);color:#010D05;border:none;padding:.88rem;border-radius:10px;font-size:.88rem;font-weight:800;font-family:'Space Grotesk',sans-serif;letter-spacing:.08em;cursor:pointer;transition:all .2s;margin-top:.4rem;}
+.btn:hover{background:var(--c3);box-shadow:0 0 28px rgba(0,230,118,.4);}
+.btn:disabled{opacity:.55;cursor:not-allowed;box-shadow:none;}
+.err{background:rgba(255,77,109,.08);border:1px solid rgba(255,77,109,.28);color:var(--r);border-radius:10px;padding:.65rem 1rem;font-size:.8rem;margin-top:.8rem;display:none;}
+.err.show{display:block;}
+.footer{text-align:center;margin-top:1.8rem;font-size:.63rem;color:var(--w4);letter-spacing:.05em;}
+.overlay{position:fixed;inset:0;background:rgba(1,13,5,.9);display:none;place-items:center;z-index:999;}
+.overlay.show{display:grid;}
+.spinner{width:40px;height:40px;border:3px solid var(--brd);border-top-color:var(--c);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
 </style>
 </head>
 <body>
-
-<nav>
-  <div class="nav-brand">
-    <!-- ÍCONE MÉDICO (cruz + esteto) -->
-    <div class="nav-icon">
-      <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-        <!-- Cruz médica -->
+<div class="overlay" id="loader"><div class="spinner"></div></div>
+<div class="card">
+  <div class="top">
+    <div class="icon-wrap">
+      <svg width="36" height="36" viewBox="0 0 40 40" fill="none">
         <rect x="16" y="4" width="8" height="20" rx="2" fill="rgba(0,230,118,.15)" stroke="#00E676" stroke-width="1.5"/>
         <rect x="8" y="12" width="24" height="8" rx="2" fill="rgba(0,230,118,.15)" stroke="#00E676" stroke-width="1.5"/>
-        <!-- Esteto -->
         <path d="M10 28 Q10 36 18 36 Q26 36 26 28" stroke="#00E676" stroke-width="1.5" fill="none" stroke-linecap="round"/>
         <circle cx="26" cy="28" r="2.5" fill="#00E676" opacity=".6"/>
         <circle cx="10" cy="28" r="1.5" fill="#00E676" opacity=".6"/>
       </svg>
     </div>
-    <div class="nav-text">
-      <div class="title">Dr. Malaquias</div>
-      <div class="sub">Projeto Fibromialgia</div>
-    </div>
+    <div class="brand">Dr. Malaquias</div>
+    <div class="brand-sub">Sistema · Fibromialgia</div>
   </div>
-  <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showView('painel',this)">📊 Painel</button>
-    <button class="nav-tab" onclick="showView('cadastro',this)">➕ Cadastro</button>
-    <button class="nav-tab" onclick="showView('relatorio',this)">📋 Relatório</button>
-  </div>
-  <div class="nav-right">
-    <div class="nav-ponto" id="pontoAtivo">PONTO 01</div>
-    <button class="btn-novo" onclick="showView('cadastro',null);setPonto(1)">+ Novo</button>
-  </div>
-</nav>
-
-<!-- PAINEL -->
-<div class="view active" id="view-painel">
-  <div class="kpi-grid">
-    <div class="kpi" style="--kc:var(--c);"><div class="kpi-icon">👤</div><div class="kpi-val" id="kpi-total">0</div><div class="kpi-label">Total de Pacientes</div><div class="kpi-delta up">↑ Registrados</div></div>
-    <div class="kpi" style="--kc:var(--w);"><div class="kpi-icon">✅</div><div class="kpi-val" id="kpi-completos">0</div><div class="kpi-label">Protocolos Completos</div><div class="kpi-delta up">↑ Concluídos</div></div>
-    <div class="kpi" style="--kc:var(--r);"><div class="kpi-icon">🔴</div><div class="kpi-val" id="kpi-dor-alta">0</div><div class="kpi-label">Dor Alta (7–10)</div><div class="kpi-delta dn">↑ Atenção necessária</div></div>
-    <div class="kpi" style="--kc:var(--y);"><div class="kpi-icon">⏳</div><div class="kpi-val" id="kpi-pend">0</div><div class="kpi-label">Em Tratamento</div><div class="kpi-delta up">↑ Acompanhamento</div></div>
-  </div>
-
-  <div class="section-title">20 Pontos de Atendimento</div>
-  <div class="pontos-grid" id="pontosGrid"></div>
-
-  <div class="section-title">Registros Recentes</div>
-  <div class="table-wrap">
-    <div class="table-head"><h3>Últimos Atendimentos</h3><button class="btn-ver" onclick="renderTabela()">↻ Atualizar</button></div>
-    <div style="overflow-x:auto;">
-      <table class="tbl">
-        <thead><tr><th>Paciente</th><th>Ponto</th><th>Triagem</th><th>Consulta</th><th>Exame</th><th>Protocolo</th><th>Dor</th><th>Status</th></tr></thead>
-        <tbody id="tabelaBody"></tbody>
-      </table>
-    </div>
-  </div>
+  <div class="field"><label>E-mail</label><input id="email" type="email" placeholder="seu@email.com" autocomplete="email"></div>
+  <div class="field"><label>Senha</label><input id="senha" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+  <button class="btn" id="btnLogin" onclick="login()">Acessar Sistema →</button>
+  <div class="err" id="err"></div>
+  <div class="footer">Dr. Malaquias · Sistema de Gestão © 2026</div>
 </div>
 
-<!-- CADASTRO -->
-<div class="view" id="view-cadastro">
-<div class="stepper-wrap">
-  <div style="margin-bottom:1.5rem;">
-    <div class="section-title">Ponto de Atendimento</div>
-    <div class="ponto-selector" id="pontoSelector"></div>
-  </div>
-  <div class="stepper">
-    <div class="step"><div class="step-circle active" id="sc1">1</div><div class="step-label active" id="sl1">Triagem</div></div>
-    <div class="step-line" id="line1"></div>
-    <div class="step"><div class="step-circle" id="sc2">2</div><div class="step-label" id="sl2">Consulta</div></div>
-    <div class="step-line" id="line2"></div>
-    <div class="step"><div class="step-circle" id="sc3">3</div><div class="step-label" id="sl3">Exame</div></div>
-    <div class="step-line" id="line3"></div>
-    <div class="step"><div class="step-circle" id="sc4">4</div><div class="step-label" id="sl4">Protocolo</div></div>
-  </div>
-
-  <div class="form-panel active" id="panel1">
-    <div class="form-title"><div class="icon">🩺</div> Triagem</div>
-    <div class="form-grid">
-      <div class="form-group"><label>Nome completo *</label><input id="f-nome" type="text" placeholder="Nome do paciente"/></div>
-      <div class="form-group"><label>Data de nascimento</label><input id="f-nasc" type="date"/></div>
-      <div class="form-group"><label>CPF</label><input id="f-cpf" type="text" placeholder="000.000.000-00"/></div>
-      <div class="form-group"><label>Telefone</label><input id="f-tel" type="tel" placeholder="(00) 00000-0000"/></div>
-      <div class="form-group full"><label>Queixa principal *</label><input id="f-queixa" type="text" placeholder="Descrição da queixa"/></div>
-      <div class="form-group full">
-        <label>Escala de Dor (0–10)</label>
-        <div class="dor-scale" id="dorScale"></div>
-      </div>
-      <div class="form-group"><label>Pressão arterial</label><input id="f-pressao" type="text" placeholder="120/80 mmHg"/></div>
-      <div class="form-group"><label>Peso (kg)</label><input id="f-peso" type="text" placeholder="70"/></div>
-      <div class="form-group full"><label>Regiões afetadas</label><textarea id="f-regioes" rows="2" placeholder="Ex: cervical, ombros, lombar, coxas..."></textarea></div>
-      <div class="form-group full"><label>Observações</label><textarea id="f-obs-triagem" rows="2" placeholder="Observações adicionais..."></textarea></div>
-    </div>
-    <div class="form-actions"><button class="btn-next" onclick="nextStep(2)">Avançar para Consulta →</button></div>
-  </div>
-
-  <div class="form-panel" id="panel2">
-    <div class="form-title"><div class="icon">👨‍⚕️</div> Consulta</div>
-    <div class="form-grid">
-      <div class="form-group"><label>Médico responsável</label><input id="f-medico" type="text" placeholder="Dr. Malaquias"/></div>
-      <div class="form-group"><label>Data da consulta</label><input id="f-data-consulta" type="date"/></div>
-      <div class="form-group"><label>Tempo de sintomas</label>
-        <select id="f-tempo"><option>Menos de 6 meses</option><option>6 a 12 meses</option><option>1 a 2 anos</option><option>2 a 5 anos</option><option>Mais de 5 anos</option></select>
-      </div>
-      <div class="form-group"><label>Qualidade do sono</label>
-        <select id="f-sono"><option>Muito ruim</option><option>Ruim</option><option>Regular</option><option>Boa</option><option>Muito boa</option></select>
-      </div>
-      <div class="form-group full"><label>Anamnese / Histórico</label><textarea id="f-anamnese" rows="3" placeholder="Histórico clínico, fatores de melhora/piora..."></textarea></div>
-      <div class="form-group full"><label>Diagnóstico</label><textarea id="f-diagnostico" rows="2" placeholder="CID M79.7 — Fibromialgia..."></textarea></div>
-      <div class="form-group full"><label>Conduta médica</label><textarea id="f-conduta" rows="2" placeholder="Medicamentos, encaminhamentos..."></textarea></div>
-    </div>
-    <div class="form-actions">
-      <button class="btn-back" onclick="nextStep(1)">← Voltar</button>
-      <button class="btn-next" onclick="nextStep(3)">Avançar para Exame →</button>
-    </div>
-  </div>
-
-  <div class="form-panel" id="panel3">
-    <div class="form-title"><div class="icon">🔬</div> Exame</div>
-    <div class="form-grid">
-      <div class="form-group"><label>Tipo de exame</label>
-        <select id="f-tipo-exame"><option>Avaliação de Tender Points</option><option>Laboratório</option><option>Ressonância Magnética</option><option>Raio-X</option><option>Avaliação Funcional</option><option>Psicológica</option><option>Outro</option></select>
-      </div>
-      <div class="form-group"><label>Data do exame</label><input id="f-data-exame" type="date"/></div>
-      <div class="form-group"><label>Tender Points positivos (0–18)</label><input id="f-tender" type="number" min="0" max="18" placeholder="11"/></div>
-      <div class="form-group"><label>FIQ Score (0–100)</label><input id="f-fiq" type="number" min="0" max="100" placeholder="55"/></div>
-      <div class="form-group full"><label>Laudo</label><textarea id="f-laudo" rows="3" placeholder="Resultado do exame..."></textarea></div>
-      <div class="form-group full"><label>Comorbidades</label><textarea id="f-comor" rows="2" placeholder="Ex: ansiedade, depressão, SII..."></textarea></div>
-    </div>
-    <div class="form-actions">
-      <button class="btn-back" onclick="nextStep(2)">← Voltar</button>
-      <button class="btn-next" onclick="nextStep(4)">Avançar para Protocolo →</button>
-    </div>
-  </div>
-
-  <div class="form-panel" id="panel4">
-    <div class="form-title"><div class="icon">💊</div> Protocolo de Tratamento</div>
-    <div style="margin-bottom:1.2rem;">
-      <label style="display:block;margin-bottom:.6rem;">Abordagem terapêutica</label>
-      <div class="proto-options">
-        <div class="proto-opt" onclick="selProto(this,'Farmacológico')"><h4>💊 Farmacológico</h4><p>Medicamentos para dor, sono e humor</p></div>
-        <div class="proto-opt" onclick="selProto(this,'Multidisciplinar')"><h4>🧩 Multidisciplinar</h4><p>Combinação de abordagens integradas</p></div>
-        <div class="proto-opt" onclick="selProto(this,'Fisioterapia')"><h4>🏃 Fisioterapia</h4><p>Exercícios e terapia física</p></div>
-        <div class="proto-opt" onclick="selProto(this,'Psicoterapia')"><h4>🧠 Psicoterapia</h4><p>TCC, mindfulness e suporte emocional</p></div>
-      </div>
-    </div>
-    <div class="form-grid">
-      <div class="form-group"><label>Frequência das sessões</label>
-        <select id="f-freq"><option>Semanal</option><option>Quinzenal</option><option>Mensal</option><option>Conforme necessário</option></select>
-      </div>
-      <div class="form-group"><label>Meta de melhora (%)</label><input id="f-meta" type="number" min="0" max="100" placeholder="30"/></div>
-      <div class="form-group full"><label>Plano de tratamento</label><textarea id="f-plano" rows="3" placeholder="Plano terapêutico detalhado..."></textarea></div>
-      <div class="form-group full"><label>Orientações ao paciente</label><textarea id="f-orientacoes" rows="2" placeholder="Hábitos, atividade física, sono, alimentação..."></textarea></div>
-    </div>
-    <div class="form-actions">
-      <button class="btn-back" onclick="nextStep(3)">← Voltar</button>
-      <button class="btn-save" onclick="salvarCadastro()">✅ Salvar Cadastro Completo</button>
-    </div>
-  </div>
-
-  <div class="success-box" id="successBox">
-    <div class="success-icon">✅</div>
-    <h2>Protocolo Salvo!</h2>
-    <p>O cadastro completo foi registrado com sucesso no sistema.</p>
-    <button class="btn-next" onclick="novoCadastro()">+ Novo Cadastro</button>
-  </div>
-</div>
-</div>
-
-<!-- RELATÓRIO -->
-<div class="view" id="view-relatorio">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
-    <div>
-      <div class="section-title" style="margin-bottom:.2rem;">Relatório Semanal — Projeto Fibromialgia</div>
-      <div style="font-size:.76rem;color:var(--w3);" id="rel-periodo">Semana atual</div>
-    </div>
-    <button class="btn-export" onclick="exportarRelatorio()">📥 Exportar TXT</button>
-  </div>
-  <div class="relatorio-header">
-    <div class="rel-card"><h3>Total da Semana</h3><div class="rel-val" id="rel-total">0</div><div class="rel-period">pacientes atendidos</div></div>
-    <div class="rel-card"><h3>Protocolos Completos</h3><div class="rel-val white" id="rel-comp">0</div><div class="rel-period">tratamentos iniciados</div></div>
-    <div class="rel-card"><h3>Pontos Ativos</h3><div class="rel-val" id="rel-pontos">0</div><div class="rel-period">de 20 pontos com registros</div></div>
-  </div>
-  <div class="section-title">Desempenho por Ponto</div>
-  <div class="pontos-table">
-    <table class="rel-tbl">
-      <thead><tr><th>Ponto</th><th>Total</th><th>Triagem</th><th>Consulta</th><th>Exame</th><th>Protocolos</th><th>Progresso</th></tr></thead>
-      <tbody id="relTabelaBody"></tbody>
-    </table>
-  </div>
-</div>
-
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
-var PONTOS=['Unidade Centro','Unidade Norte','Unidade Sul','Unidade Leste','Unidade Oeste','Clínica A','Clínica B','Clínica C','Hospital 1','Hospital 2','UBS 1','UBS 2','UBS 3','UBS 4','UBS 5','Posto 1','Posto 2','Posto 3','Posto 4','Posto 5'];
-var currentStep=1,currentPonto=1,currentDor=null,currentProto='';
-var KEY='malaquias_fibro_v1';
-function getData(){try{return JSON.parse(localStorage.getItem(KEY)||'[]');}catch(e){return[];}}
-function saveData(d){localStorage.setItem(KEY,JSON.stringify(d));}
+const SUPA_URL='https://vuylzbefjwbtibhnczih.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ1eWx6YmVmandidGliaG5jemloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxMDUxNTIsImV4cCI6MjA5MzY4MTE1Mn0.c2SJ6Yw7O5bGK8lqBtDFkiWke2UNX4I9NJiJ25xprBM';
+const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
 
-function showView(v,btn){
-  document.querySelectorAll('.view').forEach(function(x){x.classList.remove('active');});
-  document.getElementById('view-'+v).classList.add('active');
-  document.querySelectorAll('.nav-tab').forEach(function(t){t.classList.remove('active');});
-  if(btn)btn.classList.add('active');
-  if(v==='painel')renderPainel();
-  if(v==='relatorio')renderRelatorio();
-}
-function setPonto(n){
-  currentPonto=n;
-  document.getElementById('pontoAtivo').textContent='PONTO '+String(n).padStart(2,'0');
-  document.querySelectorAll('.ps-btn').forEach(function(b,i){b.classList.toggle('sel',i+1===n);});
-}
-function buildPontoSelector(){
-  var el=document.getElementById('pontoSelector');el.innerHTML='';
-  for(var i=1;i<=20;i++){(function(n){var b=document.createElement('button');b.className='ps-btn'+(n===1?' sel':'');b.textContent=String(n).padStart(2,'0');b.onclick=function(){setPonto(n);};el.appendChild(b);})(i);}
-}
-function buildDorScale(){
-  var el=document.getElementById('dorScale');el.innerHTML='';
-  for(var i=0;i<=10;i++){(function(v){var b=document.createElement('button');b.className='dor-btn';b.textContent=v;b.onclick=function(){currentDor=v;document.querySelectorAll('.dor-btn').forEach(function(x){x.className='dor-btn';});b.classList.add(v<=3?'d-low':v<=6?'d-mid':'d-high');};el.appendChild(b);})(i);}
-}
-function nextStep(s){
-  if(s===2&&!document.getElementById('f-nome').value.trim()){alert('Informe o nome do paciente.');return;}
-  for(var i=1;i<=4;i++){
-    document.getElementById('panel'+i).classList.toggle('active',i===s);
-    var sc=document.getElementById('sc'+i),sl=document.getElementById('sl'+i);
-    sc.classList.remove('active','done');sl.classList.remove('active','done');
-    if(i<s){sc.classList.add('done');sc.textContent='✓';sl.classList.add('done');}
-    else if(i===s){sc.classList.add('active');sc.textContent=i;sl.classList.add('active');}
-    else sc.textContent=i;
-    if(i<4){var ln=document.getElementById('line'+i);if(ln)ln.classList.toggle('done',i<s);}
+(async()=>{
+  document.getElementById('loader').classList.add('show');
+  const {data:{session}}=await sb.auth.getSession();
+  if(session){
+    const {data:prof}=await sb.from('profiles').select('papel').eq('id',session.user.id).single();
+    window.location.href=prof?.papel==='admin'?'admin.html':'painel.html';
+    return;
   }
-  currentStep=s;
+  document.getElementById('loader').classList.remove('show');
+})();
+
+async function login(){
+  const email=document.getElementById('email').value.trim();
+  const senha=document.getElementById('senha').value;
+  const btn=document.getElementById('btnLogin');
+  const err=document.getElementById('err');
+  if(!email||!senha){err.textContent='Preencha e-mail e senha.';err.classList.add('show');return;}
+  btn.disabled=true;btn.textContent='Verificando...';err.classList.remove('show');
+  const {error}=await sb.auth.signInWithPassword({email,password:senha});
+  if(error){err.textContent='E-mail ou senha incorretos.';err.classList.add('show');btn.disabled=false;btn.textContent='Acessar Sistema →';return;}
+  const {data:{user}}=await sb.auth.getUser();
+  const {data:prof}=await sb.from('profiles').select('papel').eq('id',user.id).single();
+  window.location.href=prof?.papel==='admin'?'admin.html':'painel.html';
 }
-function selProto(el,val){
-  document.querySelectorAll('.proto-opt').forEach(function(o){o.classList.remove('sel');});
-  el.classList.add('sel');currentProto=val;
-}
-function salvarCadastro(){
-  var nome=document.getElementById('f-nome').value.trim();
-  if(!nome){alert('Nome obrigatório.');nextStep(1);return;}
-  var reg={id:Date.now()+Math.random(),ponto:currentPonto,pontoNome:PONTOS[currentPonto-1],data:new Date().toISOString(),
-    paciente:{nome:nome,nasc:document.getElementById('f-nasc').value,cpf:document.getElementById('f-cpf').value,tel:document.getElementById('f-tel').value},
-    triagem:{queixa:document.getElementById('f-queixa').value,dor:currentDor,regioes:document.getElementById('f-regioes').value,pressao:document.getElementById('f-pressao').value,peso:document.getElementById('f-peso').value,obs:document.getElementById('f-obs-triagem').value},
-    consulta:{medico:document.getElementById('f-medico').value,data:document.getElementById('f-data-consulta').value,tempo:document.getElementById('f-tempo').value,sono:document.getElementById('f-sono').value,anamnese:document.getElementById('f-anamnese').value,diagnostico:document.getElementById('f-diagnostico').value,conduta:document.getElementById('f-conduta').value},
-    exame:{tipo:document.getElementById('f-tipo-exame').value,data:document.getElementById('f-data-exame').value,tender:document.getElementById('f-tender').value,fiq:document.getElementById('f-fiq').value,laudo:document.getElementById('f-laudo').value,comor:document.getElementById('f-comor').value},
-    protocolo:{abordagem:currentProto,freq:document.getElementById('f-freq').value,meta:document.getElementById('f-meta').value,plano:document.getElementById('f-plano').value,orientacoes:document.getElementById('f-orientacoes').value},
-    status:'completo'};
-  var d=getData();d.unshift(reg);saveData(d);
-  document.querySelectorAll('.form-panel').forEach(function(p){p.classList.remove('active');});
-  document.getElementById('successBox').classList.add('show');
-}
-function novoCadastro(){
-  document.getElementById('successBox').classList.remove('show');
-  ['f-nome','f-cpf','f-tel','f-nasc','f-queixa','f-regioes','f-pressao','f-peso','f-obs-triagem','f-medico','f-anamnese','f-diagnostico','f-conduta','f-laudo','f-comor','f-tender','f-fiq','f-plano','f-orientacoes','f-meta'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
-  currentDor=null;currentProto='';
-  document.querySelectorAll('.dor-btn').forEach(function(b){b.className='dor-btn';});
-  document.querySelectorAll('.proto-opt').forEach(function(o){o.classList.remove('sel');});
-  nextStep(1);
-}
-function renderPainel(){
-  var data=getData();
-  animNum('kpi-total',data.length);
-  animNum('kpi-completos',data.filter(function(r){return r.status==='completo';}).length);
-  animNum('kpi-dor-alta',data.filter(function(r){return r.triagem&&r.triagem.dor>=7;}).length);
-  animNum('kpi-pend',data.filter(function(r){return r.status!=='completo';}).length);
-  var grid=document.getElementById('pontosGrid');grid.innerHTML='';
-  for(var i=1;i<=20;i++){
-    var cnt=data.filter(function(r){return r.ponto===i;}).length;
-    var status=cnt===0?'zero':cnt<3?'med':'ok';
-    var c=document.createElement('div');c.className='ponto-card';
-    c.innerHTML='<div class="ponto-status '+status+'"></div><div class="ponto-num">'+String(i).padStart(2,'0')+'</div><div class="ponto-name">'+PONTOS[i-1]+'</div><div class="ponto-count">'+cnt+' pac.</div>';
-    (function(n){c.onclick=function(){setPonto(n);showView('cadastro',null);};})(i);
-    grid.appendChild(c);
-  }
-  renderTabela();
-}
-function renderTabela(){
-  var data=getData(),tbody=document.getElementById('tabelaBody');
-  if(!data.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--w3);padding:2rem;">Nenhum registro. Faça o primeiro cadastro!</td></tr>';return;}
-  tbody.innerHTML=data.slice(0,15).map(function(r){
-    var dor=r.triagem&&r.triagem.dor!=null?'<span style="font-weight:700;color:'+(r.triagem.dor>=7?'var(--r)':r.triagem.dor>=4?'var(--y)':'var(--c)')+';">'+r.triagem.dor+'/10</span>':'—';
-    return '<tr><td><strong>'+r.paciente.nome+'</strong><br/><span style="font-size:.7rem;color:var(--w3);">'+r.pontoNome+'</span></td>'+
-    '<td style="font-family:\'Space Grotesk\',sans-serif;font-weight:700;color:var(--c);">'+String(r.ponto).padStart(2,'0')+'</td>'+
-    '<td>'+ok(r.triagem&&r.triagem.queixa)+'</td><td>'+ok(r.consulta&&r.consulta.anamnese)+'</td>'+
-    '<td>'+ok(r.exame&&r.exame.laudo)+'</td><td>'+ok(r.protocolo&&r.protocolo.abordagem)+'</td>'+
-    '<td>'+dor+'</td><td><span class="badge badge-'+r.status+'">'+r.status.toUpperCase()+'</span></td></tr>';
-  }).join('');
-}
-function ok(v){return v?'<span style="color:var(--c);">✓</span>':'<span style="color:var(--w4);">—</span>';}
-function animNum(id,target){var el=document.getElementById(id);if(!el)return;var dur=600,st=Date.now();(function t(){var p=Math.min((Date.now()-st)/dur,1);el.textContent=Math.round(target*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(t);})();}
-function renderRelatorio(){
-  var data=getData(),now=new Date(),wa=new Date(now-7*24*60*60*1000);
-  var sem=data.filter(function(r){return new Date(r.data)>=wa;});
-  document.getElementById('rel-total').textContent=sem.length;
-  document.getElementById('rel-comp').textContent=sem.filter(function(r){return r.status==='completo';}).length;
-  document.getElementById('rel-pontos').textContent=new Set(sem.map(function(r){return r.ponto;})).size;
-  document.getElementById('rel-periodo').textContent=wa.toLocaleDateString('pt-BR')+' a '+now.toLocaleDateString('pt-BR');
-  var max=0,pd=[];
-  for(var i=1;i<=20;i++){var regs=data.filter(function(r){return r.ponto===i;});pd.push({n:i,nome:PONTOS[i-1],total:regs.length,tri:regs.filter(function(r){return r.triagem&&r.triagem.queixa;}).length,con:regs.filter(function(r){return r.consulta&&r.consulta.anamnese;}).length,exa:regs.filter(function(r){return r.exame&&r.exame.laudo;}).length,comp:regs.filter(function(r){return r.status==='completo';}).length});if(regs.length>max)max=regs.length;}
-  pd.sort(function(a,b){return b.total-a.total;});
-  document.getElementById('relTabelaBody').innerHTML=pd.map(function(p){var pct=max>0?Math.round(p.total/max*100):0;return '<tr><td><strong>'+String(p.n).padStart(2,'0')+'</strong> <span style="color:var(--w3);font-size:.78rem;">'+p.nome+'</span></td><td style="font-weight:700;">'+p.total+'</td><td>'+p.tri+'</td><td>'+p.con+'</td><td>'+p.exa+'</td><td style="color:var(--c);font-weight:700;">'+p.comp+'</td><td><div class="bar"><div class="bar-fill" style="width:'+pct+'%"></div></div></td></tr>';}).join('');
-}
-function exportarRelatorio(){
-  var data=getData(),now=new Date();
-  var txt='RELATÓRIO SEMANAL — Dr. Malaquias — Projeto Fibromialgia\nGerado em: '+now.toLocaleString('pt-BR')+'\n\nTotal: '+data.length+'\nCompletos: '+data.filter(function(r){return r.status==='completo';}).length+'\n\nPOR PONTO:\n';
-  for(var i=1;i<=20;i++){var cnt=data.filter(function(r){return r.ponto===i;}).length;if(cnt>0)txt+='Ponto '+String(i).padStart(2,'0')+' ('+PONTOS[i-1]+'): '+cnt+' paciente(s)\n';}
-  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain;charset=utf-8'}));a.download='rel-fibro-'+now.toLocaleDateString('pt-BR').replace(/\//g,'-')+'.txt';a.click();
-}
-buildPontoSelector();buildDorScale();renderPainel();
-document.getElementById('f-data-consulta').value=new Date().toISOString().split('T')[0];
-document.getElementById('f-data-exame').value=new Date().toISOString().split('T')[0];
+document.getElementById('senha').onkeypress=e=>{if(e.key==='Enter')login();};
+document.getElementById('email').onkeypress=e=>{if(e.key==='Enter')document.getElementById('senha').focus();};
 </script>
 </body>
 </html>
