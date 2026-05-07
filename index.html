@@ -2675,5 +2675,233 @@ window.fecharDetalhe = function(){
 })();
 </script>
 
+
+<script>
+/* ====== FIXES CRÍTICOS ====== */
+(function(){
+'use strict';
+
+/* ---- 1. SESSÃO EXPIRA: redirecionar para login ---- */
+try {
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED' && !session) {
+      location.reload();
+    }
+    if (event === 'SIGNED_OUT') {
+      /* Se app-shell está visível, recarrega para mostrar login */
+      const shell = document.getElementById('app-shell');
+      if (shell && shell.style.display !== 'none') {
+        location.reload();
+      }
+    }
+  });
+} catch(e) { console.warn('onAuthStateChange:', e); }
+
+/* ---- 2. REALTIME: trocar canal quando projeto muda ---- */
+let _mainChannel = null;
+
+function _setupMainRealtime(table) {
+  try {
+    if (_mainChannel) {
+      sb.removeChannel(_mainChannel);
+      _mainChannel = null;
+    }
+    _mainChannel = sb.channel('main_rt_' + table)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table }, payload => {
+        if (typeof currentProfile !== 'undefined' && currentProfile?.papel === 'admin') {
+          /* Atualiza dados do admin em tempo real */
+          if (Array.isArray(window.allPacientes)) {
+            window.allPacientes.unshift(payload.new);
+          }
+          /* Atualiza KPIs */
+          if (typeof updateKPIs === 'function') try { updateKPIs(); } catch(e) {}
+          /* Atualiza tabela */
+          if (typeof updateTable === 'function') try { updateTable(); } catch(e) {}
+        }
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('[RT] Ouvindo:', table);
+        }
+      });
+  } catch(e) { console.warn('_setupMainRealtime:', e); }
+}
+
+/* Inicializa realtime com a tabela do projeto atual */
+function _initRealtime() {
+  const tbl = (typeof currentProject !== 'undefined' && currentProject === 'oculos')
+    ? 'pacientes_oculos' : 'pacientes_fibro';
+  _setupMainRealtime(tbl);
+}
+
+/* Hook no switchProject para trocar o canal */
+const _prevSwitch = window.switchProject;
+window.switchProject = function(proj, btn) {
+  if (typeof _prevSwitch === 'function') _prevSwitch(proj, btn);
+  const tbl = proj === 'oculos' ? 'pacientes_oculos' : 'pacientes_fibro';
+  _setupMainRealtime(tbl);
+};
+
+/* ---- 3. GRÁFICO: adaptar para óculos (status_pedido) ---- */
+const _prevUpdateCharts = window.updateCharts;
+window.updateCharts = function() {
+  /* Chama original */
+  try { if (typeof _prevUpdateCharts === 'function') _prevUpdateCharts(); } catch(e) {}
+
+  /* Se projeto é óculos, substituir gráfico de dor por gráfico de status */
+  if (typeof currentProject !== 'undefined' && currentProject === 'oculos') {
+    try {
+      const ctx = document.getElementById('chart-dor');
+      if (!ctx) return;
+      const existing = Chart.getChart(ctx);
+      if (existing) existing.destroy();
+
+      const stMap = { aguardando: 0, em_producao: 0, pronto: 0, entregue: 0 };
+      (window.allPacientes || []).forEach(p => {
+        const st = p.status_pedido || 'aguardando';
+        if (stMap[st] !== undefined) stMap[st]++;
+      });
+
+      const c = typeof getChartColors === 'function' ? getChartColors() : { text: '#94a3b8', grid: 'rgba(255,255,255,.06)', accent: '#00E676', accentBg: 'rgba(0,230,118,.1)' };
+      Chart.defaults.color = c.text;
+
+      new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['⏳ Aguardando', '⚙️ Em produção', '✅ Pronto', '📦 Entregue'],
+          datasets: [{
+            data: [stMap.aguardando, stMap.em_producao, stMap.pronto, stMap.entregue],
+            backgroundColor: [
+              'rgba(251,191,36,.7)',
+              'rgba(74,222,128,.7)',
+              'rgba(34,197,94,.9)',
+              'rgba(148,163,184,.5)'
+            ],
+            borderWidth: 0,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right', labels: { boxWidth: 12, padding: 8, font: { size: 11 } } }
+          },
+          cutout: '60%',
+        }
+      });
+
+      /* Atualizar título do card */
+      const chartCard = ctx.closest('.chart-card');
+      if (chartCard) {
+        const title = chartCard.querySelector('.chart-title');
+        if (title) title.textContent = 'Status dos Pedidos';
+        const sub = chartCard.querySelector('.chart-subtitle');
+        if (sub) sub.textContent = 'Distribuição por status do pedido';
+      }
+    } catch(e) { console.warn('chart-oculos:', e); }
+  } else {
+    /* Restaurar título fibro */
+    try {
+      const ctx = document.getElementById('chart-dor');
+      if (!ctx) return;
+      const chartCard = ctx.closest('.chart-card');
+      if (chartCard) {
+        const title = chartCard.querySelector('.chart-title');
+        if (title) title.textContent = 'Distribuição Nível de Dor';
+        const sub = chartCard.querySelector('.chart-subtitle');
+        if (sub) sub.textContent = 'Classificação dos pacientes por intensidade';
+      }
+    } catch(e) {}
+  }
+};
+
+/* ---- 4. NOME DO PONTO na tabela geral (ao invés de UUID) ---- */
+const _prevUpdateTable = window.updateTable;
+window.updateTable = function() {
+  /* Chama a versão project-aware que já existe no override anterior */
+  /* Este override adiciona a resolução de nomes dos pontos */
+  const body = document.getElementById('table-body');
+  if (!body) return;
+
+  const search = (document.getElementById('search-paciente')?.value || '').toLowerCase();
+  const filtered = (allPacientes || []).filter(p => !search || (p.nome || '').toLowerCase().includes(search));
+  const cnt = document.getElementById('table-count');
+  if (cnt) cnt.textContent = filtered.length + ' registros';
+
+  if (!filtered.length) {
+    body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">Nenhum registro.</td></tr>';
+    return;
+  }
+
+  /* Mapa de ponto: cadastrado_por → nome curto */
+  const pontoMap = window._advPontoMap || {};
+
+  body.innerHTML = filtered.slice(0, 50).map(p => {
+    let col4, colDate;
+    const proj = typeof currentProject !== 'undefined' ? currentProject : 'fibro';
+    if (proj === 'fibro') {
+      const dc = p.nivel_dor <= 3 ? 'dor-low' : p.nivel_dor <= 6 ? 'dor-mid' : 'dor-high';
+      col4 = p.nivel_dor != null ? `<span class="dor-badge ${dc}">${p.nivel_dor}/10</span>` : '—';
+      colDate = p.data_consulta ? new Date(p.data_consulta + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
+    } else {
+      const stMap = { aguardando: '⏳ Aguardando', em_producao: '⚙️ Em produção', pronto: '✅ Pronto', entregue: '📦 Entregue' };
+      col4 = stMap[p.status_pedido] || p.status_pedido || '—';
+      colDate = p.data_entrega ? new Date(p.data_entrega + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
+    }
+
+    const pontoNome = pontoMap[p.cadastrado_por] || p.cadastrado_por?.substring(0, 8) || '—';
+
+    return `<tr>
+      <td style="font-weight:500;color:var(--text-primary)">${p.nome || '—'}</td>
+      <td>${p.idade || '—'}</td>
+      <td style="color:var(--text-secondary)">${p.whatsapp || '—'}</td>
+      <td>${col4}</td>
+      <td>${colDate}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${pontoNome}</td>
+    </tr>`;
+  }).join('');
+};
+
+/* Carregar mapa ponto_id → nome quando admin loga */
+async function _loadPontoMap() {
+  try {
+    const proj = (typeof currentProject !== 'undefined' && currentProject === 'oculos') ? 'oculos' : 'fibromialgia';
+    const { data } = await sb.from('profiles')
+      .select('id, nome, nome_editavel, numero_ponto')
+      .eq('papel', 'colaborador')
+      .eq('projeto', proj);
+    const map = {};
+    (data || []).forEach(p => {
+      map[p.id] = (p.nome_editavel || p.nome || 'Ponto ' + p.numero_ponto);
+    });
+    window._advPontoMap = map;
+  } catch(e) {}
+}
+
+/* ---- Inicializar quando admin está pronto ---- */
+function _fixInit() {
+  if (typeof currentProfile === 'undefined' || !currentProfile) return false;
+  if (currentProfile.papel !== 'admin') return true; /* colaborador: não precisa */
+
+  _initRealtime();
+  _loadPontoMap();
+  return true;
+}
+
+if (!_fixInit()) {
+  const _t = setInterval(() => { if (_fixInit()) clearInterval(_t); }, 300);
+  setTimeout(() => clearInterval(_t), 20000);
+}
+
+/* Atualizar mapa de pontos quando switch de projeto */
+const _prevSwitch2 = window.switchProject;
+window.switchProject = function(proj, btn) {
+  if (typeof _prevSwitch2 === 'function') _prevSwitch2(proj, btn);
+  setTimeout(_loadPontoMap, 500); /* carrega após loadData */
+};
+
+})();
+</script>
+
 </body>
 </html>
