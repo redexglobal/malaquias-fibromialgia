@@ -2387,5 +2387,284 @@ advWait(advInit);
 })();
 </script>
 
+
+<style>
+/* ====== ADMIN VERDE ESCURO BRILHANTE ====== */
+body.admin-mode #app-header.header-admin{background:linear-gradient(135deg,#071a0f 0%,#0a2318 40%,#0d3d22 70%,#0a2318 100%);border-bottom:2px solid rgba(212,175,55,.5);box-shadow:0 2px 30px rgba(13,74,46,.7),0 0 60px rgba(13,74,46,.2),inset 0 -1px 0 rgba(212,175,55,.15);}
+body.admin-mode .sidebar{background:linear-gradient(180deg,#071a0f 0%,#0a2318 50%,#0d3d22 100%);border-right:1px solid rgba(212,175,55,.2);box-shadow:2px 0 20px rgba(0,0,0,.35);}
+body.admin-mode .nav-section-title{color:rgba(212,175,55,.45);}
+body.admin-mode .nav-item{color:rgba(185,230,205,.65);}
+body.admin-mode .nav-item i{color:rgba(212,175,55,.5);}
+body.admin-mode .nav-item:hover{background:rgba(212,175,55,.1);color:#f1f5f9;}
+body.admin-mode .nav-item:hover i{color:var(--gold);}
+body.admin-mode .nav-item.active{background:linear-gradient(135deg,rgba(212,175,55,.2),rgba(212,175,55,.05));color:var(--gold)!important;border-left:2px solid var(--gold);box-shadow:inset 0 0 14px rgba(212,175,55,.07);}
+body.admin-mode .nav-item.active i{color:var(--gold);}
+body.admin-mode .logo-icon{background:linear-gradient(135deg,#0d4a2e,#1a6b45);box-shadow:0 0 16px rgba(13,74,46,.7);}
+body.admin-mode .project-switch{background:rgba(0,0,0,.25);border:1px solid rgba(212,175,55,.2);border-radius:10px;padding:4px;}
+body.admin-mode .switch-btn{color:rgba(185,230,205,.55);background:none;border:none;border-radius:7px;font-weight:600;padding:5px 14px;cursor:pointer;transition:all .2s;}
+body.admin-mode .switch-btn:hover{color:#f1f5f9;background:rgba(212,175,55,.08);}
+body.admin-mode .switch-btn.active{background:linear-gradient(135deg,var(--gold),var(--gold-light));color:#071a0f;box-shadow:0 2px 12px rgba(201,168,76,.4);}
+body.admin-mode .main{background-image:radial-gradient(ellipse 120% 40% at 50% 0%,rgba(13,74,46,.1),transparent 55%);}
+body.admin-mode .kpi-card{border-color:rgba(212,175,55,.1);}
+body.admin-mode .kpi-card.gold{background:linear-gradient(135deg,rgba(212,175,55,.12),rgba(212,175,55,.04));border-color:rgba(212,175,55,.3);box-shadow:0 0 24px rgba(212,175,55,.08);}
+body.admin-mode .table-card,.admin-mode .chart-card,.admin-mode .form-card{border-color:rgba(212,175,55,.1);}
+body.admin-mode .nav-badge{background:var(--gold);color:#071a0f;font-weight:800;}
+body.admin-mode .btn-sm{background:linear-gradient(135deg,rgba(212,175,55,.2),rgba(212,175,55,.08));border-color:rgba(212,175,55,.3);color:var(--gold);}
+body.admin-mode .user-badge{border-color:rgba(212,175,55,.2);background:rgba(212,175,55,.06);}
+body.admin-mode .user-badge .dot{background:var(--gold);box-shadow:0 0 8px var(--gold);}
+</style>
+
+<script>
+(function(){
+'use strict';
+/* ====== OVERRIDE BLOCK — FIBROMIALGIA ====== */
+
+/* currentProject: 'fibro' | 'oculos' */
+window.currentProject = 'fibro';
+
+/* ---- set admin-mode class when profile is ready ---- */
+function _setAdminMode(){
+  if(typeof currentProfile!=='undefined'&&currentProfile){
+    if(currentProfile.papel==='admin') document.body.classList.add('admin-mode');
+    return true;
+  }
+  return false;
+}
+if(!_setAdminMode()){
+  const _t=setInterval(()=>{if(_setAdminMode())clearInterval(_t);},250);
+  setTimeout(()=>clearInterval(_t),20000);
+}
+
+/* ---- override loadData to be project-aware ---- */
+window.loadData = async function(){
+  const tbl = currentProject==='fibro' ? 'pacientes_fibro' : 'pacientes_oculos';
+  let query = sb.from(tbl).select('*').order('criado_em',{ascending:false});
+  if(currentProfile?.papel !== 'admin'){
+    query = query.eq('cadastrado_por', currentUser.id);
+  }
+  const {data,error} = await query;
+  if(error){console.error('loadData:',error);return;}
+  window.allPacientes = data||[];
+  if(typeof updateKPIs==='function') updateKPIs();
+  updateTable();
+  if(typeof updateCharts==='function') try{updateCharts();}catch(e){}
+  if(currentProfile?.papel==='admin'){
+    if(typeof updateAlerts==='function') updateAlerts();
+    if(typeof updateRanking==='function') updateRanking();
+    if(typeof updateRelatorios==='function') updateRelatorios();
+    if(typeof updatePontos==='function') await updatePontos();
+    /* refresh exec card (adv feature) */
+    const ec=document.getElementById('adv-exec-card');if(ec)ec.remove();
+    if(typeof advRenderExec==='function') try{advRenderExec();}catch(e){}
+  }
+};
+
+/* ---- override switchProject with real implementation ---- */
+window.switchProject = function(proj, btn){
+  document.querySelectorAll('.switch-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  window.currentProject = proj;
+  const projName = proj==='fibro' ? 'Fibromialgia' : 'Óculos';
+  /* update page subtitle */
+  const subtitle = document.querySelector('#sec-novo .page-subtitle');
+  if(subtitle) subtitle.textContent = 'Registrar novo paciente — ' + projName;
+  const cTitle = document.querySelector('#sec-cadastros .page-title');
+  if(cTitle) cTitle.textContent = projName + ' — Registros';
+  /* update table headers */
+  _updateTableHeaders();
+  /* update detalhe table headers */
+  const dth = document.querySelector('.d-tbl thead tr');
+  if(dth) dth.innerHTML = proj==='fibro'
+    ? '<th>Paciente</th><th>WhatsApp</th><th>Nível de Dor</th><th>Data Consulta</th><th>Registrado em</th>'
+    : '<th>Paciente</th><th>WhatsApp</th><th>Status</th><th>Data Entrega</th><th>Registrado em</th>';
+  /* remove heatmap so it rebuilds */
+  const hs=document.getElementById('adv-heat-section');if(hs)hs.remove();
+  /* reload data */
+  loadData();
+  if(typeof showToast==='function') showToast('Projeto: '+projName);
+};
+
+function _updateTableHeaders(){
+  const thead = document.querySelector('#sec-cadastros table thead tr');
+  if(!thead) return;
+  thead.innerHTML = currentProject==='fibro'
+    ? '<th>Paciente</th><th>Idade</th><th>WhatsApp</th><th>Dor</th><th>Data Consulta</th><th>Ponto</th>'
+    : '<th>Paciente</th><th>Idade</th><th>WhatsApp</th><th>Status</th><th>Data Entrega</th><th>Ponto</th>';
+}
+window.updateTableHeaders = _updateTableHeaders;
+
+/* ---- override updateTable to be project-aware ---- */
+window.updateTable = function(){
+  const body = document.getElementById('table-body');
+  if(!body) return;
+  const search = (document.getElementById('search-paciente')?.value||'').toLowerCase();
+  const filtered = (allPacientes||[]).filter(p=>!search||(p.nome||'').toLowerCase().includes(search));
+  const cnt = document.getElementById('table-count');
+  if(cnt) cnt.textContent = filtered.length+' registros';
+  if(!filtered.length){
+    body.innerHTML='<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">Nenhum registro encontrado.</td></tr>';
+    return;
+  }
+  body.innerHTML = filtered.slice(0,50).map(p=>{
+    let col4, colDate;
+    if(currentProject==='fibro'){
+      const dc=p.nivel_dor<=3?'dor-low':p.nivel_dor<=6?'dor-mid':'dor-high';
+      col4 = p.nivel_dor!=null?`<span class="dor-badge ${dc}">${p.nivel_dor}/10</span>`:'—';
+      colDate = p.data_consulta?new Date(p.data_consulta+'T00:00:00').toLocaleDateString('pt-BR'):'—';
+    } else {
+      const stMap={aguardando:'⏳ Aguardando',em_producao:'⚙️ Em produção',pronto:'✅ Pronto',entregue:'📦 Entregue'};
+      col4 = stMap[p.status_pedido]||p.status_pedido||'—';
+      colDate = p.data_entrega?new Date(p.data_entrega+'T00:00:00').toLocaleDateString('pt-BR'):'—';
+    }
+    return `<tr>
+      <td style="font-weight:500;color:var(--text-primary)">${p.nome||'—'}</td>
+      <td>${p.idade||'—'}</td>
+      <td style="color:var(--text-secondary)">${p.whatsapp||'—'}</td>
+      <td>${col4}</td>
+      <td>${colDate}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${p.cadastrado_por?.substring(0,8)||'—'}</td>
+    </tr>`;
+  }).join('');
+};
+
+/* ---- override filterTable to use new updateTable ---- */
+window.filterTable = function(){
+  updateTable();
+};
+
+/* ---- override exportCSV ---- */
+window.exportCSV = function(){
+  if(!(allPacientes||[]).length){if(typeof showToast==='function')showToast('Sem dados para exportar',true);return;}
+  let headers,rows;
+  if(currentProject==='fibro'){
+    headers='Nome,Idade,WhatsApp,Sintomas,Nível Dor,Data Consulta,Observações\n';
+    rows=allPacientes.map(p=>`"${p.nome||''}",${p.idade||''},"${p.whatsapp||''}","${p.sintomas||''}",${p.nivel_dor||''},"${p.data_consulta||''}","${p.observacoes||''}"`).join('\n');
+  } else {
+    headers='Nome,Idade,WhatsApp,Grau OD,Grau OE,Lente,Armação,Status,Data Entrega,Observações\n';
+    rows=allPacientes.map(p=>`"${p.nome||''}",${p.idade||''},"${p.whatsapp||'"},"${p.grau_od||''}","${p.grau_oe||''}","${p.lente_tipo||'"},"${p.armacao||'"},"${p.status_pedido||'"},"${p.data_entrega||'"},"${p.observacoes||''}"`).join('\n');
+  }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['﻿'+headers+rows],{type:'text/csv;charset=utf-8;'}));
+  a.download=`dr-malaquias-${currentProject}-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+};
+
+/* ---- override updatePontos to use currentProject ---- */
+window.updatePontos = async function(){
+  const grid=document.getElementById('pontos-grid');
+  if(!grid) return;
+  const proj=currentProject==='fibro'?'fibromialgia':'oculos';
+  const {data:profiles}=await sb.from('profiles')
+    .select('id,nome,numero_ponto,tipo_ponto,nome_editavel')
+    .eq('papel','colaborador').eq('projeto',proj).order('numero_ponto')
+    .catch(()=>({data:null}));
+  const hoje=new Date().toISOString().split('T')[0];
+  if(!profiles||!profiles.length){
+    grid.innerHTML='<div style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:2rem;">Nenhum ponto encontrado para '+proj+'</div>';
+    return;
+  }
+  grid.innerHTML=profiles.map(p=>{
+    const nome=p.nome_editavel||p.nome;
+    const cnt=(allPacientes||[]).filter(pac=>pac.cadastrado_por===p.id).length;
+    const cntH=(allPacientes||[]).filter(pac=>pac.cadastrado_por===p.id&&pac.criado_em?.startsWith(hoje)).length;
+    const isAtivo=cnt>0;
+    return `<div class="kpi-card" style="cursor:pointer" onclick="openPontoDetalhe('${p.id}','${nome.replace(/'/g,"\\'")}','${p.tipo_ponto}')">
+      <div class="kpi-header">
+        <div class="kpi-icon"><i class="fas fa-${p.tipo_ponto==='fixo'?'map-pin':'route'}"></i></div>
+        <span class="status-badge ${isAtivo?'ativo':''}" style="${isAtivo?'':'background:rgba(100,116,139,.15);color:var(--text-muted);'}">${isAtivo?'ativo':'inativo'}</span>
+      </div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px">${nome}</div>
+      <div style="font-size:12px;color:var(--text-muted)">${cnt} reg.${cntH>0?' · <span style="color:var(--accent)">+'+cntH+' hoje</span>':''}</div>
+    </div>`;
+  }).join('');
+};
+
+/* ---- override openPontoDetalhe to be project-aware ---- */
+let _dpId=null,_dpNome='',_dpRecs=[],_dpSub=null;
+
+window.openPontoDetalhe = async function(profileId,nome,tipo){
+  _dpId=profileId; _dpNome=nome;
+  const proj=currentProject==='fibro'?'Fibromialgia':'Óculos';
+  const el=document.getElementById('detalheOverlay');
+  if(!el) return;
+  document.getElementById('d-titulo').textContent=nome;
+  document.getElementById('d-subtitulo').textContent=(tipo==='fixo'?'📍 Ponto Fixo':'🚀 Ponto Móvel')+' · '+proj;
+  /* update table headers */
+  const dth=document.querySelector('.d-tbl thead tr');
+  if(dth) dth.innerHTML=currentProject==='fibro'
+    ?'<th>Paciente</th><th>WhatsApp</th><th>Nível de Dor</th><th>Data Consulta</th><th>Registrado em</th>'
+    :'<th>Paciente</th><th>WhatsApp</th><th>Status</th><th>Data Entrega</th><th>Registrado em</th>';
+  document.getElementById('d-search').value='';
+  el.classList.add('show');
+  document.body.style.overflow='hidden';
+  /* load data */
+  const tbl=currentProject==='fibro'?'pacientes_fibro':'pacientes_oculos';
+  const {data}=await sb.from(tbl).select('*').eq('cadastrado_por',profileId).order('criado_em',{ascending:false});
+  _dpRecs=data||[];
+  _dpRefreshKPIs();
+  _dpRenderTable(_dpRecs);
+  /* realtime */
+  if(_dpSub){_dpSub.unsubscribe();_dpSub=null;}
+  _dpSub=sb.channel('dp2_'+tbl+'_'+profileId)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:tbl,filter:'cadastrado_por=eq.'+profileId},pl=>{
+      _dpRecs.unshift(pl.new);
+      _dpRefreshKPIs();
+      _dpRenderTable(currentProject==='fibro'?
+        _dpRecs.filter(r=>{const q=(document.getElementById('d-search')?.value||'').toLowerCase();return !q||(r.nome||'').toLowerCase().includes(q);}):
+        _dpRecs
+      );
+      if(typeof showToast==='function')showToast('Novo '+(currentProject==='fibro'?'cadastro':'pedido')+' em '+_dpNome+'!');
+    }).subscribe();
+};
+
+function _dpRefreshKPIs(){
+  const hoje=new Date().toISOString().split('T')[0];
+  const sem=new Date(Date.now()-7*86400000).toISOString().split('T')[0];
+  document.getElementById('d-hoje').textContent=_dpRecs.filter(r=>r.criado_em?.startsWith(hoje)).length;
+  document.getElementById('d-semana').textContent=_dpRecs.filter(r=>r.criado_em&&r.criado_em>=sem).length;
+  document.getElementById('d-total').textContent=_dpRecs.length;
+}
+
+function _dpRenderTable(recs){
+  recs=recs||_dpRecs;
+  const cnt=document.getElementById('d-count');
+  if(cnt)cnt.textContent=recs.length+' registro'+(recs.length!==1?'s':'');
+  const tb=document.getElementById('d-tbody');
+  if(!tb)return;
+  if(!recs.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhum registro encontrado.</td></tr>';return;}
+  tb.innerHTML=recs.slice(0,100).map(r=>{
+    let c3,c4;
+    if(currentProject==='fibro'){
+      const dc=r.nivel_dor<=3?'dor-low':r.nivel_dor<=6?'dor-mid':'dor-high';
+      c3=r.nivel_dor!=null?`<span class="dor-badge ${dc}">${r.nivel_dor}/10</span>`:'—';
+      c4=r.data_consulta?new Date(r.data_consulta+'T00:00:00').toLocaleDateString('pt-BR'):'—';
+    } else {
+      const sm={aguardando:'⏳',em_producao:'⚙️',pronto:'✅',entregue:'📦'};
+      c3=(sm[r.status_pedido]||'')+' '+(r.status_pedido||'—');
+      c4=r.data_entrega?new Date(r.data_entrega+'T00:00:00').toLocaleDateString('pt-BR'):'—';
+    }
+    const cAt=r.criado_em?new Date(r.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
+    return `<tr><td style="font-weight:500">${r.nome||'—'}</td><td style="color:var(--text-secondary)">${r.whatsapp||'—'}</td><td>${c3}</td><td>${c4}</td><td style="font-size:11px;color:var(--text-muted)">${cAt}</td></tr>`;
+  }).join('');
+}
+
+/* override filtrarDetalhe to use _dpRecs */
+window.filtrarDetalhe = function(){
+  const q=(document.getElementById('d-search')?.value||'').toLowerCase();
+  _dpRenderTable(q?_dpRecs.filter(r=>(r.nome||'').toLowerCase().includes(q)||(r.whatsapp||'').includes(q)):_dpRecs);
+};
+
+/* override fecharDetalhe */
+window.fecharDetalhe = function(){
+  const el=document.getElementById('detalheOverlay');
+  if(el)el.classList.remove('show');
+  document.body.style.overflow='';
+  if(_dpSub){_dpSub.unsubscribe();_dpSub=null;}
+  _dpRecs=[];_dpId=null;
+};
+
+})();
+</script>
+
 </body>
 </html>
