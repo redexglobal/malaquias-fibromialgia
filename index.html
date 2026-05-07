@@ -2903,5 +2903,173 @@ window.switchProject = function(proj, btn) {
 })();
 </script>
 
+
+<style>
+/* ====== VERDE VIBRANTE — CARDS DOS PONTOS ====== */
+#pontos-grid .kpi-card {
+  background: linear-gradient(135deg, #082218 0%, #0a2a1a 60%, #0d3522 100%) !important;
+  border: 1px solid rgba(0,255,106,.22) !important;
+  box-shadow: 0 0 10px rgba(0,255,106,.06) !important;
+  transition: transform .2s, border-color .2s, box-shadow .2s !important;
+}
+#pontos-grid .kpi-card:hover {
+  border-color: #00ff6a !important;
+  box-shadow: 0 0 22px rgba(0,255,106,.25), 0 4px 18px rgba(0,0,0,.35) !important;
+  transform: translateY(-3px) !important;
+}
+#pontos-grid .kpi-card .kpi-icon {
+  background: rgba(0,255,106,.1) !important;
+  color: #00ff6a !important;
+}
+#pontos-grid .status-badge.ativo {
+  background: rgba(0,255,106,.12) !important;
+  color: #00ff6a !important;
+  border: 1px solid rgba(0,255,106,.35) !important;
+}
+#pontos-grid .status-badge:not(.ativo) {
+  background: rgba(100,116,139,.12) !important;
+  color: #64748b !important;
+  border: 1px solid rgba(100,116,139,.25) !important;
+}
+#pontos-grid .kpi-card .kpi-value,
+#pontos-grid .kpi-card [style*="font-size:14px"],
+#pontos-grid .kpi-card [style*="font-size:15px"] {
+  color: #e2fef0 !important;
+}
+#pontos-grid .kpi-card [style*="font-size:12px"] {
+  color: rgba(200,255,220,.55) !important;
+}
+/* Mapa de calor também */
+.adv-heat-section {
+  background: linear-gradient(135deg, #071a0f, #0a2318) !important;
+  border-color: rgba(0,255,106,.12) !important;
+}
+
+/* ====== DETALHE DO PONTO — reforço visual ====== */
+.d-header {
+  background: linear-gradient(135deg, #071a0f 0%, #0a2318 50%, #0d3d22 100%) !important;
+  border-bottom: 2px solid rgba(0,255,106,.35) !important;
+  box-shadow: 0 2px 20px rgba(0,255,106,.15) !important;
+}
+.d-back {
+  border-color: rgba(0,255,106,.4) !important;
+  color: #00ff6a !important;
+}
+.d-back:hover {
+  background: #00ff6a !important;
+  color: #071a0f !important;
+}
+.d-kpi-val { color: #00ff6a !important; }
+.d-live-dot { background: #00ff6a !important; box-shadow: 0 0 8px #00ff6a !important; }
+.d-search:focus { border-color: #00ff6a !important; }
+.d-tbl th { color: rgba(0,255,106,.5) !important; }
+.d-tbl tr:hover td { background: rgba(0,255,106,.04) !important; }
+</style>
+
+<script>
+/* ====== FINAL FIX BLOCK ====== */
+(function(){
+'use strict';
+
+/* ---- salvarCadastro project-aware (para admin usando o form) ---- */
+const _origSalvar = window.salvarCadastro;
+window.salvarCadastro = async function() {
+  const proj = typeof currentProject !== 'undefined' ? currentProject : null;
+
+  /* Se não for admin ou projeto não definido: usa comportamento original */
+  if (!proj || typeof currentProfile === 'undefined' || !currentProfile || currentProfile.papel !== 'admin') {
+    if (typeof _origSalvar === 'function') return _origSalvar.apply(this, arguments);
+  }
+
+  /* Admin: salva na tabela do projeto selecionado no switch */
+  const table = proj === 'oculos' ? 'pacientes_oculos' : 'pacientes_fibro';
+  const nome = document.getElementById('f-nome')?.value.trim();
+  if (!nome) { if(typeof showToast==='function')showToast('Preencha o nome do paciente', true); return; }
+
+  const record = {
+    nome,
+    idade:       parseInt(document.getElementById('f-idade')?.value) || null,
+    whatsapp:    document.getElementById('f-whatsapp')?.value.trim() || null,
+    sintomas:    document.getElementById('f-sintomas')?.value.trim() || null,
+    nivel_dor:   proj === 'fibro' ? (parseInt(document.getElementById('f-dor')?.value) || null) : undefined,
+    status_pedido: proj === 'oculos' ? (document.getElementById('f-status')?.value || 'aguardando') : undefined,
+    data_consulta: proj === 'fibro' ? (document.getElementById('f-data')?.value || null) : undefined,
+    data_entrega:  proj === 'oculos' ? (document.getElementById('f-data')?.value || null) : undefined,
+    observacoes: document.getElementById('f-obs')?.value.trim() || null,
+    cadastrado_por: currentUser.id,
+  };
+
+  /* Limpar undefined do payload */
+  Object.keys(record).forEach(k => record[k] === undefined && delete record[k]);
+
+  const { error } = await sb.from(table).insert(record);
+  if (error) { if(typeof showToast==='function')showToast('Erro ao salvar: ' + error.message, true); return; }
+
+  if(typeof showToast==='function') showToast('Cadastro salvo em ' + (proj==='oculos'?'Óculos':'Fibromialgia') + '!');
+
+  /* Reset form */
+  ['f-nome','f-idade','f-whatsapp','f-sintomas','f-obs'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
+  const fdor = document.getElementById('f-dor');
+  if(fdor){fdor.value=5; if(typeof updateDor==='function')updateDor(5);}
+
+  loadData();
+};
+
+/* ---- Garantir que o botão Voltar no detalhe funciona sempre ---- */
+document.addEventListener('click', function(e) {
+  if (e.target && e.target.classList.contains('d-back')) {
+    if (typeof fecharDetalhe === 'function') fecharDetalhe();
+  }
+}, true);
+
+/* ---- Garantir logout limpa tudo ---- */
+const _origLogout = window.doLogout;
+window.doLogout = async function() {
+  try {
+    /* Limpar subscrições realtime abertas */
+    if (typeof sb !== 'undefined') {
+      sb.removeAllChannels().catch(()=>{});
+    }
+  } catch(e) {}
+  if (typeof _origLogout === 'function') return _origLogout.apply(this, arguments);
+  await sb.auth.signOut();
+  location.reload();
+};
+
+/* ---- Validação: se openPontoDetalhe não encontrar o overlay, mostra erro amigável ---- */
+const _dpOrig = window.openPontoDetalhe;
+window.openPontoDetalhe = async function(profileId, nome, tipo) {
+  const overlay = document.getElementById('detalheOverlay');
+  if (!overlay) {
+    console.warn('detalheOverlay não encontrado');
+    if(typeof showToast==='function') showToast('Erro: tela de detalhe não carregada. Recarregue a página.', true);
+    return;
+  }
+  if (typeof _dpOrig === 'function') return _dpOrig.apply(this, arguments);
+};
+
+/* ---- Tema: sincronizar data-theme entre html e body (alguns browsers precisam) ---- */
+const _syncTheme = () => {
+  const t = document.body.dataset.theme || localStorage.getItem('theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+  document.body.dataset.theme = t;
+};
+_syncTheme();
+
+/* Observer para sincronizar quando body.dataset.theme muda */
+const _themeObserver = new MutationObserver((mutations) => {
+  mutations.forEach(m => {
+    if (m.type === 'attributes' && m.attributeName === 'data-theme') {
+      document.documentElement.setAttribute('data-theme', document.body.dataset.theme || 'dark');
+    }
+  });
+});
+_themeObserver.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
+
+})();
+</script>
+
 </body>
 </html>
