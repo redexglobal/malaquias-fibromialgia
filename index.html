@@ -4139,5 +4139,827 @@ window._loadUltimosCadastros=_loadUltimosCadastros;
 })();
 </script>
 
+
+<style>
+/* ======== CSS — 12 FEATURES AVANÇADAS ======== */
+
+/* 1. MAPA DE CALOR */
+.hm-section { margin: 20px 0 24px; }
+.hm-title { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.hm-title::before { content:''; width:3px; height:14px; background:#00c853; border-radius:2px; flex-shrink:0; }
+.hm-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 6px; margin-bottom: 10px; }
+@media(max-width:600px){ .hm-grid { grid-template-columns: repeat(5,1fr); gap:4px; } }
+.hm-cell {
+  aspect-ratio: 1; border-radius: 8px; cursor: pointer; position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: rgba(255,255,255,.9); transition: transform .15s, box-shadow .15s;
+}
+.hm-cell:hover { transform: scale(1.08); box-shadow: 0 4px 16px rgba(0,0,0,.35); }
+.hm-cell[data-s="hot"] { background: #16a34a; }
+.hm-cell[data-s="warm"] { background: #ca8a04; }
+.hm-cell[data-s="cool"] { background: #ea580c; }
+.hm-cell[data-s="cold"] { background: #dc2626; animation: hmPulse 2s ease-in-out infinite; }
+.hm-cell[data-s="none"] { background: rgba(100,116,139,.25); color: var(--text-muted); }
+@keyframes hmPulse { 0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.4);} 50%{box-shadow:0 0 0 8px rgba(220,38,38,0);} }
+.hm-tooltip {
+  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  background: #1e293b; border: 1px solid var(--border-glass); border-radius: 10px;
+  padding: 8px 12px; font-size: 11px; white-space: nowrap; z-index: 500; color: #f1f5f9;
+  pointer-events: none; display: none; box-shadow: 0 4px 20px rgba(0,0,0,.5);
+  line-height: 1.5;
+}
+.hm-cell:hover .hm-tooltip { display: block; }
+.hm-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; }
+.hm-leg { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-muted); }
+.hm-leg-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+/* 2. SIDEBAR FEED */
+.sf-wrap {
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--border-glass);
+  margin-top: 12px; max-height: 280px;
+}
+.sf-header { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.sf-dot { width: 7px; height: 7px; border-radius: 50%; background: #00c853; box-shadow: 0 0 6px #00c853; animation: sfPulse 1.5s infinite; flex-shrink: 0; }
+@keyframes sfPulse { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+.sf-title-text { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted); }
+.sf-list { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; max-height: 220px; }
+.sf-list::-webkit-scrollbar { width: 3px; } .sf-list::-webkit-scrollbar-thumb { background: rgba(0,200,83,.3); border-radius: 2px; }
+.sf-item { padding: 6px 8px; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 8px; font-size: 11px; color: var(--text-secondary); animation: sfIn .3s ease; line-height: 1.45; }
+@keyframes sfIn { from{opacity:0;transform:translateY(-4px);} to{opacity:1;transform:translateY(0);} }
+.sf-item strong { color: var(--text-primary); display: block; font-size: 11.5px; }
+.sf-empty { text-align: center; font-size: 11px; color: var(--text-muted); padding: 12px 0; }
+
+/* 3. TOAST RICO */
+.toast-adv {
+  position: fixed; top: 72px; right: 20px; z-index: 10000;
+  background: linear-gradient(135deg, rgba(10,36,22,.97), rgba(13,50,30,.97));
+  border: 1px solid rgba(0,200,83,.35); border-radius: 14px;
+  padding: 14px 18px; box-shadow: 0 8px 32px rgba(0,0,0,.45);
+  max-width: 300px; transform: translateX(320px); transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+  backdrop-filter: blur(12px);
+}
+.toast-adv.show { transform: translateX(0); }
+.toast-adv .ta-icon { font-size: 18px; margin-bottom: 3px; }
+.toast-adv .ta-ponto { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: rgba(0,200,83,.7); }
+.toast-adv .ta-nome { font-size: 15px; font-weight: 700; color: #e8f5e9; }
+.toast-adv .ta-hora { font-size: 11px; color: rgba(255,255,255,.4); margin-top: 2px; }
+
+/* 4. SCORE DE PERFORMANCE */
+.score-bar-wrap { margin-top: 6px; }
+.score-bar-track { height: 4px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
+.score-bar-fill { height: 100%; border-radius: 2px; transition: width .5s ease; }
+.score-label { font-size: 9px; color: var(--text-muted); margin-top: 2px; display: flex; justify-content: space-between; }
+
+/* 5. COMPARATIVO SEMANAL */
+.weekly-card {
+  background: linear-gradient(135deg, rgba(0,200,83,.1), rgba(0,200,83,.03));
+  border: 1px solid rgba(0,200,83,.2); border-radius: 16px;
+  padding: 16px 20px; margin-bottom: 20px;
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+}
+.weekly-main { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 700; color: var(--text-primary); }
+.weekly-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.weekly-trend { font-size: 14px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
+.weekly-trend.up { background: rgba(0,200,83,.15); color: #00c853; }
+.weekly-trend.dn { background: rgba(239,68,68,.12); color: #ef4444; }
+.weekly-sep { width: 1px; height: 40px; background: rgba(0,200,83,.2); flex-shrink: 0; }
+.weekly-stat { display: flex; flex-direction: column; align-items: center; }
+.weekly-stat-val { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.weekly-stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
+
+/* 6. GRÁFICO HORÁRIO */
+.chart-hourly-wrap { background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: 16px; padding: 16px; margin-bottom: 20px; }
+.chart-hourly-title { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+.chart-hourly-live { font-size: 11px; color: #00c853; display: flex; align-items: center; gap: 5px; }
+.chart-hourly-live::before { content:''; display:inline-block; width:7px; height:7px; border-radius:50%; background:#00c853; box-shadow:0 0 6px #00c853; animation:sfPulse 1.5s infinite; }
+.chart-hourly-canvas { height: 180px; }
+
+/* 7. MODO APRESENTAÇÃO */
+.pres-overlay {
+  position: fixed; inset: 0; z-index: 9998; background: #071a0f;
+  display: none; flex-direction: column; overflow: hidden;
+}
+.pres-overlay.show { display: flex; }
+.pres-header {
+  background: rgba(10,36,22,.95); border-bottom: 1px solid rgba(0,200,83,.2);
+  padding: 16px 24px; display: flex; align-items: center; justify-content: space-between;
+}
+.pres-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: #e8f5e9; }
+.pres-proj { font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 20px; background: rgba(0,200,83,.15); color: #00c853; border: 1px solid rgba(0,200,83,.3); margin-left: 12px; }
+.pres-close { background: none; border: 1px solid rgba(0,200,83,.3); color: #00c853; width: 36px; height: 36px; border-radius: 8px; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: all .2s; }
+.pres-close:hover { background: rgba(0,200,83,.1); }
+.pres-body { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr; gap: 20px; padding: 20px; overflow: auto; }
+.pres-kpis { grid-column: 1/-1; display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+.pres-kpi { background: rgba(10,36,22,.8); border: 1px solid rgba(0,200,83,.2); border-radius: 16px; padding: 20px; text-align: center; }
+.pres-kpi-val { font-family: 'Playfair Display', serif; font-size: 3rem; font-weight: 700; color: #00c853; line-height: 1; }
+.pres-kpi-label { font-size: 12px; color: rgba(200,255,220,.5); text-transform: uppercase; letter-spacing: .08em; margin-top: 6px; }
+
+/* 8. HEALTH INDICATOR */
+.health-wrap { position: relative; cursor: pointer; }
+.health-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .3s, box-shadow .3s;
+}
+.health-dot.ok { background: #00c853; box-shadow: 0 0 8px #00c853; animation: hPulse 2s infinite; }
+.health-dot.warn { background: #fbbf24; box-shadow: 0 0 8px #fbbf24; animation: hPulse 1.5s infinite; }
+.health-dot.crit { background: #ef4444; box-shadow: 0 0 12px #ef4444; animation: hPulse 1s infinite; }
+@keyframes hPulse { 0%,100%{opacity:1;} 50%{opacity:.5;} }
+.health-tooltip {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  background: #1e293b; border: 1px solid var(--border-glass); border-radius: 12px;
+  padding: 12px 14px; font-size: 12px; white-space: nowrap; z-index: 500;
+  color: #f1f5f9; box-shadow: 0 4px 20px rgba(0,0,0,.5); display: none; min-width: 180px;
+}
+.health-wrap:hover .health-tooltip { display: block; }
+
+/* 9. EXECUTIVE SUMMARY */
+.exec-card {
+  background: linear-gradient(135deg, rgba(0,200,83,.08), rgba(0,200,83,.02));
+  border: 1px solid rgba(0,200,83,.25); border-left: 4px solid #00c853;
+  border-radius: 16px; padding: 18px 22px; margin-bottom: 22px;
+  display: flex; align-items: flex-start; gap: 16px;
+}
+.exec-icon { font-size: 2rem; flex-shrink: 0; }
+.exec-body { flex: 1; }
+.exec-greeting { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+.exec-text { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+.exec-highlight { color: #00c853; font-weight: 700; }
+
+/* 10. EXPORT MODAL */
+.export-modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.7); backdrop-filter: blur(4px); z-index: 5000; display: none; place-items: center; }
+.export-modal-bg.show { display: grid; }
+.export-modal { background: var(--bg-secondary); border: 1px solid var(--border-glass); border-radius: 20px; padding: 24px; width: 100%; max-width: 480px; }
+.export-modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 18px; color: var(--text-primary); }
+.export-period-btns { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.epb { padding: 6px 14px; border: 1px solid var(--border-glass); border-radius: 8px; background: none; color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer; transition: all .2s; font-family: 'DM Sans', sans-serif; }
+.epb:hover { border-color: #00c853; color: #00c853; }
+.epb.active { background: rgba(0,200,83,.12); border-color: #00c853; color: #00c853; }
+.export-custom-dates { display: none; gap: 10px; margin-bottom: 14px; }
+.export-custom-dates.show { display: flex; }
+.export-modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+.btn-exp { padding: 9px 20px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all .2s; font-family: 'DM Sans', sans-serif; }
+.btn-exp-csv { background: #00c853; color: #071a0f; border: none; }
+.btn-exp-csv:hover { background: #00e676; }
+.btn-exp-print { background: var(--input-bg); border: 1px solid var(--border-glass); color: var(--text-secondary); }
+.btn-exp-print:hover { border-color: #00c853; color: #00c853; }
+.btn-exp-cancel { background: none; border: 1px solid var(--border-glass); color: var(--text-muted); }
+
+/* 11. GLOBAL SEARCH */
+.gs-wrap { position: relative; }
+.gs-input {
+  background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-primary);
+  border-radius: 10px; padding: 7px 14px 7px 34px; font-size: 13px;
+  outline: none; width: 200px; transition: all .25s; font-family: 'DM Sans', sans-serif;
+}
+.gs-input:focus { border-color: #00c853; box-shadow: 0 0 12px rgba(0,200,83,.15); width: 260px; }
+.gs-input::placeholder { color: var(--text-muted); }
+.gs-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 13px; pointer-events: none; }
+.gs-dropdown {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  background: var(--bg-secondary); border: 1px solid var(--border-glass);
+  border-radius: 14px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  width: 320px; z-index: 1000; display: none;
+}
+.gs-dropdown.show { display: block; }
+.gs-result {
+  display: flex; align-items: flex-start; gap: 10px; padding: 11px 16px;
+  border-bottom: 1px solid var(--border-glass); cursor: pointer; transition: background .15s;
+}
+.gs-result:last-child { border-bottom: none; }
+.gs-result:hover { background: var(--hover-bg); }
+.gs-r-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.gs-r-meta { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+.gs-empty { padding: 20px; text-align: center; font-size: 13px; color: var(--text-muted); }
+.gs-loading { padding: 20px; text-align: center; font-size: 12px; color: var(--text-muted); }
+
+/* Print styles */
+@media print {
+  .sidebar, .header, .stg-wrapper, #sec-comparar, #sec-ultimos-cadastros, #sec-ponto-detalhe { display: none !important; }
+  .main { margin-left: 0 !important; padding: 0 !important; }
+  .section:not(.active) { display: none !important; }
+  body { background: white !important; color: #000 !important; }
+  .kpi-card, .chart-card, .table-card { border: 1px solid #ccc !important; background: white !important; }
+}
+</style>
+
+<div class="toast-adv" id="toast-adv">
+  <div class="ta-icon">📋</div>
+  <div class="ta-ponto" id="ta-ponto">—</div>
+  <div class="ta-nome" id="ta-nome">—</div>
+  <div class="ta-hora" id="ta-hora">—</div>
+</div>
+
+<div class="pres-overlay" id="pres-overlay">
+  <div class="pres-header">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="pres-title" id="pres-title">Dr. Malaquias</span>
+      <span class="pres-proj" id="pres-proj">Fibromialgia</span>
+    </div>
+    <button class="pres-close" onclick="_presClose()">✕</button>
+  </div>
+  <div class="pres-body">
+    <div class="pres-kpis" id="pres-kpis"></div>
+    <div id="pres-hm"></div>
+    <div id="pres-feed-wrap" style="background:rgba(10,36,22,.6);border:1px solid rgba(0,200,83,.15);border-radius:16px;padding:16px;overflow:hidden">
+      <div style="font-size:12px;font-weight:700;color:#00c853;margin-bottom:10px">Atividade ao vivo</div>
+      <div id="pres-feed" style="font-size:12px;color:var(--text-secondary);overflow-y:auto;max-height:calc(100% - 36px)"></div>
+    </div>
+  </div>
+</div>
+
+<div class="export-modal-bg" id="export-modal-bg">
+  <div class="export-modal">
+    <h3>📥 Exportar Cadastros</h3>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">Projeto: <strong id="em-proj">—</strong></p>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:8px">Período</div>
+    <div class="export-period-btns">
+      <button class="epb active" onclick="_epSet('hoje',this)">Hoje</button>
+      <button class="epb" onclick="_epSet('semana',this)">Esta semana</button>
+      <button class="epb" onclick="_epSet('mes',this)">Este mês</button>
+      <button class="epb" onclick="_epSet('custom',this)">Personalizado</button>
+    </div>
+    <div class="export-custom-dates" id="exp-custom">
+      <div style="flex:1"><label style="font-size:11px;color:var(--text-muted)">De</label><br><input type="date" class="form-input" id="exp-de" style="margin-top:4px"></div>
+      <div style="flex:1"><label style="font-size:11px;color:var(--text-muted)">Até</label><br><input type="date" class="form-input" id="exp-ate" style="margin-top:4px"></div>
+    </div>
+    <div class="export-modal-actions">
+      <button class="btn-exp btn-exp-cancel" onclick="_epClose()">Cancelar</button>
+      <button class="btn-exp btn-exp-print" onclick="_epPrint()">🖨️ Imprimir</button>
+      <button class="btn-exp btn-exp-csv" onclick="_epExport()">📥 CSV</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ======================================
+   12 FEATURES AVANÇADAS — Dr. Malaquias
+   ====================================== */
+(function(){
+'use strict';
+
+/* ---- Utilities ---- */
+const $=id=>document.getElementById(id);
+const _proj=()=>typeof currentProject!=='undefined'?currentProject:'fibro';
+const _tbl=()=>_proj()==='oculos'?'pacientes_oculos':'pacientes_fibro';
+const _today=()=>new Date().toISOString().split('T')[0];
+const _hora=iso=>{ try{return new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}catch(e){return'—';} };
+const _fmt=n=>new Date(n*86400000+new Date().setHours(0,0,0,0)).toLocaleDateString('pt-BR');
+const _animN=(id,n)=>{ const el=$(id);if(!el)return;const dur=600,st=Date.now();(function t(){const p=Math.min((Date.now()-st)/dur,1);el.textContent=Math.round(n*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(t);})(); };
+let _pMap={}; // profileId -> nome
+let _advChart=null, _advRtSub=null;
+const _sfEvents=[];
+
+/* ====== 1. MAPA DE CALOR ====== */
+function _renderHeatMap(container){
+  if(!container)return;
+  const all=window.allPacientes||[];
+  const today=_today();
+  const yesterday=new Date(Date.now()-86400000).toISOString().split('T')[0];
+  const d2=new Date(Date.now()-2*86400000).toISOString().split('T')[0];
+  const d3=new Date(Date.now()-3*86400000).toISOString().split('T')[0];
+
+  const profiles=Object.entries(_pMap);
+  if(!profiles.length){ container.innerHTML='<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px">Carregando mapa...</div>'; return; }
+
+  container.innerHTML=`
+    <div class="hm-title">🗺️ Mapa de Calor dos Pontos</div>
+    <div class="hm-grid" id="hm-inner"></div>
+    <div class="hm-legend">
+      <span class="hm-leg"><span class="hm-leg-dot" style="background:#16a34a"></span>Hoje</span>
+      <span class="hm-leg"><span class="hm-leg-dot" style="background:#ca8a04"></span>Ontem</span>
+      <span class="hm-leg"><span class="hm-leg-dot" style="background:#ea580c"></span>2-3 dias</span>
+      <span class="hm-leg"><span class="hm-leg-dot" style="background:#dc2626"></span>&gt;3 dias (crítico)</span>
+    </div>`;
+
+  const grid=$('hm-inner');if(!grid)return;
+  const semana=new Date(Date.now()-7*86400000).toISOString().split('T')[0];
+
+  profiles.forEach(([id,nome])=>{
+    const recs=all.filter(p=>p.cadastrado_por===id);
+    const semRecs=recs.filter(p=>p.criado_em&&p.criado_em>=semana);
+    const last=recs.sort((a,b)=>(b.criado_em||'').localeCompare(a.criado_em||''))[0];
+    const lastDate=last?.criado_em?.split('T')[0]||null;
+    let s='none';
+    if(recs.length===0)s='none';
+    else if(lastDate>=today)s='hot';
+    else if(lastDate>=yesterday)s='warm';
+    else if(lastDate>=d3)s='cool';
+    else s='cold';
+    const totalHoje=recs.filter(p=>p.criado_em?.startsWith(today)).length;
+    const lastStr=lastDate?new Date(lastDate+'T00:00:00').toLocaleDateString('pt-BR'):'Nunca';
+    const nomeShort=nome.replace('Ponto Fixo ','F').replace('Ponto Movel ','M').replace('Ponto ','P');
+    const cell=document.createElement('div');
+    cell.className='hm-cell'; cell.setAttribute('data-s',s);
+    cell.innerHTML=`<span>${nomeShort}</span><div class="hm-tooltip">${nome}<br>Último: ${lastStr}<br>Hoje: ${totalHoje} | Semana: ${semRecs.length}</div>`;
+    cell.onclick=()=>{ if(typeof openPontoDetalhe==='function') openPontoDetalhe(id,nome,'fixo'); };
+    grid.appendChild(cell);
+  });
+}
+
+function _injectHeatMap(){
+  const dash=$('sec-dashboard');if(!dash||$('adv12-hm'))return;
+  const hm=document.createElement('div');
+  hm.id='adv12-hm'; hm.className='hm-section';
+  const kpi=dash.querySelector('.kpi-grid');
+  if(kpi)kpi.after(hm); else dash.appendChild(hm);
+}
+
+/* ====== 2. SIDEBAR FEED ====== */
+function _injectSidebarFeed(){
+  const sb=document.querySelector('.sidebar');
+  if(!sb||$('adv12-sf'))return;
+  const sf=document.createElement('div');
+  sf.id='adv12-sf'; sf.className='sf-wrap';
+  sf.innerHTML=`<div class="sf-header"><div class="sf-dot"></div><span class="sf-title-text">Ao Vivo</span></div><div class="sf-list" id="sf-list"><div class="sf-empty">Aguardando atividade...</div></div>`;
+  sb.appendChild(sf);
+}
+
+function _sfPush(nome,ponto,proj,hora){
+  const list=$('sf-list');if(!list)return;
+  if(list.querySelector('.sf-empty'))list.innerHTML='';
+  const item=document.createElement('div');item.className='sf-item';
+  const icon=proj==='oculos'?'👓':'💊';
+  item.innerHTML=`<strong>${icon} ${ponto}</strong>${nome} <span style="color:var(--text-muted)">· ${hora}</span>`;
+  list.insertBefore(item,list.firstChild);
+  _sfEvents.unshift({nome,ponto,proj,hora});
+  if(_sfEvents.length>20){_sfEvents.pop();const items=list.querySelectorAll('.sf-item');if(items.length>20)items[items.length-1].remove();}
+  /* Sync para apresentação */
+  _updatePresFeed();
+}
+
+/* ====== 3. TOAST RICO ====== */
+let _toastTimer=null;
+function _showToastAdv(pontoNome,pacNome){
+  const hora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const ta=$('ta-ponto'),tb=$('ta-nome'),tc=$('ta-hora'),td=$('toast-adv');
+  if(!ta||!td)return;
+  ta.textContent=pontoNome; tb.textContent=pacNome; tc.textContent=hora;
+  td.classList.add('show');
+  if(_toastTimer)clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>td.classList.remove('show'),4000);
+}
+
+/* ====== 4. SCORE DE PERFORMANCE ====== */
+const META_DIARIA=5;
+
+function _scoreHTML(cnt){
+  const pct=Math.min(100,Math.round(cnt/META_DIARIA*100));
+  const color=pct>=100?'#00c853':pct>=60?'#fbbf24':'#ef4444';
+  return `<div class="score-bar-wrap"><div class="score-bar-track"><div class="score-bar-fill" style="width:${pct}%;background:${color}"></div></div><div class="score-label"><span>${cnt}/${META_DIARIA} hoje</span><span>${pct}%</span></div></div>`;
+}
+
+/* ====== 5. COMPARATIVO SEMANAL ====== */
+function _injectWeeklyCard(){
+  const dash=$('sec-dashboard');if(!dash||$('adv12-weekly'))return;
+  const wc=document.createElement('div');wc.id='adv12-weekly';
+  const title=dash.querySelector('.page-title');
+  if(title)title.after(wc); else dash.insertBefore(wc,dash.firstChild);
+  _updateWeeklyCard();
+}
+
+function _updateWeeklyCard(){
+  const wc=$('adv12-weekly');if(!wc)return;
+  const all=window.allPacientes||[];
+  const now=new Date();
+  const startW=new Date(now);startW.setDate(now.getDate()-now.getDay());startW.setHours(0,0,0,0);
+  const startP=new Date(startW);startP.setDate(startP.getDate()-7);
+  const endP=new Date(startW);endP.setMilliseconds(-1);
+  const thisW=all.filter(p=>p.criado_em&&new Date(p.criado_em)>=startW);
+  const prevW=all.filter(p=>p.criado_em&&new Date(p.criado_em)>=startP&&new Date(p.criado_em)<=endP);
+  const pct=prevW.length>0?Math.round((thisW.length-prevW.length)/prevW.length*100):null;
+  const isUp=pct===null||pct>=0;
+  /* Melhor dia */
+  const dc={};
+  thisW.forEach(p=>{const d=new Date(p.criado_em).toLocaleDateString('pt-BR',{weekday:'long'});dc[d]=(dc[d]||0)+1;});
+  const bestDay=Object.entries(dc).sort((a,b)=>b[1]-a[1])[0];
+  /* Ponto mais ativo */
+  const pc={};
+  thisW.forEach(p=>{pc[p.cadastrado_por]=(pc[p.cadastrado_por]||0)+1;});
+  const bestPonto=Object.entries(pc).sort((a,b)=>b[1]-a[1])[0];
+  const bestNome=bestPonto?(_pMap[bestPonto[0]]||bestPonto[0].substring(0,8)):null;
+  wc.innerHTML=`
+    <div class="weekly-card">
+      <div>
+        <div class="weekly-main">${thisW.length} cadastros</div>
+        <div class="weekly-sub">esta semana</div>
+      </div>
+      ${pct!==null?`<span class="weekly-trend ${isUp?'up':'dn'}">${isUp?'↑':'↓'} ${Math.abs(pct)}% vs sem. anterior</span>`:''}
+      ${bestDay?`<div class="weekly-sep"></div><div class="weekly-stat"><div class="weekly-stat-val">${bestDay[0].charAt(0).toUpperCase()+bestDay[0].slice(1)}</div><div class="weekly-stat-label">Melhor dia (${bestDay[1]})</div></div>`:''}
+      ${bestNome?`<div class="weekly-sep"></div><div class="weekly-stat"><div class="weekly-stat-val" style="font-size:13px">${bestNome}</div><div class="weekly-stat-label">Ponto mais ativo (${bestPonto[1]})</div></div>`:''}
+    </div>`;
+}
+
+/* ====== 6. GRÁFICO DE LINHA HORÁRIO ====== */
+function _injectHourlyChart(){
+  const dash=$('sec-dashboard');if(!dash||$('adv12-hourly'))return;
+  const wrap=document.createElement('div');wrap.id='adv12-hourly';wrap.className='chart-hourly-wrap';
+  wrap.innerHTML=`<div class="chart-hourly-title"><span>📈 Cadastros por hora — hoje</span><span class="chart-hourly-live">Tempo real</span></div><div class="chart-hourly-canvas"><canvas id="chart-hourly"></canvas></div>`;
+  const chartGrid=dash.querySelector('.chart-grid');
+  if(chartGrid)chartGrid.before(wrap); else dash.appendChild(wrap);
+  setTimeout(_buildHourlyChart,300);
+}
+
+function _buildHourlyChart(){
+  const ctx=$('chart-hourly');if(!ctx)return;
+  if(_advChart){_advChart.destroy();_advChart=null;}
+  const all=window.allPacientes||[];
+  const today=_today();
+  const hours=Array.from({length:24},(_,h)=>h);
+  const counts=hours.map(h=>all.filter(p=>p.criado_em?.startsWith(today)&&new Date(p.criado_em).getHours()===h).length);
+  const cumul=counts.map((_,i)=>counts.slice(0,i+1).reduce((a,b)=>a+b,0));
+  const nowH=new Date().getHours();
+  const labels=hours.map(h=>h+':00');
+  try{
+    _advChart=new Chart(ctx,{
+      type:'line',
+      data:{
+        labels,
+        datasets:[{
+          label:'Acumulado',data:cumul,
+          borderColor:'#00c853',backgroundColor:'rgba(0,200,83,.1)',
+          fill:true,tension:.4,pointRadius:(ctx2,o)=>o.dataIndex===nowH?6:3,
+          pointBackgroundColor:'#00c853',pointBorderColor:'#071a0f',pointBorderWidth:2,
+        }]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{title:i=>'Às '+i[0].label,label:i=>'Acumulado: '+i.raw+' cadastros'}}},
+        scales:{
+          x:{grid:{color:'rgba(0,200,83,.06)'},ticks:{color:'rgba(200,255,220,.4)',font:{size:10},maxTicksLimit:12}},
+          y:{grid:{color:'rgba(0,200,83,.06)'},ticks:{color:'rgba(200,255,220,.4)',font:{size:11},stepSize:1},beginAtZero:true}
+        }
+      }
+    });
+  }catch(e){console.warn('chart-hourly:',e);}
+}
+
+function _updateHourlyChart(newRecord){
+  if(!_advChart)return;
+  const today=_today();
+  if(!newRecord.criado_em?.startsWith(today))return;
+  const h=new Date(newRecord.criado_em).getHours();
+  const ds=_advChart.data.datasets[0];
+  for(let i=h;i<24;i++)ds.data[i]=(ds.data[i]||0)+1;
+  _advChart.update('none');
+}
+
+/* ====== 7. MODO APRESENTAÇÃO ====== */
+function _injectPresButton(){
+  const hr=document.querySelector('.header-right');if(!hr||$('adv12-pres-btn'))return;
+  const btn=document.createElement('button');
+  btn.id='adv12-pres-btn'; btn.title='Modo Apresentação';
+  btn.style.cssText='background:none;border:1px solid var(--border-glass);color:var(--text-secondary);width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:15px;transition:all .2s;display:flex;align-items:center;justify-content:center;';
+  btn.innerHTML='⛶'; btn.onclick=_presOpen;
+  btn.onmouseenter=()=>{btn.style.borderColor='#00c853';btn.style.color='#00c853';};
+  btn.onmouseleave=()=>{btn.style.borderColor='var(--border-glass)';btn.style.color='var(--text-secondary)';};
+  hr.insertBefore(btn,hr.firstChild);
+}
+
+function _presOpen(){
+  const po=$('pres-overlay');if(!po)return;
+  const proj=_proj();
+  const pj=$('pres-proj');if(pj)pj.textContent=proj==='oculos'?'Óculos':'Fibromialgia';
+  _updatePresKPIs();
+  _renderPresHeatMap();
+  _updatePresFeed();
+  po.classList.add('show');
+  try{document.documentElement.requestFullscreen();}catch(e){}
+  document.addEventListener('keydown',_presKeyHandler);
+}
+function _presClose(){
+  const po=$('pres-overlay');if(po)po.classList.remove('show');
+  try{if(document.fullscreenElement)document.exitFullscreen();}catch(e){}
+  document.removeEventListener('keydown',_presKeyHandler);
+}
+function _presKeyHandler(e){if(e.key==='Escape')_presClose();}
+
+function _updatePresKPIs(){
+  const all=window.allPacientes||[];
+  const today=_today();
+  const sem=new Date(Date.now()-7*86400000).toISOString().split('T')[0];
+  const kpisEl=$('pres-kpis');if(!kpisEl)return;
+  const todayC=all.filter(p=>p.criado_em?.startsWith(today)).length;
+  const weekC=all.filter(p=>p.criado_em&&p.criado_em>=sem).length;
+  const activePontos=new Set(all.filter(p=>p.criado_em?.startsWith(today)).map(p=>p.cadastrado_por)).size;
+  const dorM=all.filter(p=>p.nivel_dor!=null).length?Math.round(all.filter(p=>p.nivel_dor!=null).reduce((a,p)=>a+p.nivel_dor,0)/all.filter(p=>p.nivel_dor!=null).length*10)/10:'—';
+  kpisEl.innerHTML=[
+    ['📅',todayC,'Hoje'],['📊',weekC,'Esta Semana'],['📍',activePontos,'Pontos Ativos'],['💊',dorM,'Média Dor']
+  ].map(([ic,v,l])=>`<div class="pres-kpi"><div style="font-size:2rem;margin-bottom:4px">${ic}</div><div class="pres-kpi-val">${v}</div><div class="pres-kpi-label">${l}</div></div>`).join('');
+}
+function _renderPresHeatMap(){
+  const el=$('pres-hm');if(!el)return;
+  el.style.cssText='background:rgba(10,36,22,.6);border:1px solid rgba(0,200,83,.15);border-radius:16px;padding:16px;overflow:hidden';
+  el.className='hm-section';
+  _renderHeatMap(el);
+}
+function _updatePresFeed(){
+  const el=$('pres-feed');if(!el)return;
+  if(!_sfEvents.length){el.innerHTML='<div style="color:var(--text-muted);text-align:center;padding:12px">Aguardando...</div>';return;}
+  el.innerHTML=_sfEvents.slice(0,12).map(e=>`<div style="padding:5px 0;border-bottom:1px solid rgba(0,200,83,.1)"><strong style="color:#e8f5e9">${e.nome}</strong><br><span style="color:rgba(200,255,220,.5)">${e.ponto} · ${e.hora}</span></div>`).join('');
+}
+
+/* ====== 8. HEALTH INDICATOR ====== */
+function _injectHealthIndicator(){
+  const hr=document.querySelector('.header-right');if(!hr||$('adv12-health'))return;
+  const hw=document.createElement('div');hw.id='adv12-health';hw.className='health-wrap';
+  hw.innerHTML=`<div class="health-dot ok" id="health-dot"></div><div class="health-tooltip" id="health-tip">Verificando...</div>`;
+  hr.insertBefore(hw,hr.firstChild);
+}
+
+function _updateHealthIndicator(){
+  const dot=$('health-dot'),tip=$('health-tip');if(!dot||!tip)return;
+  const all=window.allPacientes||[];
+  const limite3d=new Date(Date.now()-3*86400000).toISOString();
+  const profiles=Object.entries(_pMap);
+  const criticos=profiles.filter(([id])=>{
+    const recs=all.filter(p=>p.cadastrado_por===id);
+    if(!recs.length)return true;
+    const last=recs.sort((a,b)=>b.criado_em?.localeCompare(a.criado_em||''))[0];
+    return last?.criado_em<limite3d;
+  }).length;
+  const today=all.filter(p=>p.criado_em?.startsWith(_today())).length;
+  dot.className='health-dot '+(criticos===0?'ok':criticos<5?'warn':'crit');
+  tip.innerHTML=criticos===0
+    ?`✅ Sistema OK<br><span style="color:var(--text-muted)">Todos os pontos ativos<br>${today} cadastros hoje</span>`
+    :`⚠️ ${criticos} ponto${criticos>1?'s':''} inativo${criticos>1?'s':''}<br><span style="color:var(--text-muted)">Sem cadastros há +3 dias<br>${today} cadastros hoje</span>`;
+}
+
+/* ====== 9. EXECUTIVE SUMMARY ====== */
+function _injectExecSummary(){
+  const dash=$('sec-dashboard');if(!dash||$('adv12-exec'))return;
+  const ec=document.createElement('div');ec.id='adv12-exec';
+  dash.insertBefore(ec,dash.firstChild);
+  _updateExecSummary();
+}
+function _updateExecSummary(){
+  const ec=$('adv12-exec');if(!ec)return;
+  const all=window.allPacientes||[];
+  const today=_today();
+  const yesterday=new Date(Date.now()-86400000).toISOString().split('T')[0];
+  const ystd=all.filter(p=>p.criado_em?.startsWith(yesterday)).length;
+  const todayC=all.filter(p=>p.criado_em?.startsWith(today)).length;
+  const activePontos=new Set(all.map(p=>p.cadastrado_por)).size;
+  const hora=new Date().getHours();
+  const saud=hora<12?'Bom dia':hora<18?'Boa tarde':'Boa noite';
+  const adminNome=typeof currentProfile!=='undefined'?(currentProfile?.nome?.split(' ')[0]||'Admin'):'Admin';
+  const dataFmt=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});
+  ec.innerHTML=`<div class="exec-card"><div class="exec-icon">${hora<12?'☀️':hora<18?'🌤️':'🌙'}</div><div class="exec-body"><div class="exec-greeting">${saud}, ${adminNome}.</div><div class="exec-text">Hoje é <span class="exec-highlight">${dataFmt}</span>. Ontem foram <span class="exec-highlight">${ystd}</span> cadastros em <span class="exec-highlight">${activePontos}</span> pontos ativos. Cadastros hoje até agora: <span class="exec-highlight">${todayC}</span>. Meta sugerida: <span class="exec-highlight">${Math.max(50,Math.round(ystd*1.1))}</span> cadastros.</div></div></div>`;
+}
+
+/* ====== 10. EXPORT AVANÇADO ====== */
+let _epPeriod='hoje';
+function _injectExportButton(){
+  /* Substituir botão CSV existente na tela de cadastros */
+  const csvBtn=document.querySelector('[onclick="exportCSV()"]');
+  if(csvBtn&&!csvBtn.dataset.adv12){
+    csvBtn.dataset.adv12='1';
+    csvBtn.onclick=function(e){e.preventDefault();_epOpen();};
+    csvBtn.innerHTML='<i class="fas fa-download"></i> Exportar';
+  }
+}
+function _epOpen(){
+  const bg=$('export-modal-bg');if(!bg)return;
+  const proj=$('em-proj');if(proj)proj.textContent=_proj()==='oculos'?'Óculos':'Fibromialgia';
+  bg.classList.add('show');
+}
+window._epClose=()=>{ const b=$('export-modal-bg');if(b)b.classList.remove('show'); };
+window._epSet=(p,el)=>{
+  _epPeriod=p;
+  document.querySelectorAll('.epb').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  const cd=$('exp-custom');if(cd)cd.classList.toggle('show',p==='custom');
+};
+window._epExport=()=>{
+  const all=window.allPacientes||[];
+  const filtered=_epFilter(all);
+  if(!filtered.length){if(typeof showToast==='function')showToast('Sem dados no período',true);return;}
+  const proj=_proj();
+  let headers,rows;
+  if(proj==='oculos'){
+    headers='Nome,Idade,WhatsApp,Status,Data Entrega,Grau OD,Grau OE,Lente,Valor,Registrado em\n';
+    rows=filtered.map(p=>`"${p.nome||''}",${p.idade||''},"${p.whatsapp||''}","${p.status_pedido||''}","${p.data_entrega||''}","${p.grau_od||''}","${p.grau_oe||''}","${p.tipo_lente||''}",${p.valor_pedido||''},"${p.criado_em?new Date(p.criado_em).toLocaleString('pt-BR'):''}"`).join('\n');
+  } else {
+    headers='Nome,Idade,WhatsApp,Sintomas,Dor,Data Consulta,Medicações,Registrado em\n';
+    rows=filtered.map(p=>`"${p.nome||''}",${p.idade||''},"${p.whatsapp||'"},"${p.sintomas||''}",${p.nivel_dor!=null?p.nivel_dor:''},"${p.data_consulta||'"},"${p.medicacoes||'"},"${p.criado_em?new Date(p.criado_em).toLocaleString('pt-BR'):''}"` ).join('\n');
+  }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['﻿'+headers+rows],{type:'text/csv;charset=utf-8;'}));
+  a.download=`dr-malaquias-${proj}-${_epPeriod}-${_today()}.csv`;
+  a.click();
+  _epClose();
+};
+window._epPrint=()=>{ _epClose(); setTimeout(()=>window.print(),200); };
+function _epFilter(all){
+  const today=_today();
+  if(_epPeriod==='hoje')return all.filter(p=>p.criado_em?.startsWith(today));
+  if(_epPeriod==='semana'){const sem=new Date(Date.now()-7*86400000).toISOString().split('T')[0];return all.filter(p=>p.criado_em&&p.criado_em>=sem);}
+  if(_epPeriod==='mes'){const mes=new Date(Date.now()-30*86400000).toISOString().split('T')[0];return all.filter(p=>p.criado_em&&p.criado_em>=sem);}
+  if(_epPeriod==='custom'){const de=$('exp-de')?.value,ate=$('exp-ate')?.value;if(!de||!ate)return all;return all.filter(p=>p.criado_em&&p.criado_em.split('T')[0]>=de&&p.criado_em.split('T')[0]<=ate);}
+  return all;
+}
+
+/* ====== 11. BUSCA GLOBAL ====== */
+function _injectGlobalSearch(){
+  const hr=document.querySelector('.header-right');if(!hr||$('adv12-gs'))return;
+  const gsw=document.createElement('div');gsw.id='adv12-gs';gsw.className='gs-wrap';
+  gsw.innerHTML=`<i class="fas fa-search gs-icon"></i><input class="gs-input" id="gs-input" placeholder="Buscar paciente..." autocomplete="off"><div class="gs-dropdown" id="gs-drop"></div>`;
+  hr.insertBefore(gsw,hr.firstChild);
+  let _gsTimer=null;
+  const inp=$('gs-input'),drop=$('gs-drop');
+  inp.addEventListener('input',()=>{
+    clearTimeout(_gsTimer);
+    const q=inp.value.trim();
+    if(q.length<2){drop.classList.remove('show');return;}
+    drop.classList.add('show');drop.innerHTML='<div class="gs-loading">Buscando...</div>';
+    _gsTimer=setTimeout(()=>_gsSearch(q),350);
+  });
+  inp.addEventListener('blur',()=>setTimeout(()=>drop.classList.remove('show'),200));
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){inp.value='';drop.classList.remove('show');} });
+}
+
+async function _gsSearch(q){
+  const drop=$('gs-drop');if(!drop)return;
+  /* Busca local primeiro (allPacientes em memória) */
+  const local=(window.allPacientes||[]).filter(p=>(p.nome||'').toLowerCase().includes(q.toLowerCase())||(p.whatsapp||'').includes(q)).slice(0,8);
+  if(local.length){_gsRender(local);return;}
+  /* Fallback: busca no Supabase */
+  try{
+    const {data}=await sb.from(_tbl()).select('id,nome,idade,whatsapp,criado_em,cadastrado_por').ilike('nome','%'+q+'%').limit(8);
+    _gsRender(data||[]);
+  }catch(e){drop.innerHTML='<div class="gs-empty">Erro na busca</div>';}
+}
+
+function _gsRender(results){
+  const drop=$('gs-drop');if(!drop)return;
+  if(!results.length){drop.innerHTML='<div class="gs-empty">Nenhum resultado</div>';return;}
+  drop.innerHTML=results.map(r=>{
+    const ponto=_pMap[r.cadastrado_por]||'—';
+    const data=r.criado_em?new Date(r.criado_em).toLocaleDateString('pt-BR'):'—';
+    return `<div class="gs-result" onclick="_gsOpenResult('${r.cadastrado_por}','${(r.nome||'').replace(/'/g,"\\'")}')">
+      <div style="flex:1"><div class="gs-r-name">${r.nome||'—'}</div><div class="gs-r-meta">${ponto} · ${data}${r.whatsapp?' · '+r.whatsapp:''}</div></div>
+    </div>`;
+  }).join('');
+}
+
+window._gsOpenResult=(pontoId,nome)=>{
+  const inp=$('gs-input'),drop=$('gs-drop');
+  if(inp)inp.value='';if(drop)drop.classList.remove('show');
+  if(typeof openPontoDetalhe==='function') openPontoDetalhe(pontoId,_pMap[pontoId]||nome,'fixo');
+};
+
+/* ====== 12. HISTÓRICO (proxy via último cadastro) ====== */
+function _updatePontoDetalheHistory(profileId){
+  /* Injeta info de "último acesso" na tela de detalhe do ponto */
+  const pdTitle=$('pd-title');if(!pdTitle||!pdTitle.parentElement)return;
+  const all=window.allPacientes||[];
+  const recs=all.filter(p=>p.cadastrado_por===profileId).sort((a,b)=>b.criado_em?.localeCompare(a.criado_em||''));
+  const last=recs[0];
+  const histEl=$('adv12-hist');
+  if(!histEl){
+    const h=document.createElement('p');h.id='adv12-hist';
+    h.style.cssText='font-size:12px;color:var(--text-muted);margin-bottom:16px;';
+    pdTitle.parentElement.after(h);
+  }
+  const he=$('adv12-hist');if(!he)return;
+  if(last?.criado_em){
+    const d=new Date(last.criado_em);
+    he.textContent=`📅 Último cadastro: ${d.toLocaleDateString('pt-BR')} às ${d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})} · Total: ${recs.length} cadastros`;
+  } else {
+    he.textContent='📅 Nenhum cadastro registrado ainda';
+  }
+}
+
+/* ====== REALTIME CENTRALIZADO ====== */
+function _initRealtime(){
+  if(_advRtSub){_advRtSub.unsubscribe();_advRtSub=null;}
+  const tbl=_tbl();
+  _advRtSub=sb.channel('adv12_rt_'+tbl)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:tbl},async pl=>{
+      const rec=pl.new;
+      /* Busca nome do ponto */
+      let pNome=_pMap[rec.cadastrado_por];
+      if(!pNome){
+        try{const{data:pr}=await sb.from('profiles').select('nome,nome_editavel').eq('id',rec.cadastrado_por).single();if(pr)_pMap[rec.cadastrado_por]=pNome=pr.nome_editavel||pr.nome||'Ponto';}catch(e){}
+      }
+      /* Toast */
+      _showToastAdv(pNome||'Ponto',rec.nome||'Paciente');
+      /* Sidebar feed */
+      _sfPush(rec.nome||'Paciente',pNome||'Ponto',_proj(),new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}));
+      /* Gráfico horário */
+      _updateHourlyChart(rec);
+      /* KPIs apresentação */
+      if($('pres-overlay')?.classList.contains('show')) _updatePresKPIs();
+      /* Health + weekly (throttled) */
+      _updateHealthIndicator();
+    }).subscribe();
+}
+
+/* ====== LOAD PROFILES ====== */
+async function _loadProfiles(){
+  if(Object.keys(_pMap).length) return;
+  const proj=_proj()==='oculos'?'oculos':'fibromialgia';
+  const{data}=await sb.from('profiles').select('id,nome,nome_editavel').eq('papel','colaborador').eq('projeto',proj).catch(()=>({data:null}));
+  if(data) data.forEach(p=>_pMap[p.id]=p.nome_editavel||p.nome);
+}
+
+/* ====== OVERRIDE UPDATEPONTOS — adiciona score bars ====== */
+const _prevUPAdv12=window.updatePontos;
+window.updatePontos=async function(){
+  if(typeof _prevUPAdv12==='function') await _prevUPAdv12();
+  /* Adiciona score bars nos cards */
+  const grid=$('pontos-grid');if(!grid)return;
+  const today=_today();
+  const all=window.allPacientes||[];
+  grid.querySelectorAll('.kpi-card').forEach(card=>{
+    if(card.querySelector('.score-bar-wrap'))return;
+    const onclick=card.getAttribute('onclick')||'';
+    const idMatch=onclick.match(/'([0-9a-f-]{36})'/);
+    if(!idMatch)return;
+    const id=idMatch[1];
+    const cntH=all.filter(p=>p.cadastrado_por===id&&p.criado_em?.startsWith(today)).length;
+    card.insertAdjacentHTML('beforeend',_scoreHTML(cntH));
+  });
+  /* Refresh heat map */
+  const hmEl=$('adv12-hm');if(hmEl)_renderHeatMap(hmEl);
+  /* Health */
+  _updateHealthIndicator();
+};
+
+/* ====== OVERRIDE OPENPONTODETAIL — adiciona histórico ====== */
+const _prevOPDAdv12=window.openPontoDetalhe;
+window.openPontoDetalhe=async function(profileId,nome,tipo){
+  if(typeof _prevOPDAdv12==='function') await _prevOPDAdv12(profileId,nome,tipo);
+  setTimeout(()=>_updatePontoDetalheHistory(profileId),400);
+};
+
+/* ====== HOOK SWITCH PROJECT ====== */
+const _prevSWAdv12=window.switchProject;
+window.switchProject=function(proj,btn){
+  if(typeof _prevSWAdv12==='function') _prevSWAdv12(proj,btn);
+  _pMap={};
+  setTimeout(async()=>{
+    await _loadProfiles();
+    _initRealtime();
+    const hmEl=$('adv12-hm');if(hmEl)_renderHeatMap(hmEl);
+    _updateWeeklyCard();
+    _updateExecSummary();
+    _updateHealthIndicator();
+    _buildHourlyChart();
+  },600);
+};
+
+/* ====== HOOK LOADDATA ====== */
+const _prevLDAdv12=window.loadData;
+window.loadData=async function(){
+  if(typeof _prevLDAdv12==='function') await _prevLDAdv12();
+  _updateExecSummary();
+  _updateWeeklyCard();
+  _updateHealthIndicator();
+  const hmEl=$('adv12-hm');if(hmEl)_renderHeatMap(hmEl);
+  _buildHourlyChart();
+};
+
+/* ====== INICIALIZAÇÃO ====== */
+async function _adv12Init(){
+  if(typeof currentProfile==='undefined'||!currentProfile) return false;
+  if(currentProfile.papel!=='admin') return true;
+
+  await _loadProfiles();
+
+  _injectHeatMap();
+  _injectWeeklyCard();
+  _injectHourlyChart();
+  _injectExecSummary();
+  _injectSidebarFeed();
+  _injectPresButton();
+  _injectHealthIndicator();
+  _injectExportButton();
+  _injectGlobalSearch();
+
+  _updateExecSummary();
+  _updateWeeklyCard();
+  _updateHealthIndicator();
+  const hmEl=$('adv12-hm');if(hmEl)_renderHeatMap(hmEl);
+  _buildHourlyChart();
+  _initRealtime();
+
+  return true;
+}
+
+if(!_adv12Init()){
+  const _t=setInterval(()=>{_adv12Init().then(ok=>{if(ok)clearInterval(_t);});},400);
+  setTimeout(()=>clearInterval(_t),30000);
+}
+
+/* ESC fecha overlay apresentação */
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('pres-overlay')?.classList.contains('show'))_presClose(); });
+/* Fecha export ao clicar fora */
+$('export-modal-bg')?.addEventListener('click',e=>{ if(e.target===$('export-modal-bg'))_epClose(); });
+
+})();
+</script>
+
 </body>
 </html>
