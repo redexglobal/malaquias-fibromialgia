@@ -3720,5 +3720,424 @@ if(!_megaInit()){
 })();
 </script>
 
+
+<style>
+/* ====== SEÇÃO DETALHE DO PONTO ====== */
+#sec-ponto-detalhe .pd-header {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 24px; flex-wrap: wrap;
+}
+#sec-ponto-detalhe .pd-back {
+  background: none; border: 1px solid var(--border-glass);
+  color: var(--text-secondary); padding: 8px 16px; border-radius: 10px;
+  cursor: pointer; font-size: 13px; font-weight: 600; transition: all .2s;
+  display: flex; align-items: center; gap: 6px; white-space: nowrap;
+  font-family: 'DM Sans', sans-serif;
+}
+#sec-ponto-detalhe .pd-back:hover { border-color: #00c853; color: #00c853; }
+#sec-ponto-detalhe .pd-title {
+  font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700;
+  color: var(--text-primary); flex: 1;
+}
+.pd-badge-tipo {
+  font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 20px;
+  background: rgba(0,200,83,.1); border: 1px solid rgba(0,200,83,.3); color: #00c853;
+}
+.pd-badge-status-ativo { background: rgba(0,200,83,.1); border: 1px solid rgba(0,200,83,.3); color: #00c853; }
+.pd-badge-status-inativo { background: rgba(100,116,139,.1); border: 1px solid rgba(100,116,139,.3); color: var(--text-muted); }
+
+.pd-kpis { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 24px; }
+@media(max-width:600px){ .pd-kpis { grid-template-columns: 1fr; } }
+.pd-kpi {
+  background: var(--bg-card); border: 1px solid var(--border-glass);
+  border-radius: 16px; padding: 20px; text-align: center; backdrop-filter: blur(10px);
+}
+.pd-kpi-val {
+  font-family: 'Playfair Display', serif; font-size: 2.8rem; font-weight: 700;
+  color: #00c853; line-height: 1;
+}
+.pd-kpi-label { font-size: 11px; color: var(--text-muted); margin-top: 6px; text-transform: uppercase; letter-spacing: .08em; }
+
+.pd-table-wrap {
+  background: var(--bg-card); border: 1px solid var(--border-glass);
+  border-radius: 16px; overflow: hidden; backdrop-filter: blur(10px);
+}
+.pd-table-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px; border-bottom: 1px solid var(--border-glass);
+}
+.pd-table-head h3 { font-size: 14px; font-weight: 700; }
+.pd-live-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: #00c853; box-shadow: 0 0 8px #00c853; animation: pdPulse 1.5s infinite;
+  margin-right: 6px;
+}
+@keyframes pdPulse { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+.pd-table-count { font-size: 12px; color: var(--text-muted); }
+.pd-tbl { width: 100%; border-collapse: collapse; }
+.pd-tbl th { font-size: 11px; font-weight: 700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-muted); padding: 11px 20px; text-align:left; border-bottom: 1px solid var(--border-glass); }
+.pd-tbl td { font-size: 13px; padding: 11px 20px; border-bottom: 1px solid rgba(255,255,255,.04); color: var(--text-primary); }
+.pd-tbl tr:last-child td { border-bottom: none; }
+.pd-tbl tr:hover td { background: var(--hover-bg); }
+.pd-new-row { animation: pdNewRow .9s ease; }
+@keyframes pdNewRow { from{background:rgba(0,200,83,.15);} to{background:transparent;} }
+.pd-empty { text-align:center; padding: 2.5rem; color: var(--text-muted); font-size: 14px; }
+
+/* ====== SEÇÃO ÚLTIMOS CADASTROS ====== */
+.uc-header-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+}
+.uc-live { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #00c853; font-weight: 600; }
+.uc-live::before { content:''; display:inline-block; width:9px; height:9px; border-radius:50%; background:#00c853; box-shadow:0 0 8px #00c853; animation:pdPulse 1.5s infinite; }
+.uc-count { font-size: 12px; color: var(--text-muted); }
+
+.uc-feed {
+  display: flex; flex-direction: column; gap: 8px;
+  max-height: 70vh; overflow-y: auto; padding-right: 4px;
+}
+.uc-feed::-webkit-scrollbar { width: 4px; }
+.uc-feed::-webkit-scrollbar-thumb { background: rgba(0,200,83,.3); border-radius: 2px; }
+
+.uc-item {
+  background: var(--bg-card); border: 1px solid var(--border-glass);
+  border-radius: 12px; padding: 12px 16px;
+  display: flex; align-items: flex-start; gap: 14px;
+  transition: all .2s; backdrop-filter: blur(8px);
+}
+.uc-item:hover { border-color: rgba(0,200,83,.3); }
+.uc-item.uc-new { animation: ucSlide .4s ease; }
+@keyframes ucSlide { from{opacity:0;transform:translateY(-8px);} to{opacity:1;transform:translateY(0);} }
+
+.uc-hora {
+  font-family: 'DM Sans', monospace; font-size: 13px; font-weight: 700;
+  color: #00c853; min-width: 48px; padding-top: 1px;
+}
+.uc-body { flex: 1; }
+.uc-paciente { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 3px; }
+.uc-meta { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--text-secondary); }
+.uc-ponto { font-weight: 600; color: var(--text-primary); }
+.uc-proj-badge {
+  font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.uc-proj-fibro { background: rgba(74,222,128,.12); color: #4ade80; border: 1px solid rgba(74,222,128,.25); }
+.uc-proj-oculos { background: rgba(96,165,250,.12); color: #60a5fa; border: 1px solid rgba(96,165,250,.25); }
+.uc-extra { font-size: 12px; color: var(--text-muted); font-style: italic; margin-top: 3px; }
+.uc-empty { text-align:center; padding: 3rem; color: var(--text-muted); font-size: 14px; }
+</style>
+
+<script>
+/* ======================================
+   FEATURES 2 — Ponto Detail + Últimos Cadastros
+   ====================================== */
+(function(){
+'use strict';
+
+/* ---- Helpers ---- */
+function _v(id){ return document.getElementById(id); }
+function _animNum(id, n){ const el=_v(id);if(!el)return;const dur=500,st=Date.now();(function t(){const p=Math.min((Date.now()-st)/dur,1);el.textContent=Math.round(n*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(t);})(); }
+function _projActive(){ return typeof currentProject!=='undefined'?currentProject:'fibro'; }
+function _tbl(proj){ return (proj||_projActive())==='oculos'?'pacientes_oculos':'pacientes_fibro'; }
+function _hora(iso){ try{return new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}catch(e){return'—';} }
+function _data(iso){ try{return new Date(iso+'T00:00:00').toLocaleDateString('pt-BR');}catch(e){return iso||'—';} }
+function _toast(m,e){if(typeof showToast==='function')showToast(m,e);}
+
+/* ---- Corrigir showSection para aceitar el=null ---- */
+const _origShowSec = window.showSection;
+window.showSection = function(id, el) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  const t = document.getElementById('sec-'+id);
+  if(t) t.classList.add('active'); else { console.warn('sec-'+id+' not found'); return; }
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  if(el) el.classList.add('active');
+};
+
+/* ====== 1. SEÇÃO DETALHE DO PONTO ====== */
+let _pdId=null, _pdNome='', _pdRecs=[], _pdSub=null, _pdPontoMap={};
+
+function _injectPontoDetalheSection(){
+  const main=document.querySelector('.main');
+  if(!main||document.getElementById('sec-ponto-detalhe'))return;
+  const sec=document.createElement('div');
+  sec.className='section'; sec.id='sec-ponto-detalhe';
+  sec.innerHTML=`
+    <div class="pd-header">
+      <button class="pd-back" onclick="_pdBack()">← Voltar para Pontos</button>
+      <div class="pd-title" id="pd-title">—</div>
+      <span class="pd-badge-tipo" id="pd-badge-tipo">—</span>
+      <span class="pd-badge-tipo" id="pd-badge-status" style="margin-left:4px">—</span>
+    </div>
+    <div class="pd-kpis">
+      <div class="pd-kpi"><div class="pd-kpi-val" id="pd-hoje">—</div><div class="pd-kpi-label">Cadastros Hoje</div></div>
+      <div class="pd-kpi"><div class="pd-kpi-val" id="pd-semana">—</div><div class="pd-kpi-label">Esta Semana</div></div>
+      <div class="pd-kpi"><div class="pd-kpi-val" id="pd-total">—</div><div class="pd-kpi-label">Total Geral</div></div>
+    </div>
+    <div class="pd-table-wrap">
+      <div class="pd-table-head">
+        <h3><span class="pd-live-dot"></span>Últimos Cadastros — Tempo Real</h3>
+        <span class="pd-table-count" id="pd-count">—</span>
+      </div>
+      <div style="overflow-x:auto"><table class="pd-tbl"><thead id="pd-thead"></thead><tbody id="pd-tbody"></tbody></table></div>
+    </div>`;
+  main.appendChild(sec);
+}
+
+function _pdBack(){
+  const pontosNav=document.querySelector('[data-section="pontos"]');
+  window.showSection('pontos', pontosNav);
+  if(_pdSub){_pdSub.unsubscribe();_pdSub=null;}
+}
+
+function _pdSetHeaders(proj){
+  const th=_v('pd-thead');if(!th)return;
+  if(proj==='oculos'){
+    th.innerHTML='<tr><th>Paciente</th><th>Idade</th><th>WhatsApp</th><th>Status</th><th>Data Entrega</th><th>Registrado em</th></tr>';
+  } else {
+    th.innerHTML='<tr><th>Paciente</th><th>Idade</th><th>WhatsApp</th><th>Dor</th><th>Data Consulta</th><th>Registrado em</th></tr>';
+  }
+}
+
+function _pdRenderTable(recs){
+  const proj=_projActive();
+  const tb=_v('pd-tbody');if(!tb)return;
+  const cnt=_v('pd-count');if(cnt)cnt.textContent=recs.length+' registro'+(recs.length!==1?'s':'');
+  if(!recs.length){tb.innerHTML=`<tr><td colspan="6" class="pd-empty">Nenhum cadastro ainda.<br><small>Quando este ponto cadastrar, aparece aqui automaticamente.</small></td></tr>`;return;}
+  tb.innerHTML=recs.slice(0,20).map((r,i)=>{
+    const cAt=_hora(r.criado_em);
+    let c4,c5;
+    if(proj==='oculos'){
+      const stLabels={aguardando:'⏳ Aguardando',em_producao:'⚙️ Produção',pronto:'✅ Pronto',entregue:'📦 Entregue'};
+      c4=stLabels[r.status_pedido]||r.status_pedido||'—';
+      c5=r.data_entrega?_data(r.data_entrega):'—';
+    } else {
+      const dc=r.nivel_dor<=3?'dor-low':r.nivel_dor<=6?'dor-mid':'dor-high';
+      c4=r.nivel_dor!=null?`<span class="dor-badge ${dc}">${r.nivel_dor}/10</span>`:'—';
+      c5=r.data_consulta?_data(r.data_consulta):'—';
+    }
+    return `<tr class="${i===0&&recs.__newRow?'pd-new-row':''}">
+      <td style="font-weight:600">${r.nome||'—'}</td>
+      <td>${r.idade||'—'}</td>
+      <td style="color:var(--text-secondary)">${r.whatsapp||'—'}</td>
+      <td>${c4}</td><td>${c5}</td>
+      <td style="font-size:11px;color:var(--text-muted)">${cAt}</td>
+    </tr>`;
+  }).join('');
+}
+
+function _pdRefreshKPIs(){
+  const hoje=new Date().toISOString().split('T')[0];
+  const sem=new Date(Date.now()-7*86400000).toISOString().split('T')[0];
+  _animNum('pd-hoje',_pdRecs.filter(r=>r.criado_em?.startsWith(hoje)).length);
+  _animNum('pd-semana',_pdRecs.filter(r=>r.criado_em&&r.criado_em>=sem).length);
+  _animNum('pd-total',_pdRecs.length);
+}
+
+async function _pdLoad(profileId){
+  const proj=_projActive();
+  _pdSetHeaders(proj);
+  _pdRecs=[];
+  if(_v('pd-tbody')) _v('pd-tbody').innerHTML=`<tr><td colspan="6" class="pd-empty">Carregando...</td></tr>`;
+  if(_v('pd-hoje')) _v('pd-hoje').textContent='…';
+  if(_v('pd-semana')) _v('pd-semana').textContent='…';
+  if(_v('pd-total')) _v('pd-total').textContent='…';
+
+  const {data,error}=await sb.from(_tbl(proj)).select('*').eq('cadastrado_por',profileId).order('criado_em',{ascending:false}).limit(100);
+  if(error){console.error(error);return;}
+  _pdRecs=data||[];
+  _pdRefreshKPIs();
+  _pdRenderTable(_pdRecs);
+}
+
+function _pdSubscribe(profileId){
+  if(_pdSub){_pdSub.unsubscribe();_pdSub=null;}
+  const proj=_projActive();
+  const tbl=_tbl(proj);
+  _pdSub=sb.channel('pd_v2_'+tbl+'_'+profileId)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:tbl,filter:'cadastrado_por=eq.'+profileId},pl=>{
+      _pdRecs.unshift(pl.new);
+      _pdRecs.__newRow=true;
+      _pdRefreshKPIs();
+      _pdRenderTable(_pdRecs);
+      delete _pdRecs.__newRow;
+      _toast('Novo cadastro em '+_pdNome+'!');
+    }).subscribe();
+}
+
+/* Override openPontoDetalhe — usa seção em vez de overlay */
+window.openPontoDetalhe = async function(profileId, nome, tipo) {
+  _pdId=profileId; _pdNome=nome;
+  const proj=_projActive();
+  /* Preenche header */
+  if(_v('pd-title'))_v('pd-title').textContent=nome;
+  if(_v('pd-badge-tipo'))_v('pd-badge-tipo').textContent=tipo==='fixo'?'📍 Ponto Fixo':'🚀 Ponto Móvel';
+  /* Status: checa se tem cadastros */
+  const temReg=(window.allPacientes||[]).some(p=>p.cadastrado_por===profileId);
+  if(_v('pd-badge-status')){
+    _v('pd-badge-status').textContent=temReg?'🟢 Ativo':'⚪ Inativo';
+    _v('pd-badge-status').className='pd-badge-tipo '+(temReg?'pd-badge-status-ativo':'pd-badge-status-inativo');
+  }
+  /* Navega para a seção (sem destaque de nav — usa pontos como âncora visual) */
+  const pontosNav=document.querySelector('[data-section="pontos"]');
+  window.showSection('ponto-detalhe', pontosNav);
+  /* Carrega dados e subscreve */
+  await _pdLoad(profileId);
+  _pdSubscribe(profileId);
+};
+
+/* ====== 2. SEÇÃO ÚLTIMOS CADASTROS ====== */
+let _ucSubFibro=null, _ucSubOculos=null;
+let _ucFeed=[];
+const UC_MAX=50;
+
+function _injectUltimosCadastrosSection(){
+  const main=document.querySelector('.main');
+  if(!main||document.getElementById('sec-ultimos-cadastros'))return;
+  const sec=document.createElement('div');
+  sec.className='section'; sec.id='sec-ultimos-cadastros';
+  sec.innerHTML=`
+    <h1 class="page-title">Últimos Cadastros</h1>
+    <p class="page-subtitle" id="uc-subtitle">Atividade de hoje — todos os pontos</p>
+    <div class="uc-header-bar">
+      <div class="uc-live">Ao vivo</div>
+      <span class="uc-count" id="uc-count">—</span>
+    </div>
+    <div class="uc-feed" id="uc-feed">
+      <div class="uc-empty">Carregando atividade de hoje...</div>
+    </div>`;
+  main.appendChild(sec);
+}
+
+function _injectUltimosCadastrosNav(){
+  const navAdmin=document.getElementById('nav-admin-section');
+  if(!navAdmin||document.getElementById('nav-ultimos'))return;
+  const ni=document.createElement('div');
+  ni.id='nav-ultimos'; ni.className='nav-item';
+  ni.setAttribute('data-section','ultimos-cadastros');
+  ni.onclick=function(){
+    window.showSection('ultimos-cadastros',this);
+    _loadUltimosCadastros();
+  };
+  ni.innerHTML='<i class="fas fa-list-ul"></i> Últimos Cadastros';
+  navAdmin.appendChild(ni);
+}
+
+async function _loadUltimosCadastros(){
+  const proj=_projActive();
+  const hoje=new Date().toISOString().split('T')[0];
+  const sub=_v('uc-subtitle');
+  if(sub)sub.textContent='Atividade de hoje — '+( proj==='oculos'?'Óculos':'Fibromialgia');
+
+  /* Carrega pontos para mapear UUIDs → nomes */
+  if(!Object.keys(_pdPontoMap).length){
+    const {data:profs}=await sb.from('profiles').select('id,nome,nome_editavel,numero_ponto').eq('papel','colaborador').eq('projeto',proj==='oculos'?'oculos':'fibromialgia');
+    if(profs)profs.forEach(p=>_pdPontoMap[p.id]=p.nome_editavel||p.nome||'Ponto '+p.numero_ponto);
+  }
+
+  /* Carrega hoje de ambas as tabelas para o admin ver tudo */
+  const tbl=_tbl(proj);
+  const {data}=await sb.from(tbl).select('*').gte('criado_em',hoje+'T00:00:00').order('criado_em',{ascending:false}).limit(UC_MAX);
+  _ucFeed=(data||[]).map(r=>({...r,_proj:proj}));
+  _ucRender();
+  _ucSubscribe(proj);
+}
+
+function _ucRender(){
+  const el=_v('uc-feed');if(!el)return;
+  const cnt=_v('uc-count');if(cnt)cnt.textContent=_ucFeed.length+' registro'+((_ucFeed.length!==1?'s':'')+' hoje');
+  if(!_ucFeed.length){el.innerHTML='<div class="uc-empty">Nenhum cadastro hoje ainda.<br><small>Quando um ponto cadastrar, aparece aqui instantaneamente.</small></div>';return;}
+  el.innerHTML=_ucFeed.map((r,i)=>{
+    const proj=r._proj||_projActive();
+    const hora=_hora(r.criado_em);
+    const pontoNome=_pdPontoMap[r.cadastrado_por]||r.cadastrado_por?.substring(0,8)||'—';
+    let extra='';
+    if(proj==='oculos'){
+      const stl={aguardando:'⏳',em_producao:'⚙️',pronto:'✅',entregue:'📦'};
+      extra=(stl[r.status_pedido]||'')+' '+(r.status_pedido||'');
+    } else {
+      if(r.nivel_dor!=null)extra='Dor: '+r.nivel_dor+'/10';
+      if(r.sintomas)extra+=(extra?' · ':'')+r.sintomas.substring(0,40)+(r.sintomas.length>40?'...':'');
+    }
+    return `<div class="uc-item ${i===0&&r._isNew?'uc-new':''}">
+      <div class="uc-hora">${hora}</div>
+      <div class="uc-body">
+        <div class="uc-paciente">${r.nome||'—'}</div>
+        <div class="uc-meta">
+          <span class="uc-ponto">${pontoNome}</span>
+          <span class="uc-proj-badge uc-proj-${proj}">${proj==='oculos'?'Óculos':'Fibro'}</span>
+          ${r.whatsapp?`<span>${r.whatsapp}</span>`:''}
+        </div>
+        ${extra?`<div class="uc-extra">${extra}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function _ucSubscribe(proj){
+  /* Cancela sub anterior */
+  if(_ucSubFibro){_ucSubFibro.unsubscribe();_ucSubFibro=null;}
+  if(_ucSubOculos){_ucSubOculos.unsubscribe();_ucSubOculos=null;}
+
+  const hoje=new Date().toISOString().split('T')[0];
+  const tbl=_tbl(proj);
+
+  const ch=sb.channel('uc_'+tbl+'_'+hoje)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:tbl},async pl=>{
+      const rec={...pl.new,_proj:proj,_isNew:true};
+      /* Busca nome do ponto se não tiver no mapa */
+      if(!_pdPontoMap[rec.cadastrado_por]){
+        const {data:p}=await sb.from('profiles').select('nome,nome_editavel').eq('id',rec.cadastrado_por).single();
+        if(p)_pdPontoMap[rec.cadastrado_por]=p.nome_editavel||p.nome;
+      }
+      /* Só adiciona ao feed se a seção está ativa */
+      _ucFeed.unshift(rec);
+      if(_ucFeed.length>UC_MAX) _ucFeed.pop();
+      /* Verifica se seção ultimos-cadastros está ativa */
+      const ucSec=document.getElementById('sec-ultimos-cadastros');
+      if(ucSec&&ucSec.classList.contains('active')) _ucRender();
+    }).subscribe();
+
+  if(proj==='oculos') _ucSubOculos=ch; else _ucSubFibro=ch;
+}
+
+/* ---- Hook no switchProject para atualizar últimos cadastros ---- */
+const _prevSwF2 = window.switchProject;
+window.switchProject = function(proj, btn) {
+  if(typeof _prevSwF2==='function') _prevSwF2(proj, btn);
+  _pdPontoMap={};
+  /* Se a seção ativa for últimos-cadastros, recarrega */
+  const ucSec=document.getElementById('sec-ultimos-cadastros');
+  if(ucSec&&ucSec.classList.contains('active')) _loadUltimosCadastros();
+  /* Se for ponto-detalhe, fecha e volta para pontos */
+  const pdSec=document.getElementById('sec-ponto-detalhe');
+  if(pdSec&&pdSec.classList.contains('active')){
+    const pontosNav=document.querySelector('[data-section="pontos"]');
+    window.showSection('pontos',pontosNav);
+    if(_pdSub){_pdSub.unsubscribe();_pdSub=null;}
+  }
+};
+
+/* ====== INICIALIZAÇÃO ====== */
+function _f2Init(){
+  if(typeof currentProfile==='undefined'||!currentProfile) return false;
+  if(currentProfile.papel!=='admin') return true; /* colaborador: não aplica */
+
+  _injectPontoDetalheSection();
+  _injectUltimosCadastrosSection();
+  _injectUltimosCadastrosNav();
+  return true;
+}
+
+if(!_f2Init()){
+  const _t=setInterval(()=>{if(_f2Init())clearInterval(_t);},350);
+  setTimeout(()=>clearInterval(_t),25000);
+}
+
+/* Expor _loadUltimosCadastros globalmente para nav onclick */
+window._loadUltimosCadastros=_loadUltimosCadastros;
+
+})();
+</script>
+
 </body>
 </html>
