@@ -1688,22 +1688,33 @@ function updateRelatorios() {
   document.getElementById('rel-media-dor').textContent = dors.length ? (dors.reduce((a,b)=>a+b,0)/dors.length).toFixed(1) : '—';
 }
 
-function updatePontos() {
+async function updatePontos() {
   const grid = document.getElementById('pontos-grid');
-  const pontos = [];
-  for (let i = 1; i <= 20; i++) pontos.push({ nome: `Ponto Fixo ${String(i).padStart(2,'0')}`, tipo: 'fixo' });
-  for (let i = 1; i <= 5; i++) pontos.push({ nome: `Ponto Móvel ${String(i).padStart(2,'0')}`, tipo: 'movel' });
-
-  grid.innerHTML = pontos.map(p => `
-    <div class="kpi-card" style="cursor:pointer">
+  const {data: profiles} = await sb.from('profiles')
+    .select('id,nome,numero_ponto,tipo_ponto,nome_editavel')
+    .eq('papel','colaborador').eq('projeto','fibromialgia').order('numero_ponto');
+  if (!profiles || !profiles.length) {
+    const pontos = [];
+    for (let i = 1; i <= 20; i++) pontos.push({ nome: `Ponto Fixo ${String(i).padStart(2,'0')}`, tipo: 'fixo' });
+    for (let i = 1; i <= 5; i++) pontos.push({ nome: `Ponto Móvel ${String(i).padStart(2,'0')}`, tipo: 'movel' });
+    grid.innerHTML = pontos.map(p => `<div class="kpi-card"><div class="kpi-header"><div class="kpi-icon"><i class="fas fa-map-pin"></i></div><span class="status-badge ativo">${p.tipo}</span></div><div style="font-size:15px;font-weight:600;margin-bottom:2px">${p.nome}</div><div style="font-size:12px;color:var(--text-muted)">Ativo</div></div>`).join('');
+    return;
+  }
+  const hoje = new Date().toISOString().split('T')[0];
+  grid.innerHTML = profiles.map(p => {
+    const nome = p.nome_editavel || p.nome;
+    const cnt = allPacientes.filter(pac => pac.cadastrado_por === p.id).length;
+    const cntHoje = allPacientes.filter(pac => pac.cadastrado_por === p.id && pac.criado_em?.startsWith(hoje)).length;
+    const isAtivo = cnt > 0;
+    return `<div class="kpi-card" style="cursor:pointer" onclick="openPontoDetalhe('${p.id}','${nome.replace(/'/g,"\\'")}','${p.tipo_ponto}')">
       <div class="kpi-header">
-        <div class="kpi-icon"><i class="fas fa-${p.tipo === 'fixo' ? 'map-pin' : 'route'}"></i></div>
-        <span class="status-badge ativo">${p.tipo}</span>
+        <div class="kpi-icon"><i class="fas fa-${p.tipo_ponto==='fixo'?'map-pin':'route'}"></i></div>
+        <span class="status-badge ${isAtivo?'ativo':''}" style="${isAtivo?'':'background:rgba(100,116,139,.15);color:var(--text-muted);'}">${isAtivo?'ativo':'inativo'}</span>
       </div>
-      <div style="font-size:15px;font-weight:600;margin-bottom:2px">${p.nome}</div>
-      <div style="font-size:12px;color:var(--text-muted)">Ativo</div>
-    </div>
-  `).join('');
+      <div style="font-size:15px;font-weight:600;margin-bottom:4px">${nome}</div>
+      <div style="font-size:12px;color:var(--text-muted)">${cnt} registro${cnt!==1?'s':''}${cntHoje>0?' · <span style="color:var(--accent)">+'+cntHoje+' hoje</span>':''}</div>
+    </div>`;
+  }).join('');
 }
 
 // ============== REALTIME ==============
@@ -1720,6 +1731,139 @@ sb.channel('fibro-changes')
 document.getElementById('login-password').addEventListener('keypress', e => {
   if (e.key === 'Enter') doLogin();
 });
+</script>
+<!-- ====== OVERLAY DETALHE DO PONTO ====== -->
+<style>
+.detalhe-overlay{position:fixed;inset:0;z-index:300;background:var(--bg-primary);overflow-y:auto;display:none;}
+.detalhe-overlay.show{display:block;animation:dSlide .3s ease;}
+@keyframes dSlide{from{transform:translateX(60px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+.d-header{position:sticky;top:0;z-index:10;backdrop-filter:blur(20px);background:linear-gradient(135deg,rgba(201,168,76,.18),rgba(201,168,76,.06));border-bottom:2px solid var(--gold);box-shadow:0 2px 20px rgba(201,168,76,.3);padding:0 24px;height:64px;display:flex;align-items:center;gap:16px;}
+.d-back{background:none;border:1px solid var(--gold);color:var(--gold);padding:7px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s;display:flex;align-items:center;gap:6px;font-family:'DM Sans',sans-serif;}
+.d-back:hover{background:var(--gold);color:#0d0900;}
+.d-title-wrap{flex:1;}
+.d-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:600;color:var(--text-primary);}
+.d-subtitle{font-size:11px;color:var(--text-muted);margin-top:1px;}
+.d-live{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--accent);font-weight:600;}
+.d-live-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);animation:livePulse 1.5s infinite;}
+@keyframes livePulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.d-body{padding:24px;max-width:1100px;margin:0 auto;}
+.d-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;}
+.d-kpi{background:var(--bg-card);border:1px solid var(--border-glass);border-radius:16px;padding:20px;text-align:center;backdrop-filter:blur(10px);}
+.d-kpi-val{font-family:'Playfair Display',serif;font-size:2.4rem;font-weight:700;color:var(--gold);line-height:1;}
+.d-kpi-label{font-size:11px;color:var(--text-muted);margin-top:5px;text-transform:uppercase;letter-spacing:.08em;}
+.d-search{width:100%;background:var(--input-bg);border:1px solid var(--input-border);color:var(--text-primary);border-radius:10px;padding:10px 16px;font-size:14px;outline:none;margin-bottom:16px;transition:border-color .2s;font-family:'DM Sans',sans-serif;}
+.d-search:focus{border-color:var(--gold);}
+.d-search::placeholder{color:var(--text-muted);}
+.d-table-wrap{background:var(--bg-card);border:1px solid var(--border-glass);border-radius:16px;overflow:hidden;backdrop-filter:blur(10px);}
+.d-table-top{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border-glass);}
+.d-table-top h3{font-size:14px;font-weight:700;}
+.d-count{font-size:12px;color:var(--text-muted);}
+.d-tbl{width:100%;border-collapse:collapse;}
+.d-tbl th{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);padding:11px 20px;text-align:left;border-bottom:1px solid var(--border-glass);}
+.d-tbl td{font-size:13px;padding:11px 20px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text-primary);}
+.d-tbl tr:last-child td{border-bottom:none;}
+.d-tbl tr:hover td{background:var(--hover-bg);}
+.d-new{animation:newRow .9s ease;}
+@keyframes newRow{from{background:rgba(201,168,76,.18);}to{background:transparent;}}
+</style>
+
+<div class="detalhe-overlay" id="detalheOverlay">
+  <div class="d-header">
+    <button class="d-back" onclick="fecharDetalhe()">← Voltar</button>
+    <div class="d-title-wrap">
+      <div class="d-title" id="d-titulo">—</div>
+      <div class="d-subtitle" id="d-subtitulo">—</div>
+    </div>
+    <div class="d-live"><div class="d-live-dot"></div>Tempo real</div>
+  </div>
+  <div class="d-body">
+    <div class="d-kpis">
+      <div class="d-kpi"><div class="d-kpi-val" id="d-hoje">—</div><div class="d-kpi-label">Hoje</div></div>
+      <div class="d-kpi"><div class="d-kpi-val" id="d-semana">—</div><div class="d-kpi-label">Esta Semana</div></div>
+      <div class="d-kpi"><div class="d-kpi-val" id="d-total">—</div><div class="d-kpi-label">Total</div></div>
+    </div>
+    <input class="d-search" id="d-search" placeholder="🔍 Buscar por nome ou WhatsApp..." oninput="filtrarDetalhe()">
+    <div class="d-table-wrap">
+      <div class="d-table-top">
+        <h3>Cadastros deste Ponto</h3>
+        <span class="d-count" id="d-count">—</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="d-tbl">
+          <thead><tr><th>Paciente</th><th>WhatsApp</th><th>Nível de Dor</th><th>Data Consulta</th><th>Registrado em</th></tr></thead>
+          <tbody id="d-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ====== DETALHE DO PONTO — Fibromialgia ======
+let _dId=null, _dNome='', _dRecs=[], _dSub=null;
+
+async function openPontoDetalhe(profileId, nome, tipo) {
+  _dId=profileId; _dNome=nome;
+  document.getElementById('d-titulo').textContent=nome;
+  document.getElementById('d-subtitulo').textContent=(tipo==='fixo'?'📍 Ponto Fixo':'🚀 Ponto Móvel')+' · Fibromialgia';
+  document.getElementById('d-search').value='';
+  document.getElementById('detalheOverlay').classList.add('show');
+  document.body.style.overflow='hidden';
+  await _carregarDetalhe(profileId);
+  _subDetalhe(profileId);
+}
+
+async function _carregarDetalhe(profileId) {
+  const {data} = await sb.from('pacientes_fibro').select('*').eq('cadastrado_por',profileId).order('criado_em',{ascending:false});
+  _dRecs = data||[];
+  _renderDetalheKPIs();
+  _renderDetalheTbl(_dRecs);
+}
+
+function _renderDetalheKPIs() {
+  const hoje=new Date().toISOString().split('T')[0];
+  const semana=new Date(Date.now()-7*86400000).toISOString().split('T')[0];
+  document.getElementById('d-hoje').textContent=_dRecs.filter(r=>r.criado_em?.startsWith(hoje)).length;
+  document.getElementById('d-semana').textContent=_dRecs.filter(r=>r.criado_em&&r.criado_em>=semana).length;
+  document.getElementById('d-total').textContent=_dRecs.length;
+}
+
+function filtrarDetalhe() {
+  const q=document.getElementById('d-search').value.toLowerCase();
+  const flt=q?_dRecs.filter(r=>(r.nome||'').toLowerCase().includes(q)||(r.whatsapp||'').includes(q)):_dRecs;
+  _renderDetalheTbl(flt);
+}
+
+function _renderDetalheTbl(recs) {
+  document.getElementById('d-count').textContent=recs.length+' registro'+(recs.length!==1?'s':'');
+  if(!recs.length){document.getElementById('d-tbody').innerHTML='<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhum registro encontrado.</td></tr>';return;}
+  document.getElementById('d-tbody').innerHTML=recs.slice(0,100).map(r=>{
+    const dorCls=r.nivel_dor<=3?'dor-low':r.nivel_dor<=6?'dor-mid':'dor-high';
+    const dt=r.data_consulta?new Date(r.data_consulta+'T00:00:00').toLocaleDateString('pt-BR'):'—';
+    const cAt=r.criado_em?new Date(r.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
+    return `<tr><td style="font-weight:500">${r.nome||'—'}</td><td style="color:var(--text-secondary)">${r.whatsapp||'—'}</td><td>${r.nivel_dor!=null?'<span class="dor-badge '+dorCls+'">'+r.nivel_dor+'/10</span>':'—'}</td><td>${dt}</td><td style="font-size:11px;color:var(--text-muted)">${cAt}</td></tr>`;
+  }).join('');
+}
+
+function _subDetalhe(profileId) {
+  if(_dSub){_dSub.unsubscribe();_dSub=null;}
+  _dSub=sb.channel('d_fibro_'+profileId)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'pacientes_fibro',filter:'cadastrado_por=eq.'+profileId},payload=>{
+      _dRecs.unshift(payload.new);
+      _renderDetalheKPIs();
+      filtrarDetalhe();
+      if(typeof showToast==='function') showToast('Novo cadastro em '+_dNome+'!');
+    }).subscribe();
+}
+
+function fecharDetalhe() {
+  document.getElementById('detalheOverlay').classList.remove('show');
+  document.body.style.overflow='';
+  if(_dSub){_dSub.unsubscribe();_dSub=null;}
+  _dRecs=[];_dId=null;
+}
+
+document.getElementById('detalheOverlay').addEventListener('keydown',function(e){if(e.key==='Escape')fecharDetalhe();});
 </script>
 </body>
 </html>
