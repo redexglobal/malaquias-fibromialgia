@@ -4961,5 +4961,596 @@ $('export-modal-bg')?.addEventListener('click',e=>{ if(e.target===$('export-moda
 })();
 </script>
 
+
+<style>
+/* ======== FINAL FEATURES ======== */
+
+/* Header title admin */
+.admin-dash-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 13px; font-weight: 600;
+  color: var(--text-secondary); letter-spacing: -.2px;
+  padding: 2px 10px; border-left: 1px solid var(--border-glass);
+  margin-left: 4px;
+}
+
+/* Pulso do Dia */
+.pulso-card {
+  background: linear-gradient(135deg, rgba(0,200,83,.12), rgba(0,200,83,.03));
+  border: 1px solid rgba(0,200,83,.25); border-radius: 20px;
+  padding: 24px 28px; margin-bottom: 20px;
+  display: flex; align-items: center; gap: 28px; flex-wrap: wrap;
+}
+.pulso-circle {
+  width: 100px; height: 100px; position: relative; flex-shrink: 0;
+}
+.pulso-circle svg { transform: rotate(-90deg); }
+.pulso-circle-bg { fill: none; stroke: rgba(0,200,83,.15); stroke-width: 8; }
+.pulso-circle-fill { fill: none; stroke: #00c853; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset .6s ease; }
+.pulso-num {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  font-family: 'Playfair Display', serif; font-size: 2.2rem; font-weight: 700; color: #00c853; line-height: 1;
+}
+.pulso-num small { font-size: 10px; color: var(--text-muted); font-family: 'DM Sans', sans-serif; font-weight: 400; }
+.pulso-body { flex: 1; }
+.pulso-phrase { font-size: 20px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; font-family: 'Playfair Display', serif; }
+.pulso-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; }
+.pulso-bar-wrap { background: rgba(0,200,83,.1); border-radius: 6px; height: 8px; overflow: hidden; }
+.pulso-bar-fill { height: 100%; background: linear-gradient(90deg, #00c853, #00e676); border-radius: 6px; transition: width .6s ease; }
+
+/* Timeline do dia */
+.timeline-card { background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: 16px; padding: 16px 20px; margin-bottom: 20px; }
+.timeline-title { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.timeline-bars { display: grid; grid-template-columns: repeat(24, 1fr); gap: 3px; align-items: flex-end; height: 60px; }
+.tl-bar { border-radius: 3px 3px 0 0; background: rgba(0,200,83,.2); min-height: 3px; transition: background .2s; cursor: pointer; position: relative; }
+.tl-bar.peak { background: #00c853; box-shadow: 0 0 8px rgba(0,200,83,.4); }
+.tl-bar.now { background: #00e676; outline: 2px solid #00c853; }
+.tl-bar:hover { background: #00c853; }
+.tl-bar .tl-tip { position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%); background: #1e293b; border: 1px solid var(--border-glass); border-radius: 6px; padding: 4px 8px; font-size: 10px; white-space: nowrap; color: #f1f5f9; display: none; z-index: 50; }
+.tl-bar:hover .tl-tip { display: block; }
+.tl-labels { display: flex; justify-content: space-between; margin-top: 4px; font-size: 9px; color: var(--text-muted); }
+
+/* Offline pontos card */
+.offline-card { background: rgba(239,68,68,.06); border: 1px solid rgba(239,68,68,.2); border-radius: 16px; padding: 16px 20px; margin-bottom: 20px; }
+.offline-title { font-size: 13px; font-weight: 700; color: #ef4444; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+.offline-list { display: flex; flex-direction: column; gap: 6px; }
+.offline-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(239,68,68,.06); border: 1px solid rgba(239,68,68,.15); border-radius: 8px; font-size: 12px; }
+.offline-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,.5); flex-shrink: 0; }
+.offline-nome { flex: 1; font-weight: 600; color: var(--text-primary); }
+.offline-dias { color: #ef4444; font-size: 11px; }
+.btn-notify-all { padding: 6px 14px; background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.3); color: #ef4444; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .2s; font-family: 'DM Sans', sans-serif; }
+.btn-notify-all:hover { background: rgba(239,68,68,.2); }
+
+/* Records card */
+.records-card { background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: 16px; padding: 16px 20px; margin-bottom: 20px; }
+.records-title { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 12px; }
+.rec-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-glass); font-size: 13px; }
+.rec-row:last-child { border-bottom: none; }
+.rec-label { color: var(--text-muted); }
+.rec-val { font-weight: 700; color: #00c853; }
+
+/* Ponto detail — ações admin */
+.pd-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+.btn-pd-action {
+  display: flex; align-items: center; gap: 6px; padding: 8px 16px;
+  border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: all .2s; border: 1px solid var(--border-glass);
+  background: var(--input-bg); color: var(--text-secondary);
+  font-family: 'DM Sans', sans-serif;
+}
+.btn-pd-action:hover { border-color: #00c853; color: #00c853; }
+.btn-pd-action.danger:hover { border-color: #ef4444; color: #ef4444; }
+.btn-pd-action.primary { background: rgba(0,200,83,.1); border-color: rgba(0,200,83,.3); color: #00c853; }
+
+/* Modais ponto detail */
+.pd-modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.7); backdrop-filter: blur(4px); z-index: 6000; display: none; place-items: center; }
+.pd-modal-bg.show { display: grid; }
+.pd-modal { background: var(--bg-secondary); border: 1px solid var(--border-glass); border-radius: 20px; padding: 24px; width: 100%; max-width: 460px; }
+.pd-modal h3 { font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 16px; }
+.pd-modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+.btn-pm-ok { background: #00c853; color: #071a0f; border: none; padding: 9px 20px; border-radius: 10px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+.btn-pm-ok:hover { background: #00e676; }
+.btn-pm-cancel { background: none; border: 1px solid var(--border-glass); color: var(--text-muted); padding: 9px 16px; border-radius: 10px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+
+/* Mensagens colaborador */
+.msg-badge { background: #ef4444; color: white; font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 10px; margin-left: auto; }
+.msg-item { background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; cursor: pointer; transition: all .2s; }
+.msg-item:hover { border-color: #00c853; }
+.msg-item.unread { border-color: rgba(0,200,83,.3); background: rgba(0,200,83,.04); }
+.msg-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.msg-from { font-size: 12px; font-weight: 700; color: #00c853; }
+.msg-time { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+.msg-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: #00c853; flex-shrink: 0; }
+.msg-text { font-size: 13px; color: var(--text-primary); line-height: 1.5; }
+
+/* Colaborador header ponto */
+.colab-ponto-info { font-size: 12px; color: var(--text-secondary); }
+</style>
+
+<!-- Modais ponto detail -->
+<div class="pd-modal-bg" id="pdm-nome-bg">
+  <div class="pd-modal">
+    <h3>✏️ Editar Nome do Ponto</h3>
+    <input type="text" class="form-input" id="pdm-nome-input" placeholder="Novo nome do ponto..." style="margin-bottom:4px">
+    <p style="font-size:11px;color:var(--text-muted)">Este nome aparecerá nos relatórios e no painel do admin.</p>
+    <div class="pd-modal-actions">
+      <button class="btn-pm-cancel" onclick="_pdmClose('pdm-nome-bg')">Cancelar</button>
+      <button class="btn-pm-ok" onclick="_pdmSaveNome()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="pd-modal-bg" id="pdm-msg-bg">
+  <div class="pd-modal">
+    <h3>💬 Enviar Mensagem para <span id="pdm-msg-ponto">—</span></h3>
+    <textarea class="form-input" id="pdm-msg-text" rows="4" placeholder="Digite sua mensagem para este ponto..." style="margin-bottom:8px"></textarea>
+    <div class="pd-modal-actions">
+      <button class="btn-pm-cancel" onclick="_pdmClose('pdm-msg-bg')">Cancelar</button>
+      <button class="btn-pm-ok" onclick="_pdmSendMsg()">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<div class="pd-modal-bg" id="pdm-notify-bg">
+  <div class="pd-modal">
+    <h3>📢 Notificar Pontos Inativos</h3>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">Enviar mensagem para todos os pontos que não cadastraram hoje:</p>
+    <textarea class="form-input" id="pdm-notify-text" rows="3" placeholder="Ex: Lembramos que é importante manter os registros atualizados...">Atenção! Este ponto ainda não realizou cadastros hoje. Por favor, mantenha os registros em dia.</textarea>
+    <div class="pd-modal-actions">
+      <button class="btn-pm-cancel" onclick="_pdmClose('pdm-notify-bg')">Cancelar</button>
+      <button class="btn-pm-ok" onclick="_pdmNotifyAll()">Enviar para Todos</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ======================================
+   FINAL FEATURES — Dr. Malaquias
+   ====================================== */
+(function(){
+'use strict';
+
+const $=id=>document.getElementById(id);
+const _proj=()=>typeof currentProject!=='undefined'?currentProject:'fibro';
+const _today=()=>new Date().toISOString().split('T')[0];
+const _animN=(id,n,dur=600)=>{ const el=$(id);if(!el)return;const st=Date.now();(function t(){const p=Math.min((Date.now()-st)/dur,1);el.textContent=Math.round(n*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(t);})(); };
+const _toast=m=>{ if(typeof showToast==='function')showToast(m); };
+
+/* ========================================
+   1. HEADER TITLE com nome do admin/ponto
+   ======================================== */
+function _updateHeaderTitle(){
+  if(typeof currentProfile==='undefined'||!currentProfile)return;
+  const header=document.querySelector('.header');if(!header)return;
+  const logo=header.querySelector('.logo');if(!logo)return;
+
+  if(!$('ff-header-title')){
+    const span=document.createElement('span');
+    span.id='ff-header-title'; span.className='admin-dash-title';
+    logo.after(span);
+  }
+  const el=$('ff-header-title');if(!el)return;
+  const nome=currentProfile.nome?.split(' ')[0]||currentProfile.email?.split('@')[0]||'—';
+  if(currentProfile.papel==='admin'){
+    el.textContent=`Dashboard · ${nome}`;
+  } else {
+    /* Colaborador: mostra ponto + projeto */
+    const proj=currentProfile.projeto==='oculos'?'Óculos':'Fibromialgia';
+    const num=String(currentProfile.numero_ponto||'').padStart(2,'0');
+    const tipo=currentProfile.tipo_ponto==='fixo'?'Fixo':'Móvel';
+    el.textContent=`Ponto ${tipo} ${num} · ${proj}`;
+    /* Atualiza também o subtítulo do dashboard do colaborador */
+    const dt=$('dash-title');
+    if(dt&&dt.textContent.includes('Antônio')===false){
+      dt.textContent=`Olá! Você está no Ponto ${num}`;
+    }
+  }
+}
+
+/* ========================================
+   2. PONTO DETAIL AVANÇADO
+   ======================================== */
+let _pdActiveId=null, _pdActiveNome='';
+
+function _buildPdActions(profileId, nome, isAtivo){
+  return `
+    <div class="pd-actions">
+      <button class="btn-pd-action primary" onclick="_pdEditNome('${profileId}','${nome.replace(/'/g,"\\'")}')"><i class="fas fa-edit"></i> Editar Nome</button>
+      <button class="btn-pd-action" onclick="_pdSendMsg('${profileId}','${nome.replace(/'/g,"\\'")}')"><i class="fas fa-comment"></i> Enviar Mensagem</button>
+      <button class="btn-pd-action ${isAtivo?'danger':''}" id="pd-toggle-btn-${profileId}" onclick="_pdToggleAtivo('${profileId}','${nome.replace(/'/g,"\\'")}',${isAtivo})">
+        <i class="fas fa-${isAtivo?'ban':'check-circle'}"></i> ${isAtivo?'Desativar':'Ativar'} Ponto
+      </button>
+    </div>`;
+}
+
+window._pdEditNome=(id,nome)=>{
+  _pdActiveId=id;
+  const inp=$('pdm-nome-input');if(inp)inp.value=nome;
+  const bg=$('pdm-nome-bg');if(bg)bg.classList.add('show');
+  setTimeout(()=>{ const i=$('pdm-nome-input');if(i)i.focus(); },100);
+};
+
+window._pdmSaveNome=async()=>{
+  const nome=$('pdm-nome-input')?.value.trim();
+  if(!nome||!_pdActiveId)return;
+  const {error}=await sb.from('profiles').update({nome_editavel:nome}).eq('id',_pdActiveId);
+  if(error){_toast('Erro ao salvar: '+error.message);return;}
+  _toast('Nome atualizado com sucesso!');
+  _pdmClose('pdm-nome-bg');
+  /* Atualiza título na seção */
+  const pt=$('pd-title');if(pt)pt.textContent=nome;
+  /* Recarrega pontos */
+  if(typeof updatePontos==='function') setTimeout(updatePontos,200);
+};
+
+window._pdSendMsg=(id,nome)=>{
+  _pdActiveId=id;_pdActiveNome=nome;
+  const mn=$('pdm-msg-ponto');if(mn)mn.textContent=nome;
+  const mt=$('pdm-msg-text');if(mt)mt.value='';
+  const bg=$('pdm-msg-bg');if(bg)bg.classList.add('show');
+};
+
+window._pdmSendMsg=async()=>{
+  const msg=$('pdm-msg-text')?.value.trim();
+  if(!msg||!_pdActiveId)return;
+  const adminId=typeof currentUser!=='undefined'?currentUser.id:null;
+  const {error}=await sb.from('mensagens_pontos').insert({de:adminId,para:_pdActiveId,mensagem:msg,lido:false}).catch(()=>({error:{message:'Tabela não existe — execute o SQL no Supabase'}}));
+  if(error){_toast(error.message,true);console.error(error);return;}
+  _toast('Mensagem enviada para '+_pdActiveNome+'!');
+  _pdmClose('pdm-msg-bg');
+};
+
+window._pdToggleAtivo=async(id,nome,isAtivo)=>{
+  const novoAtivo=!isAtivo;
+  const {error}=await sb.from('profiles').update({ativo:novoAtivo}).eq('id',id);
+  if(error){_toast('Erro: '+error.message,true);return;}
+  _toast(novoAtivo?`Ponto ${nome} ativado!`:`Ponto ${nome} desativado.`);
+  const btn=$('pd-toggle-btn-'+id);
+  if(btn){
+    btn.className='btn-pd-action '+(novoAtivo?'danger':'');
+    btn.innerHTML=`<i class="fas fa-${novoAtivo?'ban':'check-circle'}"></i> ${novoAtivo?'Desativar':'Ativar'} Ponto`;
+    btn.setAttribute('onclick',`_pdToggleAtivo('${id}','${nome.replace(/'/g,"\\'")}',${novoAtivo})`);
+  }
+};
+
+window._pdmClose=(bgId)=>{ const b=$(bgId);if(b)b.classList.remove('show'); };
+
+/* Override openPontoDetalhe para injetar ações */
+const _prevOPD=window.openPontoDetalhe;
+window.openPontoDetalhe=async function(profileId,nome,tipo){
+  _pdActiveId=profileId;_pdActiveNome=nome;
+  if(typeof _prevOPD==='function') await _prevOPD(profileId,nome,tipo);
+  /* Injetar ações abaixo do header do ponto */
+  const pdHdr=document.querySelector('#sec-ponto-detalhe .pd-header');
+  if(pdHdr){
+    let actDiv=$('pd-actions-wrap');
+    if(!actDiv){actDiv=document.createElement('div');actDiv.id='pd-actions-wrap';pdHdr.after(actDiv);}
+    /* Verificar se ponto está ativo */
+    const all=window.allPacientes||[];
+    const isAtivo=all.some(p=>p.cadastrado_por===profileId);
+    actDiv.innerHTML=_buildPdActions(profileId,nome,isAtivo);
+  }
+};
+
+/* ========================================
+   3. MENSAGENS NO COLABORADOR
+   ======================================== */
+function _injectMsgNavColab(){
+  if(typeof currentProfile==='undefined'||!currentProfile||currentProfile.papel!=='colaborador')return;
+  const navMain=document.querySelector('.sidebar .nav-section');if(!navMain||$('nav-mensagens-colab'))return;
+  const ni=document.createElement('div');ni.id='nav-mensagens-colab';ni.className='nav-item';
+  ni.setAttribute('data-section','mensagens-colab');
+  ni.onclick=function(){if(typeof showSection==='function')showSection('mensagens-colab',this);_loadMsgsColab();};
+  ni.innerHTML='<i class="fas fa-envelope"></i> Mensagens <span class="msg-badge" id="msg-badge" style="display:none">0</span>';
+  navMain.appendChild(ni);
+}
+
+function _injectMsgSectionColab(){
+  const main=document.querySelector('.main');if(!main||$('sec-mensagens-colab'))return;
+  const sec=document.createElement('div');sec.className='section';sec.id='sec-mensagens-colab';
+  sec.innerHTML=`<h1 class="page-title">Mensagens</h1><p class="page-subtitle">Comunicados do administrador</p><div id="msgs-list"><div style="text-align:center;padding:2rem;color:var(--text-muted)">Carregando...</div></div>`;
+  main.appendChild(sec);
+}
+
+async function _loadMsgsColab(){
+  if(typeof currentUser==='undefined')return;
+  const uid=currentUser.id;
+  const {data,error}=await sb.from('mensagens_pontos').select('*').eq('para',uid).order('criado_em',{ascending:false}).limit(20).catch(()=>({data:null,error:{message:'Tabela não encontrada'}}));
+  const list=$('msgs-list');if(!list)return;
+  if(error||!data){list.innerHTML=`<div style="text-align:center;padding:2rem;color:var(--text-muted)">${error?.message||'Sem mensagens'}</div>`;return;}
+  /* Marca como lidas */
+  const unread=data.filter(m=>!m.lido).map(m=>m.id);
+  if(unread.length) sb.from('mensagens_pontos').update({lido:true}).in('id',unread).catch(()=>{});
+  /* Atualiza badge */
+  const badge=$('msg-badge');if(badge){badge.style.display='none';}
+  if(!data.length){list.innerHTML='<div style="text-align:center;padding:2rem;color:var(--text-muted)">Nenhuma mensagem ainda.</div>';return;}
+  list.innerHTML=data.map(m=>{
+    const hora=new Date(m.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    return `<div class="msg-item ${!m.lido?'unread':''}">
+      <div class="msg-header">
+        ${!m.lido?'<span class="msg-unread-dot"></span>':''}
+        <span class="msg-from">Administração</span>
+        <span class="msg-time">${hora}</span>
+      </div>
+      <div class="msg-text">${m.mensagem}</div>
+    </div>`;
+  }).join('');
+}
+
+async function _checkUnreadMsgs(){
+  if(typeof currentUser==='undefined'||typeof currentProfile==='undefined')return;
+  if(currentProfile?.papel!=='colaborador')return;
+  const {data}=await sb.from('mensagens_pontos').select('id').eq('para',currentUser.id).eq('lido',false).limit(20).catch(()=>({data:null}));
+  const badge=$('msg-badge');
+  if(badge&&data?.length){badge.textContent=data.length;badge.style.display='';}
+}
+
+/* ========================================
+   4. PULSO DO DIA + TIMELINE + OFFLINE + RECORDS
+   ======================================== */
+const META_DIA=50;
+
+function _injectPulsoDia(){
+  const dash=$('sec-dashboard');if(!dash||$('ff-pulso'))return;
+  const el=document.createElement('div');el.id='ff-pulso';
+  const kpi=dash.querySelector('.kpi-grid');
+  if(kpi)kpi.before(el); else dash.insertBefore(el,dash.firstChild);
+}
+
+function _updatePulsoDia(){
+  const el=$('ff-pulso');if(!el)return;
+  const all=window.allPacientes||[];
+  const n=all.filter(p=>p.criado_em?.startsWith(_today())).length;
+  const pct=Math.min(100,Math.round(n/META_DIA*100));
+  const circ=Math.PI*2*42;
+  const offset=circ*(1-pct/100);
+  const phrase=n===0?'🌅 Aguardando o primeiro cadastro...':n<=5?'🌱 Sistema aquecendo...':n<=15?'🔥 Bom ritmo!':n<=30?'⚡ Excelente produção!':'🏆 Meta superada!';
+  el.innerHTML=`
+    <div class="pulso-card">
+      <div class="pulso-circle">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <circle class="pulso-circle-bg" cx="50" cy="50" r="42" />
+          <circle class="pulso-circle-fill" cx="50" cy="50" r="42"
+            stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}" />
+        </svg>
+        <div class="pulso-num">${n}<small>hoje</small></div>
+      </div>
+      <div class="pulso-body">
+        <div class="pulso-phrase">${phrase}</div>
+        <div class="pulso-sub">Meta diária: ${META_DIA} cadastros · ${pct}% atingida</div>
+        <div class="pulso-bar-wrap"><div class="pulso-bar-fill" style="width:${pct}%"></div></div>
+      </div>
+    </div>`;
+}
+
+function _injectTimeline(){
+  const dash=$('sec-dashboard');if(!dash||$('ff-timeline'))return;
+  const el=document.createElement('div');el.id='ff-timeline';
+  const hm=$('adv12-hm');
+  if(hm)hm.after(el); else dash.appendChild(el);
+}
+
+function _updateTimeline(){
+  const el=$('ff-timeline');if(!el)return;
+  const all=window.allPacientes||[];
+  const today=_today();
+  const nowH=new Date().getHours();
+  const counts=Array.from({length:24},(_,h)=>all.filter(p=>p.criado_em?.startsWith(today)&&new Date(p.criado_em).getHours()===h).length);
+  const maxC=Math.max(...counts,1);
+  const peakH=counts.indexOf(Math.max(...counts));
+  const bars=counts.map((c,h)=>{
+    const hPct=Math.max(5,Math.round(c/maxC*100));
+    const cls=h===peakH&&c>0?'peak':h===nowH?'now':'';
+    return `<div class="tl-bar ${cls}" style="height:${hPct}%"><div class="tl-tip">${h}:00 · ${c} cadastro${c!==1?'s':''}</div></div>`;
+  }).join('');
+  el.innerHTML=`
+    <div class="timeline-card">
+      <div class="timeline-title">📊 Linha do Tempo — Cadastros por Hora <span style="font-size:11px;color:var(--text-muted);font-weight:400">Pico: ${peakH}h${counts[peakH]>0?' ('+counts[peakH]+' cadastros)':''}</span></div>
+      <div class="timeline-bars">${bars}</div>
+      <div class="tl-labels"><span>00h</span><span>06h</span><span>12h</span><span>18h</span><span>23h</span></div>
+    </div>`;
+}
+
+function _injectOfflineCard(){
+  const dash=$('sec-dashboard');if(!dash||$('ff-offline'))return;
+  const el=document.createElement('div');el.id='ff-offline';
+  const tl=$('ff-timeline');
+  if(tl)tl.after(el); else dash.appendChild(el);
+}
+
+function _updateOfflineCard(){
+  const el=$('ff-offline');if(!el||!window._pMapGlobal||!Object.keys(window._pMapGlobal).length)return;
+  const all=window.allPacientes||[];
+  const today=_today();
+  const todayIds=new Set(all.filter(p=>p.criado_em?.startsWith(today)).map(p=>p.cadastrado_por));
+  const offline=Object.entries(window._pMapGlobal).filter(([id])=>!todayIds.has(id));
+  if(!offline.length){
+    el.innerHTML=`<div class="offline-card" style="border-color:rgba(0,200,83,.2);background:rgba(0,200,83,.04)"><div class="offline-title" style="color:#00c853">✅ Todos os pontos ativos hoje!</div></div>`;
+    return;
+  }
+  el.innerHTML=`
+    <div class="offline-card">
+      <div class="offline-title">🔴 ${offline.length} ponto${offline.length>1?'s':''} sem cadastro hoje
+        <button class="btn-notify-all" onclick="_pdmOpenNotify()">📢 Notificar</button>
+      </div>
+      <div class="offline-list">
+        ${offline.slice(0,8).map(([id,nome])=>`<div class="offline-item"><div class="offline-dot"></div><div class="offline-nome">${nome}</div><div class="offline-dias">Sem cadastros hoje</div></div>`).join('')}
+        ${offline.length>8?`<div style="text-align:center;font-size:12px;color:var(--text-muted);padding:6px">+${offline.length-8} mais...</div>`:''}
+      </div>
+    </div>`;
+  window._offlineIds=offline.map(([id])=>id);
+}
+
+window._pdmOpenNotify=()=>{ const b=$('pdm-notify-bg');if(b)b.classList.add('show'); };
+window._pdmNotifyAll=async()=>{
+  const msg=$('pdm-notify-text')?.value.trim();
+  if(!msg){_toast('Digite uma mensagem',true);return;}
+  const ids=window._offlineIds||[];if(!ids.length){_toast('Nenhum ponto offline');return;}
+  const adminId=typeof currentUser!=='undefined'?currentUser.id:null;
+  let ok=0;
+  for(const paraId of ids){
+    const{error}=await sb.from('mensagens_pontos').insert({de:adminId,para:paraId,mensagem:msg,lido:false}).catch(()=>({error:true}));
+    if(!error)ok++;
+  }
+  _toast(`Mensagem enviada para ${ok} ponto${ok>1?'s':''}!`);
+  _pdmClose('pdm-notify-bg');
+};
+
+function _injectRecordsCard(){
+  const dash=$('sec-dashboard');if(!dash||$('ff-records'))return;
+  const el=document.createElement('div');el.id='ff-records';
+  const of=$('ff-offline');if(of)of.after(el); else dash.appendChild(el);
+}
+
+function _updateRecordsCard(){
+  const el=$('ff-records');if(!el)return;
+  const all=window.allPacientes||[];
+  if(!all.length){el.innerHTML='';return;}
+  /* Maior dia */
+  const dayCount={};
+  all.forEach(p=>{ if(!p.criado_em)return; const d=p.criado_em.split('T')[0];dayCount[d]=(dayCount[d]||0)+1; });
+  const bestDay=Object.entries(dayCount).sort((a,b)=>b[1]-a[1])[0];
+  const bestDayStr=bestDay?new Date(bestDay[0]+'T00:00:00').toLocaleDateString('pt-BR')+' ('+bestDay[1]+')':'—';
+  /* Ponto top */
+  const pontoCount={};
+  all.forEach(p=>pontoCount[p.cadastrado_por]=(pontoCount[p.cadastrado_por]||0)+1);
+  const topPonto=Object.entries(pontoCount).sort((a,b)=>b[1]-a[1])[0];
+  const topNome=topPonto?((window._pMapGlobal||{})[topPonto[0]]||topPonto[0].substring(0,8))+' ('+topPonto[1]+')':'—';
+  /* Mais recente */
+  const recent=all.sort((a,b)=>b.criado_em?.localeCompare(a.criado_em||''))[0];
+  const recentStr=recent?.nome||'—';
+  el.innerHTML=`
+    <div class="records-card">
+      <div class="records-title">🏆 Recordes do Sistema</div>
+      <div class="rec-row"><span class="rec-label">📅 Maior dia</span><span class="rec-val">${bestDayStr}</span></div>
+      <div class="rec-row"><span class="rec-label">📍 Ponto mais ativo</span><span class="rec-val">${topNome}</span></div>
+      <div class="rec-row"><span class="rec-label">👤 Cadastro mais recente</span><span class="rec-val">${recentStr}</span></div>
+      <div class="rec-row"><span class="rec-label">📊 Total no sistema</span><span class="rec-val">${all.length} cadastros</span></div>
+    </div>`;
+}
+
+/* ========================================
+   6. REALTIME GLOBAL (ambas as tabelas)
+   ======================================== */
+let _rtFibro=null, _rtOculos=null;
+
+function _initGlobalRealtime(){
+  /* Subscreve AMBAS as tabelas simultaneamente — não desconecta ao trocar seção */
+  if(!_rtFibro){
+    _rtFibro=sb.channel('global_rt_fibro')
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'pacientes_fibro'},pl=>{
+        const rec=pl.new;
+        if(_proj()==='fibro'){
+          if(!Array.isArray(window.allPacientes))window.allPacientes=[];
+          window.allPacientes.unshift(rec);
+        }
+        _onNewRecord(rec,'fibro');
+      }).subscribe();
+  }
+  if(!_rtOculos){
+    _rtOculos=sb.channel('global_rt_oculos')
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'pacientes_oculos'},pl=>{
+        const rec=pl.new;
+        if(_proj()==='oculos'){
+          if(!Array.isArray(window.allPacientes))window.allPacientes=[];
+          window.allPacientes.unshift(rec);
+        }
+        _onNewRecord(rec,'oculos');
+      }).subscribe();
+  }
+}
+
+async function _onNewRecord(rec,proj){
+  let pNome=(window._pMapGlobal||{})[rec.cadastrado_por];
+  if(!pNome){
+    try{const{data:p}=await sb.from('profiles').select('nome,nome_editavel').eq('id',rec.cadastrado_por).single();if(p){pNome=p.nome_editavel||p.nome;if(window._pMapGlobal)window._pMapGlobal[rec.cadastrado_por]=pNome;}}catch(e){}
+  }
+  /* Atualiza widgets em tempo real */
+  _updatePulsoDia();
+  _updateTimeline();
+  _updateOfflineCard();
+  _updateWeeklyCardFF();
+}
+
+function _updateWeeklyCardFF(){
+  /* Atualiza o card semanal existente se a fn existir */
+  if(typeof _updateWeeklyCard==='function') try{_updateWeeklyCard();}catch(e){}
+}
+
+/* ========================================
+   HOOKS e INIT
+   ======================================== */
+const _prevLDFF=window.loadData;
+window.loadData=async function(){
+  if(typeof _prevLDFF==='function') await _prevLDFF();
+  if(typeof currentProfile==='undefined'||currentProfile?.papel!=='admin')return;
+  /* Popula mapa global */
+  if(!window._pMapGlobal||!Object.keys(window._pMapGlobal).length){
+    window._pMapGlobal=window._pMap||window._pdPontoMap||{};
+  }
+  _updatePulsoDia();
+  _updateTimeline();
+  _updateOfflineCard();
+  _updateRecordsCard();
+};
+
+const _prevSWFF=window.switchProject;
+window.switchProject=function(proj,btn){
+  if(typeof _prevSWFF==='function') _prevSWFF(proj,btn);
+  setTimeout(()=>{
+    _updatePulsoDia();_updateTimeline();_updateOfflineCard();_updateRecordsCard();
+  },700);
+};
+
+async function _ffInit(){
+  if(typeof currentProfile==='undefined'||!currentProfile) return false;
+  _updateHeaderTitle();
+
+  if(currentProfile.papel==='admin'){
+    /* Injetar widgets admin */
+    _injectPulsoDia();
+    _injectTimeline();
+    _injectOfflineCard();
+    _injectRecordsCard();
+    /* Popula pmap global */
+    if(!window._pMapGlobal) window._pMapGlobal=window._pMap||window._pdPontoMap||{};
+    /* Carrega profiles se vazio */
+    if(!Object.keys(window._pMapGlobal||{}).length){
+      const proj=_proj()==='oculos'?'oculos':'fibromialgia';
+      const{data}=await sb.from('profiles').select('id,nome,nome_editavel').eq('papel','colaborador').eq('projeto',proj).catch(()=>({data:null}));
+      if(data){window._pMapGlobal={};data.forEach(p=>window._pMapGlobal[p.id]=p.nome_editavel||p.nome);}
+    }
+    _updatePulsoDia();_updateTimeline();_updateOfflineCard();_updateRecordsCard();
+    _initGlobalRealtime();
+  } else {
+    /* Colaborador */
+    _injectMsgNavColab();
+    _injectMsgSectionColab();
+    _checkUnreadMsgs();
+    /* Subscreve mensagens em tempo real */
+    if(typeof currentUser!=='undefined'){
+      sb.channel('msgs_colab').on('postgres_changes',{event:'INSERT',schema:'public',table:'mensagens_pontos',filter:'para=eq.'+currentUser.id},()=>{
+        _checkUnreadMsgs();
+      }).subscribe();
+    }
+  }
+  return true;
+}
+
+if(!_ffInit()){
+  const _t=setInterval(()=>{_ffInit().then(ok=>{if(ok)clearInterval(_t);});},400);
+  setTimeout(()=>clearInterval(_t),30000);
+}
+
+/* Fecha modais com click fora */
+['pdm-nome-bg','pdm-msg-bg','pdm-notify-bg'].forEach(id=>{
+  const el=$(id);if(!el)return;
+  el.addEventListener('click',e=>{if(e.target===el)window._pdmClose(id);});
+});
+
+})();
+</script>
+
 </body>
 </html>
