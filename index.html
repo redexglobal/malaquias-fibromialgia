@@ -1700,7 +1700,7 @@ function updateRelatorios() {
 async function updatePontos() {
   const grid = document.getElementById('pontos-grid');
   const {data: profiles} = await sb.from('profiles')
-    .select('id,nome,numero_ponto,tipo_ponto,nome_editavel')
+    .select('id,nome,numero_ponto,tipo_ponto,nome_ponto')
     .eq('papel','colaborador').eq('projeto','fibromialgia').order('numero_ponto');
   if (!profiles || !profiles.length) {
     const pontos = [];
@@ -1711,7 +1711,7 @@ async function updatePontos() {
   }
   const hoje = new Date().toISOString().split('T')[0];
   grid.innerHTML = profiles.map(p => {
-    const nome = p.nome_editavel || p.nome;
+    const nome = p.nome_ponto || p.nome;
     const cnt = allPacientes.filter(pac => pac.cadastrado_por === p.id).length;
     const cntHoje = allPacientes.filter(pac => pac.cadastrado_por === p.id && pac.criado_em?.startsWith(hoje)).length;
     const isAtivo = cnt > 0;
@@ -2059,8 +2059,8 @@ function advInitFeedChannel(){
         const rec=payload.new;
         let pontoNome='Ponto desconhecido';
         try{
-          const{data:prof}=await sb.from('profiles').select('nome,nome_editavel').eq('id',rec.cadastrado_por).single();
-          if(prof)pontoNome=prof.nome_editavel||prof.nome||pontoNome;
+          const{data:prof}=await sb.from('profiles').select('nome,nome_ponto').eq('id',rec.cadastrado_por).single();
+          if(prof)pontoNome=prof.nome_ponto||prof.nome||pontoNome;
         }catch(e){}
         advFeedPush(pontoNome,rec.nome||'Paciente');
         if(typeof currentProfile!=='undefined'&&currentProfile?.papel==='admin'){
@@ -2122,7 +2122,7 @@ async function advRenderHeatMap(){
   const sec=document.getElementById('sec-pontos');
   if(!sec)return;
   if(document.getElementById('adv-heat-section'))return;
-  const{data:profiles}=await sb.from('profiles').select('id,nome,nome_editavel,numero_ponto,tipo_ponto').eq('papel','colaborador').eq('projeto',PROJ).order('numero_ponto').catch(()=>({data:null}));
+  const{data:profiles}=await sb.from('profiles').select('id,nome,nome_ponto,numero_ponto,tipo_ponto').eq('papel','colaborador').eq('projeto',PROJ).order('numero_ponto').catch(()=>({data:null}));
   const list=profiles&&profiles.length?profiles:Array.from({length:25},(_,i)=>({id:'fake-'+i,nome:`Ponto ${String(i+1).padStart(2,'0')}`,numero_ponto:i+1}));
   const hoje=new Date().toISOString().split('T')[0];
   const semana=new Date(Date.now()-7*86400000).toISOString().split('T')[0];
@@ -2136,7 +2136,7 @@ async function advRenderHeatMap(){
 
   const grid=document.getElementById('adv-heat-grid');
   list.slice(0,25).forEach(p=>{
-    const nome=p.nome_editavel||p.nome||'Ponto';
+    const nome=p.nome_ponto||p.nome||'Ponto';
     const recs=(allPacientes||[]).filter(r=>r.cadastrado_por===p.id);
     const totalHoje=recs.filter(r=>r.criado_em?.startsWith(hoje)).length;
     const totalSemana=recs.filter(r=>r.criado_em&&r.criado_em>=semana).length;
@@ -2225,14 +2225,14 @@ async function advInitComparar(){
     main.appendChild(sec);
   }
   /* load pontos */
-  const{data:profiles}=await sb.from('profiles').select('id,nome,nome_editavel,numero_ponto').eq('papel','colaborador').eq('projeto',PROJ).order('numero_ponto').catch(()=>({data:null}));
+  const{data:profiles}=await sb.from('profiles').select('id,nome,nome_ponto,numero_ponto').eq('papel','colaborador').eq('projeto',PROJ).order('numero_ponto').catch(()=>({data:null}));
   const list=profiles&&profiles.length?profiles:Array.from({length:25},(_,i)=>({id:'fake-'+i,nome:`Ponto ${String(i+1).padStart(2,'0')}`,numero_ponto:i+1}));
   const checksDiv=document.getElementById('adv-cmp-checks');
   if(checksDiv){
     checksDiv.innerHTML=list.map(p=>`
       <label class="adv-cmp-check">
-        <input type="checkbox" value="${p.id}" data-nome="${p.nome_editavel||p.nome}">
-        ${p.nome_editavel||p.nome}
+        <input type="checkbox" value="${p.id}" data-nome="${p.nome_ponto||p.nome}">
+        ${p.nome_ponto||p.nome}
       </label>
     `).join('');
   }
@@ -2564,7 +2564,7 @@ window.updatePontos = async function(){
   if(!grid) return;
   const proj=currentProject==='fibro'?'fibromialgia':'oculos';
   const {data:profiles}=await sb.from('profiles')
-    .select('id,nome,numero_ponto,tipo_ponto,nome_editavel')
+    .select('id,nome,numero_ponto,tipo_ponto,nome_ponto,online_at')
     .eq('papel','colaborador').eq('projeto',proj).order('numero_ponto')
     .catch(()=>({data:null}));
   const hoje=new Date().toISOString().split('T')[0];
@@ -2572,13 +2572,17 @@ window.updatePontos = async function(){
     grid.innerHTML='<div style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:2rem;">Nenhum ponto encontrado para '+proj+'</div>';
     return;
   }
+  const agora5min=new Date(Date.now()-5*60000).toISOString();
   grid.innerHTML=profiles.map(p=>{
-    const nome=p.nome_editavel||p.nome;
+    const nome=p.nome_ponto||p.nome;
     const cnt=(allPacientes||[]).filter(pac=>pac.cadastrado_por===p.id).length;
     const cntH=(allPacientes||[]).filter(pac=>pac.cadastrado_por===p.id&&pac.criado_em?.startsWith(hoje)).length;
     const isAtivo=cnt>0;
+    const isOnline=p.online_at&&p.online_at>agora5min;
+    const dotStyle=isOnline?'background:#00c853;animation:dotPulse 2s infinite':'background:#4b5563';
+    const dotTitle=isOnline?'🟢 Online agora':'⚫ Offline';
     return `<div class="kpi-card" style="cursor:pointer;position:relative" onclick="openPontoDetalhe('${p.id}','${nome.replace(/'/g,"\\'")}','${p.tipo_ponto}')">
-      <div id="pres-dot-${p.id}" style="position:absolute;top:10px;left:10px;width:10px;height:10px;border-radius:50%;background:#4b5563;transition:all .4s;z-index:4" title="Offline"></div>
+      <div id="pres-dot-${p.id}" style="position:absolute;top:10px;left:10px;width:10px;height:10px;border-radius:50%;${dotStyle};transition:all .4s;z-index:4" title="${dotTitle}"></div>
       <button style="position:absolute;top:7px;right:7px;width:26px;height:26px;border-radius:7px;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.25);color:#00c853;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .15s;z-index:5;line-height:1;padding:0" title="Editar nome" onclick="event.stopPropagation();window._pontoEditNome('${p.id}','${nome.replace(/'/g,"\\'")}',this.closest('.kpi-card'))">✏️</button>
       <div class="kpi-header" style="padding-left:22px">
         <div class="kpi-icon"><i class="fas fa-${p.tipo_ponto==='fixo'?'map-pin':'route'}"></i></div>
@@ -2869,12 +2873,12 @@ async function _loadPontoMap() {
   try {
     const proj = (typeof currentProject !== 'undefined' && currentProject === 'oculos') ? 'oculos' : 'fibromialgia';
     const { data } = await sb.from('profiles')
-      .select('id, nome, nome_editavel, numero_ponto')
+      .select('id, nome, nome_ponto, numero_ponto')
       .eq('papel', 'colaborador')
       .eq('projeto', proj);
     const map = {};
     (data || []).forEach(p => {
-      map[p.id] = (p.nome_editavel || p.nome || 'Ponto ' + p.numero_ponto);
+      map[p.id] = (p.nome_ponto || p.nome || 'Ponto ' + p.numero_ponto);
     });
     window._advPontoMap = map;
   } catch(e) {}
@@ -4032,8 +4036,8 @@ async function _loadUltimosCadastros(){
 
   /* Carrega pontos para mapear UUIDs → nomes */
   if(!Object.keys(_pdPontoMap).length){
-    const {data:profs}=await sb.from('profiles').select('id,nome,nome_editavel,numero_ponto').eq('papel','colaborador').eq('projeto',proj==='oculos'?'oculos':'fibromialgia');
-    if(profs)profs.forEach(p=>_pdPontoMap[p.id]=p.nome_editavel||p.nome||'Ponto '+p.numero_ponto);
+    const {data:profs}=await sb.from('profiles').select('id,nome,nome_ponto,numero_ponto').eq('papel','colaborador').eq('projeto',proj==='oculos'?'oculos':'fibromialgia');
+    if(profs)profs.forEach(p=>_pdPontoMap[p.id]=p.nome_ponto||p.nome||'Ponto '+p.numero_ponto);
   }
 
   /* Carrega hoje de ambas as tabelas para o admin ver tudo */
@@ -4088,8 +4092,8 @@ function _ucSubscribe(proj){
       const rec={...pl.new,_proj:proj,_isNew:true};
       /* Busca nome do ponto se não tiver no mapa */
       if(!_pdPontoMap[rec.cadastrado_por]){
-        const {data:p}=await sb.from('profiles').select('nome,nome_editavel').eq('id',rec.cadastrado_por).single();
-        if(p)_pdPontoMap[rec.cadastrado_por]=p.nome_editavel||p.nome;
+        const {data:p}=await sb.from('profiles').select('nome,nome_ponto').eq('id',rec.cadastrado_por).single();
+        if(p)_pdPontoMap[rec.cadastrado_por]=p.nome_ponto||p.nome;
       }
       /* Só adiciona ao feed se a seção está ativa */
       _ucFeed.unshift(rec);
@@ -4843,7 +4847,7 @@ function _initRealtime(){
       /* Busca nome do ponto */
       let pNome=_pMap[rec.cadastrado_por];
       if(!pNome){
-        try{const{data:pr}=await sb.from('profiles').select('nome,nome_editavel').eq('id',rec.cadastrado_por).single();if(pr)_pMap[rec.cadastrado_por]=pNome=pr.nome_editavel||pr.nome||'Ponto';}catch(e){}
+        try{const{data:pr}=await sb.from('profiles').select('nome,nome_ponto').eq('id',rec.cadastrado_por).single();if(pr)_pMap[rec.cadastrado_por]=pNome=pr.nome_ponto||pr.nome||'Ponto';}catch(e){}
       }
       /* Toast */
       _showToastAdv(pNome||'Ponto',rec.nome||'Paciente');
@@ -4862,8 +4866,8 @@ function _initRealtime(){
 async function _loadProfiles(){
   if(Object.keys(_pMap).length) return;
   const proj=_proj()==='oculos'?'oculos':'fibromialgia';
-  const{data}=await sb.from('profiles').select('id,nome,nome_editavel').eq('papel','colaborador').eq('projeto',proj).catch(()=>({data:null}));
-  if(data) data.forEach(p=>_pMap[p.id]=p.nome_editavel||p.nome);
+  const{data}=await sb.from('profiles').select('id,nome,nome_ponto').eq('papel','colaborador').eq('projeto',proj).catch(()=>({data:null}));
+  if(data) data.forEach(p=>_pMap[p.id]=p.nome_ponto||p.nome);
 }
 
 /* ====== OVERRIDE UPDATEPONTOS — adiciona score bars ====== */
@@ -5176,7 +5180,7 @@ window._pdEditNome=(id,nome)=>{
 window._pdmSaveNome=async()=>{
   const nome=$('pdm-nome-input')?.value.trim();
   if(!nome||!_pdActiveId)return;
-  const {error}=await sb.from('profiles').update({nome_editavel:nome}).eq('id',_pdActiveId);
+  const {error}=await sb.from('profiles').update({nome_ponto:nome}).eq('id',_pdActiveId);
   if(error){_toast('Erro ao salvar: '+error.message);return;}
   _toast('Nome atualizado com sucesso!');
   _pdmClose('pdm-nome-bg');
@@ -5466,7 +5470,7 @@ function _initGlobalRealtime(){
 async function _onNewRecord(rec,proj){
   let pNome=(window._pMapGlobal||{})[rec.cadastrado_por];
   if(!pNome){
-    try{const{data:p}=await sb.from('profiles').select('nome,nome_editavel').eq('id',rec.cadastrado_por).single();if(p){pNome=p.nome_editavel||p.nome;if(window._pMapGlobal)window._pMapGlobal[rec.cadastrado_por]=pNome;}}catch(e){}
+    try{const{data:p}=await sb.from('profiles').select('nome,nome_ponto').eq('id',rec.cadastrado_por).single();if(p){pNome=p.nome_ponto||p.nome;if(window._pMapGlobal)window._pMapGlobal[rec.cadastrado_por]=pNome;}}catch(e){}
   }
   /* Atualiza widgets em tempo real */
   _updatePulsoDia();
@@ -5520,8 +5524,8 @@ async function _ffInit(){
     /* Carrega profiles se vazio */
     if(!Object.keys(window._pMapGlobal||{}).length){
       const proj=_proj()==='oculos'?'oculos':'fibromialgia';
-      const{data}=await sb.from('profiles').select('id,nome,nome_editavel').eq('papel','colaborador').eq('projeto',proj).catch(()=>({data:null}));
-      if(data){window._pMapGlobal={};data.forEach(p=>window._pMapGlobal[p.id]=p.nome_editavel||p.nome);}
+      const{data}=await sb.from('profiles').select('id,nome,nome_ponto').eq('papel','colaborador').eq('projeto',proj).catch(()=>({data:null}));
+      if(data){window._pMapGlobal={};data.forEach(p=>window._pMapGlobal[p.id]=p.nome_ponto||p.nome);}
     }
     _updatePulsoDia();_updateTimeline();_updateOfflineCard();_updateRecordsCard();
     _initGlobalRealtime();
@@ -6716,8 +6720,8 @@ function _ppInlineEdit(id, nomeAtual, card) {
     if (!novoNome) { input.focus(); return; }
     saveBtn.textContent = 'Salvando...';
     saveBtn.disabled = true;
-    /* Salva em nome_editavel (campo já existente em profiles) */
-    const { error } = await sb.from('profiles').update({ nome_editavel: novoNome }).eq('id', id);
+    /* Salva em nome_ponto (campo já existente em profiles) */
+    const { error } = await sb.from('profiles').update({ nome_ponto: novoNome }).eq('id', id);
     if (error) {
       if (typeof showToast === 'function') showToast('Erro: ' + error.message, true);
       saveBtn.textContent = '✓ Salvar';
@@ -6730,8 +6734,7 @@ function _ppInlineEdit(id, nomeAtual, card) {
     /* Atualiza onclick do card com novo nome */
     const novoOnclick = card.getAttribute('onclick').replace(
       /'[^']*','(fixo|movel)'/,
-      `'${novoNome.replace(/'/g,"\\'")}','</body>
-</html>'`
+      `'${novoNome.replace(/'/g,"\\'")}','$1'`
     );
     card.setAttribute('onclick', novoOnclick);
     /* Remove input */
@@ -6889,7 +6892,7 @@ window._pontoEditNome = function(id, nomeAtual, card) {
     btn.disabled = true;
 
     const { error } = await sb.from('profiles')
-      .update({ nome_editavel: novoNome })
+      .update({ nome_ponto: novoNome })
       .eq('id', id);
 
     if (error) {
@@ -6906,8 +6909,7 @@ window._pontoEditNome = function(id, nomeAtual, card) {
 
     /* Atualiza onclick do card com novo nome */
     const oc = card.getAttribute('onclick') || '';
-    const novoOc = oc.replace(/'[^']*','(fixo|movel)'/, `'${novoNome.replace(/'/g,"\\'")}','</body>
-</html>'`);
+    const novoOc = oc.replace(/'[^']*','(fixo|movel)'/, `'${novoNome.replace(/'/g,"\\'")}','$1'`);
     card.setAttribute('onclick', novoOc);
 
     /* Atualiza botão editar com novo nome */
