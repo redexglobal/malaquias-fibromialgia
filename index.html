@@ -2577,12 +2577,14 @@ window.updatePontos = async function(){
     const cnt=(allPacientes||[]).filter(pac=>pac.cadastrado_por===p.id).length;
     const cntH=(allPacientes||[]).filter(pac=>pac.cadastrado_por===p.id&&pac.criado_em?.startsWith(hoje)).length;
     const isAtivo=cnt>0;
-    return `<div class="kpi-card" style="cursor:pointer" onclick="openPontoDetalhe('${p.id}','${nome.replace(/'/g,"\\'")}','${p.tipo_ponto}')">
-      <div class="kpi-header">
+    return `<div class="kpi-card" style="cursor:pointer;position:relative" onclick="openPontoDetalhe('${p.id}','${nome.replace(/'/g,"\\'")}','${p.tipo_ponto}')">
+      <div id="pres-dot-${p.id}" style="position:absolute;top:10px;left:10px;width:10px;height:10px;border-radius:50%;background:#4b5563;transition:all .4s;z-index:4" title="Offline"></div>
+      <button style="position:absolute;top:7px;right:7px;width:26px;height:26px;border-radius:7px;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.25);color:#00c853;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .15s;z-index:5;line-height:1;padding:0" title="Editar nome" onclick="event.stopPropagation();window._pontoEditNome('${p.id}','${nome.replace(/'/g,"\\'")}',this.closest('.kpi-card'))">✏️</button>
+      <div class="kpi-header" style="padding-left:22px">
         <div class="kpi-icon"><i class="fas fa-${p.tipo_ponto==='fixo'?'map-pin':'route'}"></i></div>
         <span class="status-badge ${isAtivo?'ativo':''}" style="${isAtivo?'':'background:rgba(100,116,139,.15);color:var(--text-muted);'}">${isAtivo?'ativo':'inativo'}</span>
       </div>
-      <div style="font-size:14px;font-weight:600;margin-bottom:4px">${nome}</div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px;padding-right:28px" class="ponto-nome-txt">${nome}</div>
       <div style="font-size:12px;color:var(--text-muted)">${cnt} reg.${cntH>0?' · <span style="color:var(--accent)">+'+cntH+' hoje</span>':''}</div>
     </div>`;
   }).join('');
@@ -6776,6 +6778,264 @@ function _minInit() {
 
 if (!_minInit()) {
   const _t = setInterval(() => { if (_minInit()) clearInterval(_t); }, 300);
+  setTimeout(() => clearInterval(_t), 30000);
+}
+
+})();
+</script>
+
+
+<style>
+/* ===== GESTÃO DE PONTOS — presença + edição ===== */
+@keyframes onlinePulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(0,200,83,.6); }
+  50%      { box-shadow: 0 0 0 5px rgba(0,200,83,0); }
+}
+.pres-online {
+  background: #00c853 !important;
+  animation: onlinePulse 2s infinite !important;
+}
+
+/* Input inline de edição */
+.ponto-edit-input {
+  width: 100%;
+  background: rgba(7,26,15,.85);
+  border: 1.5px solid #00c853;
+  border-radius: 8px;
+  color: #e8f5e9;
+  padding: 5px 8px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  outline: none;
+  margin-bottom: 4px;
+}
+.ponto-edit-save {
+  background: #00c853;
+  border: none;
+  color: #071a0f;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  font-family: 'DM Sans', sans-serif;
+  margin-top: 2px;
+}
+.ponto-edit-save:hover { background: #00e676; }
+
+/* Legenda de presença */
+.pres-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+.pres-leg-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pres-leg-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+</style>
+
+<script>
+/* ===================================================
+   GESTÃO DE PONTOS — Editar nome + Presença online
+   =================================================== */
+(function(){
+'use strict';
+
+/* ---- 1. EDITAR NOME DO PONTO (inline) ---- */
+window._pontoEditNome = function(id, nomeAtual, card) {
+  if (!card) return;
+  /* Remove edição anterior se existir */
+  card.querySelectorAll('.ponto-edit-input,.ponto-edit-save').forEach(el=>el.remove());
+
+  const nameDiv = card.querySelector('.ponto-nome-txt');
+  if (!nameDiv) return;
+
+  /* Esconde o nome */
+  nameDiv.style.display = 'none';
+
+  /* Cria input */
+  const inp = document.createElement('input');
+  inp.className = 'ponto-edit-input';
+  inp.value = nomeAtual;
+  inp.maxLength = 50;
+  inp.placeholder = 'Novo nome do ponto...';
+
+  /* Cria botão salvar */
+  const btn = document.createElement('button');
+  btn.className = 'ponto-edit-save';
+  btn.textContent = '✓ Salvar';
+
+  const _cancel = () => {
+    inp.remove(); btn.remove();
+    nameDiv.style.display = '';
+  };
+
+  const _save = async () => {
+    const novoNome = inp.value.trim();
+    if (!novoNome) { inp.focus(); return; }
+    btn.textContent = '...';
+    btn.disabled = true;
+
+    const { error } = await sb.from('profiles')
+      .update({ nome_editavel: novoNome })
+      .eq('id', id);
+
+    if (error) {
+      if (typeof showToast === 'function') showToast('Erro: ' + error.message, true);
+      btn.textContent = '✓ Salvar';
+      btn.disabled = false;
+      return;
+    }
+
+    /* Atualiza visual imediatamente */
+    nameDiv.textContent = novoNome;
+    nameDiv.style.display = '';
+    inp.remove(); btn.remove();
+
+    /* Atualiza onclick do card com novo nome */
+    const oc = card.getAttribute('onclick') || '';
+    const novoOc = oc.replace(/'[^']*','(fixo|movel)'/, `'${novoNome.replace(/'/g,"\\'")}','</body>
+</html>'`);
+    card.setAttribute('onclick', novoOc);
+
+    /* Atualiza botão editar com novo nome */
+    const editBtn = card.querySelector('[title="Editar nome"]');
+    if (editBtn) {
+      const newOc = `event.stopPropagation();window._pontoEditNome('${id}','${novoNome.replace(/'/g,"\\'")}',this.closest('.kpi-card'))`;
+      editBtn.setAttribute('onclick', newOc);
+    }
+
+    if (typeof showToast === 'function') showToast('"' + novoNome + '" salvo!');
+  };
+
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  _save();
+    if (e.key === 'Escape') _cancel();
+  });
+  btn.addEventListener('click', _save);
+
+  /* Insere antes do nameDiv */
+  nameDiv.parentNode.insertBefore(inp, nameDiv);
+  nameDiv.parentNode.insertBefore(btn, nameDiv);
+  inp.focus();
+  inp.select();
+};
+
+/* ---- 2. LEGENDA DE PRESENÇA na seção Pontos ---- */
+function _injectLegend() {
+  const sec = document.getElementById('sec-pontos');
+  if (!sec || document.getElementById('pres-legend-wrap')) return;
+  const legend = document.createElement('div');
+  legend.id = 'pres-legend-wrap';
+  legend.className = 'pres-legend';
+  legend.innerHTML = `
+    <span class="pres-leg-item">
+      <span class="pres-leg-dot" style="background:#00c853;animation:onlinePulse 2s infinite"></span>
+      Online agora
+    </span>
+    <span class="pres-leg-item">
+      <span class="pres-leg-dot" style="background:#4b5563"></span>
+      Offline
+    </span>`;
+  const grid = document.getElementById('pontos-grid');
+  if (grid) grid.after(legend);
+  else sec.appendChild(legend);
+}
+
+/* ---- 3. PRESENÇA — atualiza dots ---- */
+let _presChannel = null;
+const _onlineIds = new Set();
+
+function _applyPresenceDots() {
+  document.querySelectorAll('[id^="pres-dot-"]').forEach(dot => {
+    const id = dot.id.replace('pres-dot-', '');
+    if (_onlineIds.has(id)) {
+      dot.style.background = '#00c853';
+      dot.className = 'pres-online';
+      dot.title = '🟢 Online agora';
+    } else {
+      dot.style.background = '#4b5563';
+      dot.className = '';
+      dot.title = '⚫ Offline';
+    }
+  });
+}
+
+function _initAdminPresence() {
+  if (_presChannel) return;
+  _presChannel = sb.channel('pontos-presence-v2', { config: { presence: { key: 'admin' } } });
+  _presChannel
+    .on('presence', { event: 'sync' }, () => {
+      _onlineIds.clear();
+      const state = _presChannel.presenceState();
+      Object.values(state).forEach(list => {
+        list.forEach(p => { if (p.ponto_id) _onlineIds.add(p.ponto_id); });
+      });
+      _applyPresenceDots();
+    })
+    .on('presence', { event: 'join' }, ({ newPresences }) => {
+      newPresences.forEach(p => { if (p.ponto_id) _onlineIds.add(p.ponto_id); });
+      _applyPresenceDots();
+    })
+    .on('presence', { event: 'leave' }, ({ leftPresences }) => {
+      leftPresences.forEach(p => { if (p.ponto_id) _onlineIds.delete(p.ponto_id); });
+      _applyPresenceDots();
+    })
+    .subscribe();
+}
+
+function _initColabPresence() {
+  if (typeof currentProfile === 'undefined' || !currentProfile) return;
+  if (currentProfile.papel !== 'colaborador') return;
+
+  const ch = sb.channel('pontos-presence-v2', { config: { presence: { key: currentUser.id } } });
+  ch.subscribe(async status => {
+    if (status === 'SUBSCRIBED') {
+      await ch.track({
+        user_id:  currentUser.id,
+        ponto_id: currentProfile.id,
+        nome:     currentProfile.nome || currentProfile.email,
+      });
+    }
+  });
+}
+
+/* ---- Atualiza dots após updatePontos renderizar ---- */
+const _prevUPGP = window.updatePontos;
+window.updatePontos = async function() {
+  if (typeof _prevUPGP === 'function') await _prevUPGP();
+  _injectLegend();
+  /* Pequeno delay para garantir que o DOM foi atualizado */
+  setTimeout(_applyPresenceDots, 200);
+};
+
+/* ---- INIT ---- */
+function _gpInit() {
+  if (typeof currentProfile === 'undefined' || !currentProfile) return false;
+
+  if (currentProfile.papel === 'admin') {
+    _injectLegend();
+    _initAdminPresence();
+  } else {
+    _initColabPresence();
+  }
+  return true;
+}
+
+if (!_gpInit()) {
+  const _t = setInterval(() => { if (_gpInit()) clearInterval(_t); }, 300);
   setTimeout(() => clearInterval(_t), 30000);
 }
 
