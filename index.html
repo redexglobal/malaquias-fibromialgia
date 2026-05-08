@@ -5813,5 +5813,622 @@ if (!document.getElementById('pfd-keyframes')) {
 })();
 </script>
 
+
+<style>
+/* ======== ADMIN UPGRADE ======== */
+
+/* Filtros da tabela */
+.tbl-filters {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  padding: 14px 16px; border-bottom: 1px solid var(--border-glass);
+  background: var(--input-bg);
+}
+.tbl-filter-input {
+  background: var(--bg-secondary); border: 1px solid var(--border-glass);
+  color: var(--text-primary); border-radius: 8px; padding: 6px 12px;
+  font-size: 12px; outline: none; transition: border-color .2s;
+  font-family: 'DM Sans', sans-serif;
+}
+.tbl-filter-input:focus { border-color: #00c853; }
+.tbl-filter-input::placeholder { color: var(--text-muted); }
+.tbl-filter-select {
+  background: var(--bg-secondary); border: 1px solid var(--border-glass);
+  color: var(--text-primary); border-radius: 8px; padding: 6px 10px;
+  font-size: 12px; outline: none; cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+}
+.tbl-filter-select option { background: var(--bg-secondary); }
+.tbl-filter-clear { padding: 6px 12px; background: none; border: 1px solid var(--border-glass); color: var(--text-muted); border-radius: 8px; font-size: 12px; cursor: pointer; transition: all .2s; font-family: 'DM Sans', sans-serif; }
+.tbl-filter-clear:hover { border-color: #ef4444; color: #ef4444; }
+.tbl-result-count { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+
+/* Botões de ação na tabela */
+.btn-row-action { padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid; transition: all .15s; font-family: 'DM Sans', sans-serif; }
+.btn-row-edit { background: rgba(0,200,83,.08); border-color: rgba(0,200,83,.3); color: #00c853; }
+.btn-row-edit:hover { background: rgba(0,200,83,.2); }
+.btn-row-del { background: rgba(239,68,68,.06); border-color: rgba(239,68,68,.25); color: #ef4444; margin-left: 4px; }
+.btn-row-del:hover { background: rgba(239,68,68,.18); }
+
+/* Modal edição */
+.edit-modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.75); backdrop-filter: blur(4px); z-index: 7000; display: none; place-items: center; padding: 20px; }
+.edit-modal-bg.show { display: grid; }
+.edit-modal { background: var(--bg-secondary); border: 1px solid var(--border-glass); border-radius: 20px; padding: 24px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; }
+.edit-modal h3 { font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 18px; }
+.edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.edit-grid .full { grid-column: 1/-1; }
+.edit-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #00c853; margin-bottom: 4px; display: block; }
+.edit-modal-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 14px; border-top: 1px solid var(--border-glass); }
+.btn-em-save { background: #00c853; color: #071a0f; border: none; padding: 9px 20px; border-radius: 10px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+.btn-em-save:hover { background: #00e676; }
+.btn-em-cancel { background: none; border: 1px solid var(--border-glass); color: var(--text-muted); padding: 9px 16px; border-radius: 10px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+.btn-em-del-conf { background: none; border: 1px solid rgba(239,68,68,.4); color: #ef4444; padding: 9px 16px; border-radius: 10px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+.btn-em-del-conf:hover { background: rgba(239,68,68,.1); }
+
+/* Seção Configurações */
+.cfg-section { background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: 16px; padding: 20px; margin-bottom: 18px; backdrop-filter: blur(10px); }
+.cfg-title { font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.cfg-title::before { content:''; width:3px; height:14px; background:#00c853; border-radius:2px; }
+.cfg-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--border-glass); }
+.cfg-row:last-child { border-bottom: none; }
+.cfg-key { font-size: 13px; color: var(--text-primary); }
+.cfg-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.cfg-val { display: flex; align-items: center; gap: 8px; }
+.cfg-input { background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-primary); border-radius: 8px; padding: 6px 10px; font-size: 13px; width: 90px; text-align: center; outline: none; font-family: 'DM Sans', sans-serif; }
+.cfg-input:focus { border-color: #00c853; }
+.btn-cfg-save { padding: 6px 14px; background: #00c853; border: none; color: #071a0f; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+.btn-cfg-save:hover { background: #00e676; }
+
+/* Toggle switch */
+.cfg-toggle { position: relative; width: 42px; height: 24px; }
+.cfg-toggle input { display: none; }
+.cfg-toggle-slider { position: absolute; inset: 0; background: rgba(100,116,139,.3); border-radius: 12px; cursor: pointer; transition: background .2s; }
+.cfg-toggle-slider::before { content:''; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: white; top: 3px; left: 3px; transition: transform .2s; }
+.cfg-toggle input:checked + .cfg-toggle-slider { background: #00c853; }
+.cfg-toggle input:checked + .cfg-toggle-slider::before { transform: translateX(18px); }
+
+/* Calendário mensal */
+.cal-wrap { background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: 16px; padding: 18px; margin-bottom: 18px; }
+.cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.cal-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.cal-nav { display: flex; gap: 6px; }
+.cal-btn { background: none; border: 1px solid var(--border-glass); color: var(--text-secondary); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; transition: all .2s; }
+.cal-btn:hover { border-color: #00c853; color: #00c853; }
+.cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; }
+.cal-day-label { font-size: 10px; text-align: center; color: var(--text-muted); font-weight: 700; padding: 4px 0; text-transform: uppercase; letter-spacing: .04em; }
+.cal-day { aspect-ratio: 1; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11px; cursor: pointer; transition: all .15s; position: relative; }
+.cal-day.empty { opacity: 0; cursor: default; }
+.cal-day.today { outline: 2px solid #00c853; }
+.cal-day-num { font-size: 11px; font-weight: 600; line-height: 1; }
+.cal-day-cnt { font-size: 9px; margin-top: 2px; font-weight: 700; }
+.cal-day[data-c="0"] { background: rgba(100,116,139,.08); color: var(--text-muted); }
+.cal-day[data-c="1"] { background: rgba(0,200,83,.15); color: #00c853; }
+.cal-day[data-c="2"] { background: rgba(0,200,83,.3); color: #00c853; }
+.cal-day[data-c="3"] { background: rgba(0,200,83,.5); color: #071a0f; }
+.cal-day[data-c="4"] { background: rgba(0,200,83,.75); color: #071a0f; }
+.cal-day[data-c="5"] { background: #00c853; color: #071a0f; }
+.cal-legend { display: flex; gap: 10px; margin-top: 10px; justify-content: flex-end; font-size: 10px; color: var(--text-muted); }
+.cal-leg { display: flex; align-items: center; gap: 4px; }
+.cal-leg-dot { width: 10px; height: 10px; border-radius: 3px; }
+</style>
+
+<!-- Modal edição de cadastro -->
+<div class="edit-modal-bg" id="edit-modal-bg">
+  <div class="edit-modal">
+    <h3 id="em-title">✏️ Editar Cadastro</h3>
+    <input type="hidden" id="em-id">
+    <div class="edit-grid">
+      <div class="full">
+        <label class="edit-label">Nome do Paciente</label>
+        <input type="text" class="form-input" id="em-nome" placeholder="Nome completo">
+      </div>
+      <div>
+        <label class="edit-label">Idade</label>
+        <input type="number" class="form-input" id="em-idade" placeholder="Ex: 35">
+      </div>
+      <div>
+        <label class="edit-label">WhatsApp</label>
+        <input type="tel" class="form-input" id="em-whats" placeholder="(00) 00000-0000">
+      </div>
+      <!-- Campos fibro -->
+      <div class="full" id="em-fibro-fields">
+        <label class="edit-label">Sintomas</label>
+        <textarea class="form-input" id="em-sintomas" rows="2" placeholder="Sintomas..."></textarea>
+      </div>
+      <div id="em-fibro-dor">
+        <label class="edit-label">Nível de Dor (0-10)</label>
+        <input type="number" class="form-input" id="em-dor" min="0" max="10">
+      </div>
+      <div id="em-fibro-data">
+        <label class="edit-label">Data da Consulta</label>
+        <input type="date" class="form-input" id="em-data-consulta">
+      </div>
+      <!-- Campos óculos -->
+      <div id="em-oculos-fields" style="display:none">
+        <label class="edit-label">Status do Pedido</label>
+        <select class="form-input" id="em-status">
+          <option value="aguardando">⏳ Aguardando</option>
+          <option value="em_producao">⚙️ Em produção</option>
+          <option value="pronto">✅ Pronto</option>
+          <option value="entregue">📦 Entregue</option>
+        </select>
+      </div>
+      <div id="em-oculos-entrega" style="display:none">
+        <label class="edit-label">Data de Entrega</label>
+        <input type="date" class="form-input" id="em-data-entrega">
+      </div>
+      <div class="full">
+        <label class="edit-label">Observações</label>
+        <textarea class="form-input" id="em-obs" rows="2" placeholder="Observações..."></textarea>
+      </div>
+    </div>
+    <div class="edit-modal-actions">
+      <button class="btn-em-del-conf" onclick="_emDelete()">🗑️ Excluir</button>
+      <button class="btn-em-cancel" onclick="_emClose()">Cancelar</button>
+      <button class="btn-em-save" onclick="_emSave()">Salvar alterações</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========================================================
+   ADMIN UPGRADE — Filtros, Edição, Configurações, Calendário
+   ======================================================== */
+(function(){
+'use strict';
+
+/* ---- Helpers ---- */
+const $ = id => document.getElementById(id);
+const qs = s => document.querySelector(s);
+const _proj = () => (typeof currentProject !== 'undefined' ? currentProject : 'fibro');
+const _tbl  = () => _proj() === 'oculos' ? 'pacientes_oculos' : 'pacientes_fibro';
+const _today = () => new Date().toISOString().split('T')[0];
+const _toast = (m,e) => { if(typeof showToast==='function')showToast(m,e); };
+
+/* ---- Estado dos filtros ---- */
+let _filters = { search:'', ponto:'', period:'', dorMin:'', dorMax:'' };
+let _editId = null;
+
+/* ====================================================
+   1. FILTROS AVANÇADOS NA TABELA DE CADASTROS
+   ==================================================== */
+function _injectFilters() {
+  const tableCard = qs('#sec-cadastros .table-card');
+  if (!tableCard || $('tbl-filters-wrap')) return;
+
+  const filWrap = document.createElement('div');
+  filWrap.id = 'tbl-filters-wrap';
+  filWrap.className = 'tbl-filters';
+  filWrap.innerHTML = `
+    <input class="tbl-filter-input" id="fil-search" placeholder="🔍 Nome ou WhatsApp..." oninput="_filApply()" style="min-width:180px">
+    <select class="tbl-filter-select" id="fil-period" onchange="_filApply()">
+      <option value="">Todos os períodos</option>
+      <option value="hoje">Hoje</option>
+      <option value="7d">Últimos 7 dias</option>
+      <option value="30d">Últimos 30 dias</option>
+      <option value="90d">Últimos 90 dias</option>
+    </select>
+    <select class="tbl-filter-select" id="fil-ponto" onchange="_filApply()">
+      <option value="">Todos os pontos</option>
+    </select>
+    <div id="fil-dor-wrap" style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:11px;color:var(--text-muted)">Dor:</span>
+      <input class="tbl-filter-input" id="fil-dor-min" type="number" min="0" max="10" placeholder="0" oninput="_filApply()" style="width:48px;text-align:center">
+      <span style="color:var(--text-muted);font-size:11px">–</span>
+      <input class="tbl-filter-input" id="fil-dor-max" type="number" min="0" max="10" placeholder="10" oninput="_filApply()" style="width:48px;text-align:center">
+    </div>
+    <button class="tbl-filter-clear" onclick="_filClear()">✕ Limpar</button>
+    <span class="tbl-result-count" id="fil-count">—</span>`;
+
+  const tableHeader = tableCard.querySelector('.table-header');
+  if (tableHeader) tableHeader.after(filWrap);
+  else tableCard.insertBefore(filWrap, tableCard.firstChild);
+
+  /* Esconde filtro dor para óculos */
+  _updateFilDorVisibility();
+  _populatePontoFilter();
+}
+
+function _updateFilDorVisibility() {
+  const dw = $('fil-dor-wrap');
+  if (dw) dw.style.display = _proj() === 'oculos' ? 'none' : 'flex';
+}
+
+function _populatePontoFilter() {
+  const sel = $('fil-ponto');
+  if (!sel || !window._pMapGlobal) return;
+  const entries = Object.entries(window._pMapGlobal || window._pMap || {});
+  sel.innerHTML = '<option value="">Todos os pontos</option>' +
+    entries.sort((a,b)=>a[1].localeCompare(b[1])).map(([id,nome])=>
+      `<option value="${id}">${nome}</option>`).join('');
+}
+
+window._filApply = function() {
+  _filters.search = ($('fil-search')?.value||'').toLowerCase();
+  _filters.period = $('fil-period')?.value||'';
+  _filters.ponto  = $('fil-ponto')?.value||'';
+  _filters.dorMin = $('fil-dor-min')?.value||'';
+  _filters.dorMax = $('fil-dor-max')?.value||'';
+  _renderFilteredTable();
+};
+
+window._filClear = function() {
+  ['fil-search','fil-dor-min','fil-dor-max'].forEach(id=>{const e=$(id);if(e)e.value='';});
+  ['fil-period','fil-ponto'].forEach(id=>{const e=$(id);if(e)e.selectedIndex=0;});
+  _filters = { search:'', ponto:'', period:'', dorMin:'', dorMax:'' };
+  _renderFilteredTable();
+};
+
+function _getFiltered() {
+  const all = window.allPacientes || [];
+  const today = _today();
+  const cutoff = {
+    hoje: today,
+    '7d':  new Date(Date.now()-7*86400000).toISOString().split('T')[0],
+    '30d': new Date(Date.now()-30*86400000).toISOString().split('T')[0],
+    '90d': new Date(Date.now()-90*86400000).toISOString().split('T')[0],
+  }[_filters.period] || null;
+
+  return all.filter(p => {
+    if (_filters.search && !(p.nome||'').toLowerCase().includes(_filters.search) && !(p.whatsapp||'').includes(_filters.search)) return false;
+    if (_filters.ponto && p.cadastrado_por !== _filters.ponto) return false;
+    if (cutoff && (!p.criado_em || p.criado_em.split('T')[0] < cutoff)) return false;
+    if (_filters.dorMin !== '' && (p.nivel_dor == null || p.nivel_dor < parseInt(_filters.dorMin))) return false;
+    if (_filters.dorMax !== '' && (p.nivel_dor == null || p.nivel_dor > parseInt(_filters.dorMax))) return false;
+    return true;
+  });
+}
+
+function _renderFilteredTable() {
+  const filtered = _getFiltered();
+  const cnt = $('fil-count');
+  if (cnt) cnt.textContent = filtered.length + ' resultado' + (filtered.length!==1?'s':'');
+  const body = $('table-body');
+  if (!body) return;
+
+  if (!filtered.length) {
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">Nenhum registro encontrado com os filtros aplicados.</td></tr>';
+    return;
+  }
+
+  const pontoMap = window._pMapGlobal || window._pMap || {};
+  body.innerHTML = filtered.slice(0, 100).map(p => {
+    const col4 = _proj() === 'oculos'
+      ? ({aguardando:'⏳',em_producao:'⚙️',pronto:'✅',entregue:'📦'}[p.status_pedido]||'')+(p.status_pedido||'—')
+      : (p.nivel_dor!=null?`<span class="dor-badge ${p.nivel_dor<=3?'dor-low':p.nivel_dor<=6?'dor-mid':'dor-high'}">${p.nivel_dor}/10</span>`:'—');
+    const colDate = _proj() === 'oculos'
+      ? (p.data_entrega?new Date(p.data_entrega+'T00:00:00').toLocaleDateString('pt-BR'):'—')
+      : (p.data_consulta?new Date(p.data_consulta+'T00:00:00').toLocaleDateString('pt-BR'):'—');
+    const pontoNome = pontoMap[p.cadastrado_por] || p.cadastrado_por?.substring(0,8) || '—';
+    const hora = p.criado_em ? new Date(p.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+    return `<tr>
+      <td style="font-weight:500;color:var(--text-primary)">${p.nome||'—'}</td>
+      <td>${p.idade||'—'}</td>
+      <td style="color:var(--text-secondary)">${p.whatsapp||'—'}</td>
+      <td>${col4}</td>
+      <td>${colDate}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${pontoNome}</td>
+      <td>
+        <button class="btn-row-action btn-row-edit" onclick="_emOpen('${p.id}')">✏️ Editar</button>
+        <button class="btn-row-action btn-row-del" onclick="_emConfirmDelete('${p.id}','${(p.nome||'').replace(/'/g,"\\'")}')">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+/* ====================================================
+   2. EDIÇÃO E EXCLUSÃO DE CADASTROS
+   ==================================================== */
+window._emOpen = function(id) {
+  const rec = (window.allPacientes||[]).find(p=>p.id===id);
+  if (!rec) return;
+  _editId = id;
+  $('em-id').value = id;
+  $('em-nome').value = rec.nome||'';
+  $('em-idade').value = rec.idade||'';
+  $('em-whats').value = rec.whatsapp||'';
+  $('em-obs').value = rec.observacoes||'';
+
+  const isOculos = _proj() === 'oculos';
+  $('em-fibro-fields').style.display = isOculos ? 'none' : '';
+  $('em-fibro-dor').style.display    = isOculos ? 'none' : '';
+  $('em-fibro-data').style.display   = isOculos ? 'none' : '';
+  $('em-oculos-fields').style.display  = isOculos ? '' : 'none';
+  $('em-oculos-entrega').style.display = isOculos ? '' : 'none';
+
+  if (!isOculos) {
+    $('em-sintomas').value = rec.sintomas||'';
+    $('em-dor').value = rec.nivel_dor!=null?rec.nivel_dor:'';
+    $('em-data-consulta').value = rec.data_consulta||'';
+  } else {
+    $('em-status').value = rec.status_pedido||'aguardando';
+    $('em-data-entrega').value = rec.data_entrega||'';
+  }
+
+  $('em-title').textContent = `✏️ Editar — ${rec.nome||'Cadastro'}`;
+  $('edit-modal-bg').classList.add('show');
+};
+
+window._emClose = () => { $('edit-modal-bg').classList.remove('show'); _editId=null; };
+
+window._emSave = async function() {
+  if (!_editId) return;
+  const payload = {
+    nome:    $('em-nome')?.value.trim()||null,
+    idade:   parseInt($('em-idade')?.value)||null,
+    whatsapp:$('em-whats')?.value.trim()||null,
+    observacoes:$('em-obs')?.value.trim()||null,
+  };
+  if (_proj() !== 'oculos') {
+    payload.sintomas      = $('em-sintomas')?.value.trim()||null;
+    payload.nivel_dor     = parseInt($('em-dor')?.value)||null;
+    payload.data_consulta = $('em-data-consulta')?.value||null;
+  } else {
+    payload.status_pedido = $('em-status')?.value||'aguardando';
+    payload.data_entrega  = $('em-data-entrega')?.value||null;
+  }
+  const {error} = await sb.from(_tbl()).update(payload).eq('id',_editId);
+  if (error) { _toast('Erro ao salvar: '+error.message, true); return; }
+  /* Atualiza localmente */
+  const idx = (window.allPacientes||[]).findIndex(p=>p.id===_editId);
+  if (idx>=0) window.allPacientes[idx] = {...window.allPacientes[idx],...payload};
+  _toast('Cadastro atualizado!');
+  _emClose();
+  _renderFilteredTable();
+};
+
+window._emConfirmDelete = (id, nome) => {
+  if (!confirm(`Excluir o cadastro de "${nome}"?\n\nEsta ação não pode ser desfeita.`)) return;
+  _emDoDelete(id);
+};
+
+window._emDelete = async function() {
+  if (!_editId) return;
+  const nome = $('em-nome')?.value||'este cadastro';
+  if (!confirm(`Excluir o cadastro de "${nome}"?\n\nEsta ação não pode ser desfeita.`)) return;
+  _emDoDelete(_editId);
+  _emClose();
+};
+
+async function _emDoDelete(id) {
+  const {error} = await sb.from(_tbl()).delete().eq('id',id);
+  if (error) { _toast('Erro ao excluir: '+error.message, true); return; }
+  window.allPacientes = (window.allPacientes||[]).filter(p=>p.id!==id);
+  _toast('Cadastro excluído.');
+  _renderFilteredTable();
+}
+
+/* ====================================================
+   3. SEÇÃO CONFIGURAÇÕES
+   ==================================================== */
+function _injectConfigSection() {
+  const main = qs('.main');
+  const navAdmin = $('nav-admin-section');
+  if (!main || $('sec-config') || !navAdmin) return;
+
+  /* Nav item */
+  if (!$('nav-config')) {
+    const ni = document.createElement('div');
+    ni.id = 'nav-config'; ni.className = 'nav-item';
+    ni.setAttribute('data-section','config');
+    ni.onclick = function(){ if(typeof showSection==='function') showSection('config',this); };
+    ni.innerHTML = '<i class="fas fa-cog"></i> Configurações';
+    navAdmin.appendChild(ni);
+  }
+
+  /* Seção */
+  const sec = document.createElement('div');
+  sec.className = 'section'; sec.id = 'sec-config';
+  sec.innerHTML = `
+    <h1 class="page-title">Configurações</h1>
+    <p class="page-subtitle">Preferências e configurações do sistema</p>
+
+    <div class="cfg-section">
+      <div class="cfg-title">🎯 Metas e Performance</div>
+      <div class="cfg-row">
+        <div><div class="cfg-key">Meta diária de cadastros</div><div class="cfg-desc">Número alvo de cadastros por dia em todos os pontos</div></div>
+        <div class="cfg-val"><input class="cfg-input" id="cfg-meta" type="number" min="1" value="50"><button class="btn-cfg-save" onclick="_cfgSave('meta_diaria', $('cfg-meta').value)">Salvar</button></div>
+      </div>
+      <div class="cfg-row">
+        <div><div class="cfg-key">Meta por ponto (diária)</div><div class="cfg-desc">Cadastros mínimos esperados de cada ponto por dia</div></div>
+        <div class="cfg-val"><input class="cfg-input" id="cfg-meta-ponto" type="number" min="1" value="5"><button class="btn-cfg-save" onclick="_cfgSave('meta_ponto', $('cfg-meta-ponto').value)">Salvar</button></div>
+      </div>
+    </div>
+
+    <div class="cfg-section">
+      <div class="cfg-title">🔔 Alertas</div>
+      <div class="cfg-row">
+        <div><div class="cfg-key">Alertar ponto inativo após</div><div class="cfg-desc">Dias sem cadastro para considerar ponto inativo</div></div>
+        <div class="cfg-val"><input class="cfg-input" id="cfg-inativo-dias" type="number" min="1" value="2"><span style="font-size:12px;color:var(--text-muted)">dias</span><button class="btn-cfg-save" onclick="_cfgSave('dias_inativo', $('cfg-inativo-dias').value)">Salvar</button></div>
+      </div>
+      <div class="cfg-row">
+        <div><div class="cfg-key">Notificações em tempo real</div><div class="cfg-desc">Toast quando ponto cadastrar novo paciente</div></div>
+        <div class="cfg-val"><label class="cfg-toggle"><input type="checkbox" id="cfg-notif" checked onchange="_cfgSave('notif_ativa',this.checked)"><span class="cfg-toggle-slider"></span></label></div>
+      </div>
+    </div>
+
+    <div class="cfg-section">
+      <div class="cfg-title">📤 Dados e Backup</div>
+      <div class="cfg-row">
+        <div><div class="cfg-key">Exportar todos os cadastros</div><div class="cfg-desc">Download completo em CSV (todos os períodos)</div></div>
+        <div class="cfg-val"><button class="btn-cfg-save" onclick="_cfgExportAll()">📥 Exportar Tudo</button></div>
+      </div>
+      <div class="cfg-row">
+        <div><div class="cfg-key">Exportar cadastros do mês</div><div class="cfg-desc">${new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</div></div>
+        <div class="cfg-val"><button class="btn-cfg-save" onclick="_cfgExportMes()">📥 Exportar Mês</button></div>
+      </div>
+    </div>
+
+    <div class="cfg-section">
+      <div class="cfg-title">ℹ️ Sistema</div>
+      <div class="cfg-row"><div><div class="cfg-key">Versão do sistema</div></div><div class="cfg-val" style="font-size:12px;color:var(--text-muted)">Dr. Malaquias v2.0 · 2026</div></div>
+      <div class="cfg-row"><div><div class="cfg-key">Total de usuários</div></div><div class="cfg-val" style="font-size:12px;color:var(--text-muted)">52 (2 admins + 50 pontos)</div></div>
+      <div class="cfg-row"><div><div class="cfg-key">Banco de dados</div></div><div class="cfg-val" style="font-size:12px;color:var(--text-muted)">Supabase PostgreSQL</div></div>
+    </div>`;
+  main.appendChild(sec);
+
+  /* Carrega configurações salvas */
+  _cfgLoad();
+}
+
+function _cfgLoad() {
+  const meta = localStorage.getItem('drm_meta_diaria');
+  const metaPonto = localStorage.getItem('drm_meta_ponto');
+  const diasInativo = localStorage.getItem('drm_dias_inativo');
+  const notif = localStorage.getItem('drm_notif_ativa');
+  if (meta && $('cfg-meta')) $('cfg-meta').value = meta;
+  if (metaPonto && $('cfg-meta-ponto')) $('cfg-meta-ponto').value = metaPonto;
+  if (diasInativo && $('cfg-inativo-dias')) $('cfg-inativo-dias').value = diasInativo;
+  if (notif === 'false' && $('cfg-notif')) $('cfg-notif').checked = false;
+}
+
+window._cfgSave = function(key, val) {
+  localStorage.setItem('drm_'+key, String(val));
+  _toast('Configuração salva!');
+};
+
+window._cfgExportAll = function() {
+  const all = window.allPacientes||[];
+  if (!all.length) { _toast('Sem dados', true); return; }
+  _doExportCSV(all, 'backup-completo');
+};
+window._cfgExportMes = function() {
+  const mes = new Date().toISOString().substring(0,7);
+  const filtrado = (window.allPacientes||[]).filter(p=>p.criado_em?.startsWith(mes));
+  if (!filtrado.length) { _toast('Sem dados este mês', true); return; }
+  _doExportCSV(filtrado, 'mes-'+mes);
+};
+
+function _doExportCSV(data, label) {
+  const pontoMap = window._pMapGlobal||window._pMap||{};
+  const isOculos = _proj() === 'oculos';
+  const headers = isOculos
+    ? 'Nome,Idade,WhatsApp,Status,Data Entrega,Ponto,Registrado em\n'
+    : 'Nome,Idade,WhatsApp,Sintomas,Dor,Data Consulta,Ponto,Registrado em\n';
+  const rows = data.map(p => {
+    const ponto = pontoMap[p.cadastrado_por]||'';
+    const hora = p.criado_em ? new Date(p.criado_em).toLocaleString('pt-BR') : '';
+    return isOculos
+      ? `"${p.nome||''}",${p.idade||''},"${p.whatsapp||'"}","${p.status_pedido||'"}","${p.data_entrega||'"}","${ponto}","${hora}"`
+      : `"${p.nome||''}",${p.idade||''},"${p.whatsapp||'"}","${p.sintomas||'"}",${p.nivel_dor!=null?p.nivel_dor:''},"${p.data_consulta||'"}","${ponto}","${hora}"`;
+  }).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿'+headers+rows],{type:'text/csv;charset=utf-8;'}));
+  a.download = `dr-malaquias-${_proj()}-${label}.csv`;
+  a.click();
+}
+
+/* ====================================================
+   4. CALENDÁRIO MENSAL DE ATIVIDADE
+   ==================================================== */
+let _calYear = new Date().getFullYear();
+let _calMonth = new Date().getMonth();
+
+function _injectCalendar() {
+  const analyticsSection = $('sec-analytics');
+  if (!analyticsSection || $('cal-wrap-adv')) return;
+  const calWrap = document.createElement('div');
+  calWrap.id = 'cal-wrap-adv';
+  analyticsSection.insertBefore(calWrap, analyticsSection.firstChild.nextSibling);
+  _renderCalendar();
+}
+
+function _renderCalendar() {
+  const el = $('cal-wrap-adv');
+  if (!el) return;
+  const all = window.allPacientes||[];
+  const monthStr = `${_calYear}-${String(_calMonth+1).padStart(2,'0')}`;
+  const firstDay = new Date(_calYear, _calMonth, 1).getDay();
+  const daysInMonth = new Date(_calYear, _calMonth+1, 0).getDate();
+  const today = new Date().toISOString().split('T')[0];
+
+  /* Conta por dia */
+  const dayCounts = {};
+  all.forEach(p => {
+    if (p.criado_em?.startsWith(monthStr)) {
+      const d = p.criado_em.split('T')[0];
+      dayCounts[d] = (dayCounts[d]||0) + 1;
+    }
+  });
+  const maxCnt = Math.max(...Object.values(dayCounts), 1);
+
+  const dayLabels = ['Dom','Seg','Ter','Qua','Qui','Sex','Sab'].map(d=>`<div class="cal-day-label">${d}</div>`).join('');
+  const empties  = Array(firstDay).fill(`<div class="cal-day empty"></div>`).join('');
+  const days = Array.from({length:daysInMonth},(_,i)=>{
+    const day = i+1;
+    const dateStr = `${monthStr}-${String(day).padStart(2,'0')}`;
+    const cnt = dayCounts[dateStr]||0;
+    const level = cnt===0?0:cnt<=2?1:cnt<=5?2:cnt<=10?3:cnt<=15?4:5;
+    const isToday = dateStr===today;
+    return `<div class="cal-day${isToday?' today':''}" data-c="${level}" title="${cnt} cadastros em ${day}/${_calMonth+1}"><div class="cal-day-num">${day}</div>${cnt>0?`<div class="cal-day-cnt">${cnt}</div>`:''}</div>`;
+  }).join('');
+
+  const mName = new Date(_calYear,_calMonth).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  el.innerHTML = `
+    <div class="cal-wrap">
+      <div class="cal-header">
+        <div class="cal-title">📅 Atividade — ${mName}</div>
+        <div class="cal-nav">
+          <button class="cal-btn" onclick="_calNav(-1)">‹</button>
+          <button class="cal-btn" onclick="_calNav(1)">›</button>
+        </div>
+      </div>
+      <div class="cal-grid">${dayLabels}${empties}${days}</div>
+      <div class="cal-legend">
+        <span class="cal-leg"><span class="cal-leg-dot" style="background:rgba(100,116,139,.2)"></span>0</span>
+        <span class="cal-leg"><span class="cal-leg-dot" style="background:rgba(0,200,83,.25)"></span>1-2</span>
+        <span class="cal-leg"><span class="cal-leg-dot" style="background:rgba(0,200,83,.5)"></span>3-5</span>
+        <span class="cal-leg"><span class="cal-leg-dot" style="background:#00c853"></span>6+</span>
+      </div>
+    </div>`;
+}
+
+window._calNav = function(dir) {
+  _calMonth += dir;
+  if (_calMonth > 11) { _calMonth = 0; _calYear++; }
+  if (_calMonth < 0)  { _calMonth = 11; _calYear--; }
+  _renderCalendar();
+};
+
+/* ====================================================
+   HOOK FINAL: roda após loadData e switchProject
+   ==================================================== */
+const _prevLDUp = window.loadData;
+window.loadData = async function() {
+  if (typeof _prevLDUp === 'function') await _prevLDUp();
+  if (typeof currentProfile === 'undefined' || currentProfile?.papel !== 'admin') return;
+  _injectFilters();
+  _populatePontoFilter();
+  _renderFilteredTable();
+  _renderCalendar();
+};
+
+const _prevSWUp = window.switchProject;
+window.switchProject = function(proj, btn) {
+  if (typeof _prevSWUp === 'function') _prevSWUp(proj, btn);
+  _filters = { search:'', ponto:'', period:'', dorMin:'', dorMax:'' };
+  _updateFilDorVisibility();
+  setTimeout(_populatePontoFilter, 800);
+};
+
+/* ---- Edição: fecha com click fora ---- */
+$('edit-modal-bg')?.addEventListener('click', e => { if(e.target===$('edit-modal-bg'))window._emClose(); });
+
+/* ---- Init ---- */
+async function _upgradeInit() {
+  if (typeof currentProfile === 'undefined' || !currentProfile) return false;
+  if (currentProfile.papel !== 'admin') return true;
+  _injectFilters();
+  _injectConfigSection();
+  _injectCalendar();
+  return true;
+}
+if (!_upgradeInit()) {
+  const _t = setInterval(() => { _upgradeInit().then(ok=>{ if(ok) clearInterval(_t); }); }, 400);
+  setTimeout(() => clearInterval(_t), 30000);
+}
+
+})();
+</script>
+
 </body>
 </html>
