@@ -6430,5 +6430,757 @@ if (!_upgradeInit()) {
 })();
 </script>
 
+
+<!-- ============================================================
+  IMPLEMENTAÇÃO DEFINITIVA — substitui toda a cadeia anterior
+  Este bloco roda por último e redefine as funções críticas
+  sem encadear nas versões anteriores.
+  ============================================================ -->
+<style>
+/* Edit button nos cards de ponto */
+.ponto-edit-btn {
+  position: absolute; top: 7px; right: 7px;
+  width: 26px; height: 26px; border-radius: 7px;
+  background: rgba(0,200,83,.12); border: 1px solid rgba(0,200,83,.3);
+  color: #00c853; cursor: pointer; font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .2s; z-index: 10;
+}
+.ponto-edit-btn:hover { background: rgba(0,200,83,.25); transform: scale(1.1); }
+
+/* Modal renomear ponto */
+.rename-modal-bg {
+  position: fixed; inset: 0; background: rgba(0,0,0,.75);
+  backdrop-filter: blur(4px); z-index: 8000;
+  display: none; place-items: center;
+}
+.rename-modal-bg.show { display: grid; }
+.rename-modal {
+  background: var(--bg-secondary); border: 1px solid var(--border-glass);
+  border-radius: 18px; padding: 24px; width: 100%; max-width: 420px;
+}
+.rename-modal h3 { font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 14px; }
+.rename-modal p { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+.rename-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+.btn-rename-ok { background: #00c853; color: #071a0f; border: none; padding: 9px 20px; border-radius: 10px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+.btn-rename-ok:hover { background: #00e676; }
+.btn-rename-cancel { background: none; border: 1px solid var(--border-glass); color: var(--text-muted); padding: 9px 16px; border-radius: 10px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+
+/* Ponto card base com position:relative para o botão */
+#pontos-grid .kpi-card { position: relative !important; }
+
+/* Switch de projeto visual */
+.switch-btn.active {
+  background: #00c853 !important;
+  color: #071a0f !important;
+}
+</style>
+
+<!-- Modal renomear ponto -->
+<div class="rename-modal-bg" id="rename-modal-bg">
+  <div class="rename-modal">
+    <h3>✏️ Renomear Ponto</h3>
+    <p id="rename-ponto-atual">Ponto atual: —</p>
+    <input type="hidden" id="rename-ponto-id">
+    <input type="text" class="form-input" id="rename-ponto-nome"
+      placeholder="Novo nome do ponto..." maxlength="50"
+      onkeydown="if(event.key==='Enter')_renameOk()">
+    <div class="rename-actions">
+      <button class="btn-rename-cancel" onclick="_renameClose()">Cancelar</button>
+      <button class="btn-rename-ok" onclick="_renameOk()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   BLOCO DEFINITIVO — Dr. Malaquias
+   Redefine sem encadeamento: loadData, switchProject,
+   updatePontos, updateKPIs, updateCharts, openPontoDetalhe
+   ============================================================ */
+(function() {
+'use strict';
+
+/* ---- Globals seguros ---- */
+const _$ = id => document.getElementById(id);
+const _qs = s => document.querySelector(s);
+const _today = () => new Date().toISOString().split('T')[0];
+const _proj = () => (typeof currentProject !== 'undefined' ? currentProject : 'fibro');
+const _tbl  = () => _proj() === 'oculos' ? 'pacientes_oculos' : 'pacientes_fibro';
+const _toast = (m, e) => { if (typeof showToast === 'function') showToast(m, e); };
+
+/* Mapa profileId → nome do ponto */
+if (!window._PM) window._PM = {};
+
+/* ============================================================
+   1. loadData — DEFINITIVA, project-aware, sem encadeamento
+   ============================================================ */
+window.loadData = async function() {
+  const tbl = _tbl();
+  let query = sb.from(tbl).select('*').order('criado_em', { ascending: false });
+  if (currentProfile?.papel !== 'admin') {
+    query = query.eq('cadastrado_por', currentUser.id);
+  } else {
+    query = query.limit(2000);
+  }
+  const { data, error } = await query;
+  if (error) { console.error('loadData:', error); return; }
+  window.allPacientes = data || [];
+
+  _updateKPIsDF();
+  _updateTableDF();
+  _updateChartsDF();
+
+  if (currentProfile?.papel === 'admin') {
+    if (typeof updateAlerts    === 'function') try { updateAlerts();    } catch(e) {}
+    if (typeof updateRanking   === 'function') try { updateRanking();   } catch(e) {}
+    if (typeof updateRelatorios=== 'function') try { updateRelatorios();} catch(e) {}
+    await _updatePontosDF();
+    _updateDashboardWidgets();
+  }
+};
+
+/* ============================================================
+   2. switchProject — DEFINITIVA, troca projeto e recarrega tudo
+   ============================================================ */
+window.switchProject = function(proj, btn) {
+  /* Visual dos botões */
+  document.querySelectorAll('.switch-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  /* Atualiza variável global */
+  window.currentProject = proj;
+
+  /* Limpa mapa de pontos (vai recarregar) */
+  window._PM = {};
+
+  /* Atualiza textos que dependem do projeto */
+  const projName = proj === 'oculos' ? 'Óculos' : 'Fibromialgia';
+  const subEl = _$('dash-title');
+  /* Mantém saudação, só atualiza projeto no subtítulo */
+
+  /* Atualiza cabeçalhos da tabela */
+  _updateTableHeadersDF(proj);
+
+  /* Reconstrói formulário para o projeto */
+  if (typeof buildNovoForm === 'function') {
+    try { buildNovoForm(proj); } catch(e) {}
+  }
+
+  /* Recarrega dados do novo projeto */
+  loadData();
+
+  _toast('Projeto: ' + projName);
+};
+
+/* ============================================================
+   3. updatePontos — DEFINITIVA com botão de edição
+   ============================================================ */
+window.updatePontos = async function() {
+  const grid = _$('pontos-grid');
+  if (!grid) return;
+
+  /* Carrega profiles do projeto atual */
+  const proj = _proj() === 'oculos' ? 'oculos' : 'fibromialgia';
+  const { data: profiles, error } = await sb.from('profiles')
+    .select('id, nome, numero_ponto, tipo_ponto, nome_editavel')
+    .eq('papel', 'colaborador')
+    .eq('projeto', proj)
+    .order('tipo_ponto')
+    .order('numero_ponto');
+
+  if (error || !profiles?.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--text-muted)">Nenhum ponto encontrado para ${proj}. Verifique os profiles no Supabase.</div>`;
+    return;
+  }
+
+  /* Atualiza mapa global */
+  profiles.forEach(p => { window._PM[p.id] = p.nome_editavel || p.nome; });
+
+  const today = _today();
+  const all   = window.allPacientes || [];
+
+  grid.innerHTML = profiles.map(p => {
+    const nome = p.nome_editavel || p.nome;
+    const cnt  = all.filter(r => r.cadastrado_por === p.id).length;
+    const cntH = all.filter(r => r.cadastrado_por === p.id && r.criado_em?.startsWith(today)).length;
+    const isAtivo = cnt > 0;
+    const meta = parseInt(localStorage.getItem('drm_meta_ponto') || '5');
+    const pct = Math.min(100, Math.round(cntH / meta * 100));
+    const barColor = pct >= 100 ? '#00c853' : pct >= 60 ? '#fbbf24' : '#ef4444';
+
+    return `
+      <div class="kpi-card" style="cursor:pointer;position:relative"
+           onclick="openPontoDetalhe('${p.id}','${nome.replace(/'/g,"\\'")}','${p.tipo_ponto}')">
+
+        <!-- Botão editar nome -->
+        <button class="ponto-edit-btn"
+          title="Renomear ponto"
+          onclick="event.stopPropagation(); _renameOpen('${p.id}','${nome.replace(/'/g,"\\'")}')">
+          ✏️
+        </button>
+
+        <div class="kpi-header">
+          <div class="kpi-icon">
+            <i class="fas fa-${p.tipo_ponto === 'fixo' ? 'map-pin' : 'route'}"></i>
+          </div>
+          <span class="status-badge ${isAtivo ? 'ativo' : ''}"
+            style="${isAtivo ? '' : 'background:rgba(100,116,139,.15);color:var(--text-muted);border-color:transparent'}">
+            ${isAtivo ? 'ativo' : 'inativo'}
+          </span>
+        </div>
+
+        <div style="font-size:14px;font-weight:700;margin-bottom:3px;padding-right:28px">${nome}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">
+          ${cnt} cadastro${cnt !== 1 ? 's' : ''}
+          ${cntH > 0 ? ` · <span style="color:#00c853;font-weight:700">+${cntH} hoje</span>` : ''}
+        </div>
+
+        <!-- Barra de progresso meta diária -->
+        <div style="height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${barColor};border-radius:2px;transition:width .5s"></div>
+        </div>
+        <div style="font-size:9px;color:var(--text-muted);margin-top:3px;display:flex;justify-content:space-between">
+          <span>Meta: ${meta}/dia</span><span>${pct}%</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  /* Atualiza mapa de filtros */
+  if (typeof _populatePontoFilter === 'function') try { _populatePontoFilter(); } catch(e) {}
+};
+
+/* ============================================================
+   4. KPIs — project-aware
+   ============================================================ */
+function _updateKPIsDF() {
+  const all   = window.allPacientes || [];
+  const today = _today();
+  const sem   = new Date(Date.now() - 7*86400000).toISOString().split('T')[0];
+  const total = all.length;
+  const hoje  = all.filter(p => p.criado_em?.startsWith(today)).length;
+  const semana= all.filter(p => p.criado_em && p.criado_em >= sem).length;
+
+  const set = (id, v) => { const el = _$(id); if (el) el.textContent = v; };
+  set('kpi-total', total);
+  set('kpi-hoje',  hoje);
+  set('kpi-semana',semana);
+
+  /* Campo 4: dor (fibro) ou pedidos pendentes (óculos) */
+  if (_proj() === 'oculos') {
+    const pend = all.filter(p => p.status_pedido === 'aguardando' || p.status_pedido === 'em_producao').length;
+    set('kpi-dor', pend);
+    const kpiDorLabel = _$('kpi-dor')?.parentElement?.querySelector('.kpi-label');
+    if (kpiDorLabel) kpiDorLabel.textContent = 'Em Aberto';
+  } else {
+    const dors = all.filter(p => p.nivel_dor != null).map(p => p.nivel_dor);
+    const media = dors.length ? (dors.reduce((a,b)=>a+b,0)/dors.length).toFixed(1) : '—';
+    set('kpi-dor', media);
+    const kpiDorLabel = _$('kpi-dor')?.parentElement?.querySelector('.kpi-label');
+    if (kpiDorLabel) kpiDorLabel.textContent = 'Média Nível de Dor';
+  }
+}
+window.updateKPIs = _updateKPIsDF;
+
+/* ============================================================
+   5. Tabela de cadastros — project-aware
+   ============================================================ */
+function _updateTableHeadersDF(proj) {
+  const thead = _qs('#sec-cadastros table thead tr');
+  if (!thead) return;
+  if ((proj || _proj()) === 'oculos') {
+    thead.innerHTML = '<th>Paciente</th><th>Idade</th><th>WhatsApp</th><th>Status</th><th>Data Entrega</th><th>Ponto</th>';
+  } else {
+    thead.innerHTML = '<th>Paciente</th><th>Idade</th><th>WhatsApp</th><th>Dor</th><th>Data Consulta</th><th>Ponto</th>';
+  }
+}
+
+function _updateTableDF() {
+  const body = _$('table-body');
+  if (!body) return;
+  const search = (_$('search-paciente')?.value || '').toLowerCase();
+  const all    = window.allPacientes || [];
+  const filtered = all.filter(p => !search || (p.nome||'').toLowerCase().includes(search) || (p.whatsapp||'').includes(search));
+
+  const cnt = _$('table-count');
+  if (cnt) cnt.textContent = filtered.length + ' registros';
+
+  if (!filtered.length) {
+    body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">Nenhum registro.</td></tr>';
+    return;
+  }
+
+  const pontoMap = window._PM || {};
+  body.innerHTML = filtered.slice(0, 50).map(p => {
+    const pontoNome = pontoMap[p.cadastrado_por] || p.cadastrado_por?.substring(0,8) || '—';
+    let col4, col5;
+    if (_proj() === 'oculos') {
+      const stl = {aguardando:'⏳',em_producao:'⚙️',pronto:'✅',entregue:'📦'};
+      col4 = (stl[p.status_pedido]||'') + (p.status_pedido||'—');
+      col5 = p.data_entrega ? new Date(p.data_entrega+'T00:00:00').toLocaleDateString('pt-BR') : '—';
+    } else {
+      const dc = p.nivel_dor <= 3 ? 'dor-low' : p.nivel_dor <= 6 ? 'dor-mid' : 'dor-high';
+      col4 = p.nivel_dor != null ? `<span class="dor-badge ${dc}">${p.nivel_dor}/10</span>` : '—';
+      col5 = p.data_consulta ? new Date(p.data_consulta+'T00:00:00').toLocaleDateString('pt-BR') : '—';
+    }
+    return `<tr>
+      <td style="font-weight:500;color:var(--text-primary)">${p.nome||'—'}</td>
+      <td>${p.idade||'—'}</td>
+      <td style="color:var(--text-secondary)">${p.whatsapp||'—'}</td>
+      <td>${col4}</td><td>${col5}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${pontoNome}</td>
+    </tr>`;
+  }).join('');
+}
+window.updateTable = _updateTableDF;
+window.filterTable = () => _updateTableDF();
+
+/* ============================================================
+   6. Gráficos — project-aware
+   ============================================================ */
+function _updateChartsDF() {
+  if (typeof Chart === 'undefined') return;
+  try {
+    const all   = window.allPacientes || [];
+    const today = _today();
+    const c = typeof getChartColors === 'function' ? getChartColors() : { accent:'#00c853', accentBg:'rgba(0,200,83,.1)', text:'#94a3b8', grid:'rgba(255,255,255,.06)' };
+    Chart.defaults.color = c.text;
+
+    /* Gráfico semanal (linha) */
+    const last7 = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(Date.now() - i*86400000);
+      const key = d.toISOString().split('T')[0];
+      const label = d.toLocaleDateString('pt-BR', { weekday:'short', day:'numeric' });
+      last7.push({ label, count: all.filter(p => p.criado_em?.startsWith(key)).length });
+    }
+    if (typeof charts !== 'undefined') {
+      if (charts.weekly) charts.weekly.destroy();
+      const ctx1 = _$('chart-weekly');
+      if (ctx1) {
+        charts.weekly = new Chart(ctx1, {
+          type: 'line',
+          data: { labels: last7.map(d=>d.label), datasets: [{ label:'Cadastros', data: last7.map(d=>d.count), borderColor: c.accent, backgroundColor: c.accentBg, fill:true, tension:.4, pointRadius:4, pointBackgroundColor: c.accent }] },
+          options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} }, scales:{ y:{beginAtZero:true,grid:{color:c.grid},ticks:{stepSize:1}}, x:{grid:{display:false}} } }
+        });
+      }
+
+      /* Gráfico de pizza — fibro: dor | óculos: status */
+      if (charts.dor) charts.dor.destroy();
+      const ctx2 = _$('chart-dor');
+      if (ctx2) {
+        if (_proj() === 'oculos') {
+          const stMap = { aguardando:0, em_producao:0, pronto:0, entregue:0 };
+          all.forEach(p => { const st = p.status_pedido||'aguardando'; if (stMap[st]!==undefined) stMap[st]++; });
+          charts.dor = new Chart(ctx2, {
+            type: 'doughnut',
+            data: { labels:['⏳ Aguardando','⚙️ Em produção','✅ Pronto','📦 Entregue'], datasets:[{ data:Object.values(stMap), backgroundColor:['rgba(251,191,36,.7)','rgba(74,222,128,.7)','rgba(34,197,94,.9)','rgba(148,163,184,.4)'], borderWidth:0 }] },
+            options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{position:'right',labels:{boxWidth:12,padding:8,font:{size:11}}} }, cutout:'60%' }
+          });
+          /* Atualiza título */
+          const cardTitle = ctx2.closest?.('.chart-card')?.querySelector('.chart-title');
+          if (cardTitle) cardTitle.textContent = 'Status dos Pedidos';
+        } else {
+          const dorDist = Array(11).fill(0);
+          all.forEach(p => { if (p.nivel_dor != null) dorDist[p.nivel_dor]++; });
+          charts.dor = new Chart(ctx2, {
+            type: 'doughnut',
+            data: { labels:['0','1','2','3','4','5','6','7','8','9','10'], datasets:[{ data:dorDist, backgroundColor:['#4ade80','#6ee7a0','#86efac','#a7f3d0','#fcd34d','#fbbf24','#f59e0b','#fb923c','#f87171','#ef4444','#dc2626'], borderWidth:0 }] },
+            options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{position:'right',labels:{boxWidth:12,padding:8,font:{size:11}}} }, cutout:'60%' }
+          });
+          const cardTitle = ctx2.closest?.('.chart-card')?.querySelector('.chart-title');
+          if (cardTitle) cardTitle.textContent = 'Distribuição Nível de Dor';
+        }
+      }
+    }
+  } catch(e) { console.warn('_updateChartsDF:', e); }
+}
+
+/* ============================================================
+   7. Widgets do dashboard (exec, heatmap, timeline, etc.)
+   ============================================================ */
+function _updateDashboardWidgets() {
+  try { if (typeof _updateExecSummary==='function') _updateExecSummary(); } catch(e) {}
+  try { if (typeof _updateWeeklyCard==='function')  _updateWeeklyCard();  } catch(e) {}
+  try { if (typeof _updatePulsoDia==='function')    _updatePulsoDia();    } catch(e) {}
+  try { if (typeof _updateTimeline==='function')    _updateTimeline();    } catch(e) {}
+  try { if (typeof _updateOfflineCard==='function') _updateOfflineCard(); } catch(e) {}
+  try { if (typeof _updateRecordsCard==='function') _updateRecordsCard(); } catch(e) {}
+  try { if (typeof _updateHealthIndicator==='function') _updateHealthIndicator(); } catch(e) {}
+  try { if (typeof _buildHourlyChart==='function')  _buildHourlyChart();  } catch(e) {}
+  /* Atualiza calendário */
+  try { if (typeof _renderCalendar==='function') _renderCalendar(); } catch(e) {}
+  /* Atualiza filtros da tabela */
+  try { if (typeof _renderFilteredTable==='function') _renderFilteredTable(); } catch(e) {}
+}
+
+/* ============================================================
+   8. openPontoDetalhe — DEFINITIVA (seção, sem overlay)
+   ============================================================ */
+let _pf_id=null, _pf_nome='', _pf_recs=[], _pf_sub=null;
+
+function _ensurePontoSection() {
+  if (_$('sec-ponto-detalhe')) return;
+  const main = _qs('.main');
+  if (!main) return;
+  const sec = document.createElement('div');
+  sec.className = 'section';
+  sec.id = 'sec-ponto-detalhe';
+  sec.innerHTML = `
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:22px">
+      <button id="pf-back-btn" style="background:none;border:1px solid var(--border-glass);color:var(--text-secondary);padding:8px 16px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;transition:all .2s"
+        onmouseenter="this.style.borderColor='#00c853';this.style.color='#00c853'"
+        onmouseleave="this.style.borderColor='var(--border-glass)';this.style.color='var(--text-secondary)'"
+        onclick="_pfBack()">← Voltar para Pontos</button>
+      <h1 id="pf-title" style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--text-primary);flex:1;margin:0">—</h1>
+      <span id="pf-badge-tipo" style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.3);color:#00c853"></span>
+      <span id="pf-badge-status" style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px"></span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px">
+      ${['pf-hoje','pf-semana','pf-total','pf-media'].map((id,i) => `
+        <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:18px;text-align:center;backdrop-filter:blur(10px)">
+          <div id="${id}" style="font-family:'Playfair Display',serif;font-size:2.4rem;font-weight:700;color:#00c853;line-height:1">—</div>
+          <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-top:5px">${['Hoje','Esta Semana','Total Geral','Média/Dia'][i]}</div>
+        </div>`).join('')}
+    </div>
+
+    <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:16px;overflow:hidden;backdrop-filter:blur(10px)">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border-glass)">
+        <h3 style="font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px">
+          <span style="width:8px;height:8px;border-radius:50%;background:#00c853;box-shadow:0 0 8px #00c853;display:inline-block;animation:sfPulse 1.5s infinite"></span>
+          Últimos Cadastros — Tempo Real
+        </h3>
+        <span id="pf-count" style="font-size:12px;color:var(--text-muted)">—</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse">
+          <thead id="pf-thead"></thead>
+          <tbody id="pf-tbody"></tbody>
+        </table>
+      </div>
+    </div>`;
+  main.appendChild(sec);
+}
+
+function _pfBack() {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const pontosNav = _qs('[data-section="pontos"]');
+  const pontosSec = _$('sec-pontos');
+  if (pontosSec) pontosSec.classList.add('active');
+  if (pontosNav) pontosNav.classList.add('active');
+  if (_pf_sub) { _pf_sub.unsubscribe(); _pf_sub = null; }
+  _pf_recs = []; _pf_id = null;
+}
+
+function _pfSetHeaders() {
+  const th = _$('pf-thead'); if (!th) return;
+  if (_proj() === 'oculos') {
+    th.innerHTML = '<tr><th style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">Paciente</th><th style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">Idade</th><th style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">WhatsApp</th><th style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">Status</th><th style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">Entrega</th><th style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">Registrado</th></tr>';
+  } else {
+    th.innerHTML = '<tr><th style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">Paciente</th><th style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">Idade</th><th style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">WhatsApp</th><th style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">Dor</th><th style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">Consulta</th><th style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">Registrado</th></tr>';
+  }
+}
+
+function _pfRenderTable(flash) {
+  const tb = _$('pf-tbody'), cnt = _$('pf-count'); if (!tb) return;
+  const today = _today(), sem = new Date(Date.now()-7*86400000).toISOString().split('T')[0];
+  const total = _pf_recs.length;
+  const todayC = _pf_recs.filter(r=>r.criado_em?.startsWith(today)).length;
+  const semC   = _pf_recs.filter(r=>r.criado_em&&r.criado_em>=sem).length;
+
+  const _anim = (id,n) => { const el=_$(id);if(!el)return;const dur=500,st=Date.now();(function t(){const p=Math.min((Date.now()-st)/dur,1);el.textContent=typeof n==='number'?Math.round(n*(1-Math.pow(1-p,3))):n;if(p<1)requestAnimationFrame(t);})(); };
+  _anim('pf-hoje',todayC); _anim('pf-semana',semC); _anim('pf-total',total);
+  if (total > 0) {
+    const first = _pf_recs[_pf_recs.length-1]?.criado_em;
+    const dias = first ? Math.max(1, Math.ceil((Date.now()-new Date(first).getTime())/86400000)) : 1;
+    _anim('pf-media', (total/dias).toFixed(1));
+  } else { const el=_$('pf-media'); if(el) el.textContent='0'; }
+  if (cnt) cnt.textContent = total + ' registro' + (total!==1?'s':'');
+
+  if (!_pf_recs.length) {
+    tb.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2.5rem;color:var(--text-muted);font-size:14px">Nenhum cadastro registrado ainda.<br><span style="font-size:12px;opacity:.6">Novos registros aparecem aqui instantaneamente.</span></td></tr>`;
+    return;
+  }
+
+  const stLabels = {aguardando:'⏳ Aguardando',em_producao:'⚙️ Produção',pronto:'✅ Pronto',entregue:'📦 Entregue'};
+  const dorClass  = v => v<=3?'dor-low':v<=6?'dor-mid':'dor-high';
+  const td = (s, extra='') => `<td style="font-size:13px;padding:11px 16px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text-primary)${extra}">${s}</td>`;
+  const hora = iso => { try{return new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}catch(e){return'—';} };
+  const date = iso => { try{return new Date(iso+'T00:00:00').toLocaleDateString('pt-BR');}catch(e){return iso||'—';} };
+
+  tb.innerHTML = _pf_recs.slice(0,30).map((r,i) => {
+    let c4, c5;
+    if (_proj()==='oculos') {
+      c4 = stLabels[r.status_pedido]||r.status_pedido||'—';
+      c5 = r.data_entrega ? date(r.data_entrega) : '—';
+    } else {
+      c4 = r.nivel_dor!=null?`<span class="dor-badge ${dorClass(r.nivel_dor)}">${r.nivel_dor}/10</span>`:'—';
+      c5 = r.data_consulta ? date(r.data_consulta) : '—';
+    }
+    const flash_s = (i===0&&flash)?'animation:pfdFlash .9s ease':'';
+    return `<tr style="${flash_s}">
+      ${td(`<span style="font-weight:600">${r.nome||'—'}</span>`)}
+      ${td(r.idade||'—')}
+      ${td(r.whatsapp||'—',';color:var(--text-secondary)')}
+      ${td(c4)}${td(c5)}
+      ${td(hora(r.criado_em),';font-size:11px;color:var(--text-muted)')}
+    </tr>`;
+  }).join('');
+}
+
+window.openPontoDetalhe = async function(profileId, nome, tipo) {
+  _pf_id = profileId; _pf_nome = nome;
+
+  /* Garante seção */
+  _ensurePontoSection();
+
+  /* Preenche header */
+  const el = id => _$(id);
+  if (el('pf-title')) el('pf-title').textContent = nome;
+  if (el('pf-badge-tipo')) el('pf-badge-tipo').textContent = tipo==='fixo'?'📍 Ponto Fixo':'🚀 Ponto Móvel';
+  if (el('pf-badge-status')) {
+    const temReg = (window.allPacientes||[]).some(p=>p.cadastrado_por===profileId);
+    el('pf-badge-status').textContent = temReg?'🟢 Ativo':'⚪ Inativo';
+    el('pf-badge-status').style.cssText = temReg
+      ? 'font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.3);color:#00c853'
+      : 'font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;background:rgba(100,116,139,.1);border:1px solid rgba(100,116,139,.3);color:var(--text-muted)';
+  }
+
+  /* Define cabeçalhos */
+  _pfSetHeaders();
+
+  /* Navega para a seção */
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const sec = _$('sec-ponto-detalhe');
+  if (sec) sec.classList.add('active');
+  const pontosNav = _qs('[data-section="pontos"]');
+  if (pontosNav) pontosNav.classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+
+  /* Carrega dados */
+  if (el('pf-tbody')) el('pf-tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">Carregando...</td></tr>';
+  ['pf-hoje','pf-semana','pf-total','pf-media'].forEach(id=>{const e=_$(id);if(e)e.textContent='…';});
+
+  const {data,error} = await sb.from(_tbl()).select('*').eq('cadastrado_por',profileId).order('criado_em',{ascending:false}).limit(100);
+  if (error) { _toast('Erro ao carregar: '+error.message,true); return; }
+  _pf_recs = data||[];
+  _pfRenderTable(false);
+
+  /* Realtime */
+  if (_pf_sub) { _pf_sub.unsubscribe(); _pf_sub=null; }
+  _pf_sub = sb.channel('pf_def_'+_tbl()+'_'+profileId)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:_tbl(),filter:'cadastrado_por=eq.'+profileId},pl=>{
+      _pf_recs.unshift(pl.new);
+      _pfRenderTable(true);
+      _toast('Novo cadastro em '+_pf_nome+'!');
+    }).subscribe();
+};
+
+/* ============================================================
+   9. Renomear ponto
+   ============================================================ */
+window._renameOpen = function(id, nomeAtual) {
+  _$('rename-ponto-id').value = id;
+  _$('rename-ponto-nome').value = nomeAtual;
+  _$('rename-ponto-atual').textContent = 'Nome atual: ' + nomeAtual;
+  _$('rename-modal-bg').classList.add('show');
+  setTimeout(() => { _$('rename-ponto-nome')?.focus(); _$('rename-ponto-nome')?.select(); }, 100);
+};
+window._renameClose = () => _$('rename-modal-bg').classList.remove('show');
+window._renameOk = async function() {
+  const id   = _$('rename-ponto-id')?.value;
+  const nome = _$('rename-ponto-nome')?.value.trim();
+  if (!id || !nome) { _toast('Digite um nome válido',true); return; }
+  const {error} = await sb.from('profiles').update({nome_editavel:nome}).eq('id',id);
+  if (error) { _toast('Erro: '+error.message,true); return; }
+  if (window._PM) window._PM[id] = nome;
+  _toast('Ponto renomeado para "'+nome+'"!');
+  _renameClose();
+  await _updatePontosDF();
+};
+
+async function _updatePontosDF() { await window.updatePontos(); }
+
+/* ============================================================
+   INIT — aguarda login e configura realtime global
+   ============================================================ */
+let _rtF=null, _rtO=null;
+function _initGlobalRT() {
+  if (!_rtF) {
+    _rtF = sb.channel('def_rt_fibro')
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'pacientes_fibro'},pl=>{
+        if (_proj()==='fibro') { if(!Array.isArray(window.allPacientes))window.allPacientes=[]; window.allPacientes.unshift(pl.new); _updateKPIsDF(); _updateDashboardWidgets(); }
+      }).subscribe();
+  }
+  if (!_rtO) {
+    _rtO = sb.channel('def_rt_oculos')
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'pacientes_oculos'},pl=>{
+        if (_proj()==='oculos') { if(!Array.isArray(window.allPacientes))window.allPacientes=[]; window.allPacientes.unshift(pl.new); _updateKPIsDF(); _updateDashboardWidgets(); }
+      }).subscribe();
+  }
+}
+
+function _defInit() {
+  if (typeof currentProfile === 'undefined' || !currentProfile) return false;
+  _updateTableHeadersDF();
+  if (currentProfile.papel === 'admin') {
+    _initGlobalRT();
+    /* Garante seção de detalhe criada */
+    _ensurePontoSection();
+  }
+  return true;
+}
+if (!_defInit()) {
+  const _t = setInterval(() => { if(_defInit()) clearInterval(_t); }, 300);
+  setTimeout(() => clearInterval(_t), 30000);
+}
+
+/* Fecha modal renomear clicando fora */
+_$('rename-modal-bg')?.addEventListener('click', e => { if(e.target===_$('rename-modal-bg')) _renameClose(); });
+
+/* Animação flash linha nova */
+if (!_$('def-kf')) {
+  const s=document.createElement('style');s.id='def-kf';
+  s.textContent='@keyframes pfdFlash{from{background:rgba(0,200,83,.2);}to{background:transparent;}}';
+  document.head.appendChild(s);
+}
+
+})();
+</script>
+
+
+<style>
+/* ======================================================
+   FUNDO VERDE ESCURO BRILHOSO NO PAINEL ADMIN
+   Detalhe dourado mantido no topo (header + nav active)
+   ====================================================== */
+
+/* Fundo geral do site quando admin está logado */
+body.admin-mode {
+  --bg-primary:   #071a0f !important;
+  --bg-secondary: #0a2416 !important;
+  --bg-card: rgba(10,36,22,0.92) !important;
+  --bg-glass: rgba(7,26,15,0.7) !important;
+  --border-glass: rgba(0,200,83,0.18) !important;
+  --text-primary:   #e8f5e9 !important;
+  --text-secondary: #81c784 !important;
+  --text-muted:     #4caf50 !important;
+  --input-bg:   rgba(7,26,15,0.7) !important;
+  --input-border: rgba(0,200,83,0.22) !important;
+  --hover-bg:   rgba(0,200,83,0.1) !important;
+  --shadow-card: 0 8px 32px rgba(0,40,0,0.55) !important;
+}
+
+/* Fundo da página admin = verde escuro brilhoso */
+body.admin-mode { background: #071a0f !important; }
+
+/* Sidebar: verde escuro */
+body.admin-mode .sidebar {
+  background: linear-gradient(180deg, #071a0f 0%, #0a2416 60%, #0c2e1c 100%) !important;
+  border-right: 1px solid rgba(0,200,83,0.15) !important;
+  box-shadow: 2px 0 16px rgba(0,0,0,0.4) !important;
+}
+
+/* Main content area: verde escuro com brilho sutil */
+body.admin-mode .main {
+  background: radial-gradient(ellipse 120% 50% at 50% 0%, rgba(0,200,83,.07), transparent 55%) !important;
+}
+
+/* Cards de conteúdo: verde escuro translúcido */
+body.admin-mode .table-card,
+body.admin-mode .chart-card,
+body.admin-mode .form-card,
+body.admin-mode .kpi-card {
+  background: rgba(10,36,22,0.85) !important;
+  border-color: rgba(0,200,83,0.14) !important;
+}
+
+/* Nav itens normais */
+body.admin-mode .nav-item {
+  color: rgba(180,230,200,.65) !important;
+}
+body.admin-mode .nav-item:hover {
+  background: rgba(0,200,83,.1) !important;
+  color: #e8f5e9 !important;
+}
+/* Nav item ativo: dourado (diferencial admin) */
+body.admin-mode .nav-item.active {
+  background: linear-gradient(135deg, rgba(212,175,55,.18), rgba(212,175,55,.05)) !important;
+  color: var(--gold) !important;
+  border-left: 2px solid var(--gold) !important;
+}
+body.admin-mode .nav-section-title {
+  color: rgba(0,200,83,.4) !important;
+}
+
+/* Inputs e formulários admin */
+body.admin-mode input.form-input,
+body.admin-mode select.form-input,
+body.admin-mode textarea.form-input {
+  background: rgba(7,26,15,0.7) !important;
+  border-color: rgba(0,200,83,0.2) !important;
+  color: #e8f5e9 !important;
+}
+
+/* KPI cards do dashboard: verde com borda verde */
+body.admin-mode .kpi-card.gold {
+  background: linear-gradient(135deg, rgba(212,175,55,.12), rgba(212,175,55,.04)) !important;
+  border-color: rgba(212,175,55,.3) !important;
+}
+
+/* Header ADMIN: mantém detalhe dourado NO TOPO apenas */
+body.admin-mode #app-header.header-admin {
+  background: linear-gradient(135deg, #071a0f 0%, #0a2416 50%, #071a0f 100%) !important;
+  border-bottom: 2px solid rgba(212,175,55,.5) !important;
+  box-shadow: 0 2px 24px rgba(0,200,83,.15), 0 0 0 0 rgba(212,175,55,.2) !important;
+}
+/* Linha dourada fina acima do header admin */
+body.admin-mode #app-header.header-admin::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--gold), var(--gold-light), var(--gold), transparent);
+  box-shadow: 0 0 12px rgba(212,175,55,.6);
+}
+
+/* Logo icon admin: verde */
+body.admin-mode #app-header .logo-icon {
+  background: linear-gradient(135deg, #0d4a2e, #1a6b45) !important;
+  box-shadow: 0 0 14px rgba(0,200,83,.4) !important;
+}
+
+/* Switch de projetos */
+body.admin-mode .project-switch {
+  background: rgba(0,0,0,.2) !important;
+  border: 1px solid rgba(0,200,83,.2) !important;
+}
+body.admin-mode .switch-btn { color: rgba(180,230,200,.55) !important; }
+body.admin-mode .switch-btn.active {
+  background: linear-gradient(135deg, var(--gold), var(--gold-light)) !important;
+  color: #071a0f !important;
+  box-shadow: 0 2px 12px rgba(212,175,55,.35) !important;
+}
+
+/* User badge admin */
+body.admin-mode .user-badge {
+  background: rgba(0,200,83,.06) !important;
+  border-color: rgba(0,200,83,.2) !important;
+}
+
+/* Scrollbar verde */
+body.admin-mode ::-webkit-scrollbar-thumb { background: rgba(0,200,83,.3) !important; }
+
+/* bg-mesh do admin: verde */
+body.admin-mode .bg-mesh {
+  background:
+    radial-gradient(ellipse 600px 400px at 20% 20%, rgba(0,100,50,.18), transparent),
+    radial-gradient(ellipse 400px 300px at 80% 80%, rgba(212,175,55,.06), transparent) !important;
+}
+</style>
+
 </body>
 </html>
