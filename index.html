@@ -6430,5 +6430,357 @@ if (!_upgradeInit()) {
 })();
 </script>
 
+
+<style>
+/* ===== FEATURES MÍNIMAS — clique ponto + editar nome ===== */
+
+/* Botão editar no card */
+.pp-edit-btn {
+  position: absolute; top: 8px; right: 8px;
+  width: 24px; height: 24px; border-radius: 6px;
+  background: rgba(0,200,83,.1); border: 1px solid rgba(0,200,83,.25);
+  color: #00c853; cursor: pointer; font-size: 11px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s; z-index: 5;
+  line-height: 1; padding: 0;
+}
+.pp-edit-btn:hover { background: rgba(0,200,83,.25); transform: scale(1.1); }
+
+/* Input inline de edição */
+.pp-inline-edit {
+  width: 100%; background: rgba(7,26,15,.8);
+  border: 1px solid #00c853; border-radius: 8px;
+  color: #e8f5e9; padding: 5px 8px; font-size: 13px;
+  font-family: 'DM Sans', sans-serif; outline: none;
+  margin-bottom: 4px;
+}
+
+/* Painel de detalhes do ponto */
+#pp-detail {
+  display: none;
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  border-radius: 16px; overflow: hidden;
+  backdrop-filter: blur(10px);
+  margin-top: 16px;
+}
+.pp-detail-header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 20px; border-bottom: 1px solid var(--border-glass);
+  background: rgba(0,200,83,.04);
+}
+.pp-back-btn {
+  background: none; border: 1px solid var(--border-glass);
+  color: var(--text-secondary); padding: 6px 14px;
+  border-radius: 8px; cursor: pointer; font-size: 13px;
+  font-weight: 600; font-family: 'DM Sans', sans-serif;
+  transition: all .2s; white-space: nowrap;
+}
+.pp-back-btn:hover { border-color: #00c853; color: #00c853; }
+#pp-title {
+  font-family: 'Playfair Display', serif; font-size: 17px;
+  font-weight: 700; color: var(--text-primary); flex: 1; margin: 0;
+}
+.pp-live-dot {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: #00c853; font-weight: 600;
+}
+.pp-live-dot::before {
+  content: ''; width: 8px; height: 8px; border-radius: 50%;
+  background: #00c853; box-shadow: 0 0 6px #00c853;
+  animation: ppPulse 1.5s infinite; flex-shrink: 0;
+}
+@keyframes ppPulse { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+.pp-kpis {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 0;
+  border-bottom: 1px solid var(--border-glass);
+}
+.pp-kpi {
+  padding: 14px 20px; text-align: center;
+  border-right: 1px solid var(--border-glass);
+}
+.pp-kpi:last-child { border-right: none; }
+.pp-kpi-val {
+  font-family: 'Playfair Display', serif; font-size: 2rem;
+  font-weight: 700; color: #00c853; line-height: 1;
+}
+.pp-kpi-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 4px; }
+.pp-tbl-wrap { overflow-x: auto; }
+.pp-tbl { width: 100%; border-collapse: collapse; }
+.pp-tbl th { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); padding: 10px 16px; text-align: left; border-bottom: 1px solid var(--border-glass); }
+.pp-tbl td { font-size: 13px; padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,.04); color: var(--text-primary); }
+.pp-tbl tr:last-child td { border-bottom: none; }
+.pp-tbl tr:hover td { background: var(--hover-bg); }
+.pp-new-row { animation: ppFlash .8s ease; }
+@keyframes ppFlash { from{background:rgba(0,200,83,.18);} to{background:transparent;} }
+.pp-empty { text-align: center; padding: 2.5rem; color: var(--text-muted); font-size: 13px; }
+</style>
+
+<script>
+/* ===================================================
+   FEATURES MÍNIMAS — Seguras, sem quebrar nada
+   =================================================== */
+(function() {
+'use strict';
+
+const _$ = id => document.getElementById(id);
+const _proj = () => (typeof currentProject !== 'undefined' ? currentProject : 'fibro');
+const _tbl  = () => _proj() === 'oculos' ? 'pacientes_oculos' : 'pacientes_fibro';
+const _today = () => new Date().toISOString().split('T')[0];
+const _hora  = iso => { try { return new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); } catch(e) { return '—'; } };
+const _date  = iso => { try { return new Date(iso+'T00:00:00').toLocaleDateString('pt-BR'); } catch(e) { return iso||'—'; } };
+
+/* ---- Estado ---- */
+let _ppSub = null, _ppId = null, _ppRecs = [];
+
+/* ==================================================
+   A) DETALHE DO PONTO (show/hide dentro de sec-pontos)
+   ================================================== */
+function _ensureDetailPanel() {
+  const sec = _$('sec-pontos');
+  if (!sec || _$('pp-detail')) return;
+
+  const div = document.createElement('div');
+  div.id = 'pp-detail';
+  div.innerHTML = `
+    <div class="pp-detail-header">
+      <button class="pp-back-btn" onclick="_ppBack()">← Voltar</button>
+      <h2 id="pp-title">—</h2>
+      <span class="pp-live-dot">Tempo real</span>
+    </div>
+    <div class="pp-kpis">
+      <div class="pp-kpi"><div class="pp-kpi-val" id="pp-hoje">—</div><div class="pp-kpi-label">Hoje</div></div>
+      <div class="pp-kpi"><div class="pp-kpi-val" id="pp-semana">—</div><div class="pp-kpi-label">Esta Semana</div></div>
+      <div class="pp-kpi"><div class="pp-kpi-val" id="pp-total">—</div><div class="pp-kpi-label">Total Geral</div></div>
+    </div>
+    <div class="pp-tbl-wrap">
+      <table class="pp-tbl">
+        <thead id="pp-thead"></thead>
+        <tbody id="pp-tbody"></tbody>
+      </table>
+    </div>`;
+  sec.appendChild(div);
+}
+
+window._ppBack = function() {
+  const grid = _$('pontos-grid');
+  const detail = _$('pp-detail');
+  if (grid) grid.style.display = '';
+  if (detail) detail.style.display = 'none';
+  if (_ppSub) { _ppSub.unsubscribe(); _ppSub = null; }
+  _ppRecs = []; _ppId = null;
+};
+
+function _ppSetHeaders() {
+  const th = _$('pp-thead'); if (!th) return;
+  const cols = _proj() === 'oculos'
+    ? ['Paciente','Idade','WhatsApp','Status','Data Entrega','Registrado']
+    : ['Paciente','Idade','WhatsApp','Dor','Data Consulta','Registrado'];
+  th.innerHTML = '<tr>' + cols.map(c =>
+    `<th>${c}</th>`).join('') + '</tr>';
+}
+
+function _ppRenderRows(isNew) {
+  const tb = _$('pp-tbody'); if (!tb) return;
+  const today = _today();
+  const sem   = new Date(Date.now()-7*86400000).toISOString().split('T')[0];
+
+  /* KPIs */
+  const todayC = _ppRecs.filter(r=>r.criado_em?.startsWith(today)).length;
+  const semC   = _ppRecs.filter(r=>r.criado_em&&r.criado_em>=sem).length;
+  const total  = _ppRecs.length;
+  const _an = (id,n) => { const el=_$(id);if(!el)return;const dur=400,st=Date.now();(function t(){const p=Math.min((Date.now()-st)/dur,1);el.textContent=Math.round(n*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(t);})(); };
+  _an('pp-hoje',todayC); _an('pp-semana',semC); _an('pp-total',total);
+
+  if (!_ppRecs.length) {
+    tb.innerHTML = `<tr><td colspan="6" class="pp-empty">Nenhum cadastro registrado ainda.<br><span style="font-size:12px;opacity:.6">Novos registros aparecem aqui instantaneamente.</span></td></tr>`;
+    return;
+  }
+
+  const stL = {aguardando:'⏳ Aguardando',em_producao:'⚙️ Produção',pronto:'✅ Pronto',entregue:'📦 Entregue'};
+  const dc  = v => v<=3?'dor-low':v<=6?'dor-mid':'dor-high';
+
+  tb.innerHTML = _ppRecs.slice(0,30).map((r,i) => {
+    let c4, c5;
+    if (_proj() === 'oculos') {
+      c4 = stL[r.status_pedido] || r.status_pedido || '—';
+      c5 = r.data_entrega ? _date(r.data_entrega) : '—';
+    } else {
+      c4 = r.nivel_dor!=null ? `<span class="dor-badge ${dc(r.nivel_dor)}">${r.nivel_dor}/10</span>` : '—';
+      c5 = r.data_consulta ? _date(r.data_consulta) : '—';
+    }
+    return `<tr class="${i===0&&isNew?'pp-new-row':''}">
+      <td style="font-weight:600">${r.nome||'—'}</td>
+      <td>${r.idade||'—'}</td>
+      <td style="color:var(--text-secondary)">${r.whatsapp||'—'}</td>
+      <td>${c4}</td><td>${c5}</td>
+      <td style="font-size:11px;color:var(--text-muted)">${_hora(r.criado_em)}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* Override openPontoDetalhe — show/hide dentro de sec-pontos */
+window.openPontoDetalhe = async function(profileId, nome, tipo) {
+  _ensureDetailPanel();
+  _ppId = profileId;
+
+  /* Título */
+  const titleEl = _$('pp-title');
+  if (titleEl) titleEl.textContent = 'Últimos cadastros — ' + nome;
+
+  /* Cabeçalhos */
+  _ppSetHeaders();
+
+  /* Esconde grid, mostra painel */
+  const grid = _$('pontos-grid');
+  const detail = _$('pp-detail');
+  if (grid) grid.style.display = 'none';
+  if (detail) detail.style.display = 'block';
+
+  /* Loading */
+  const tb = _$('pp-tbody');
+  if (tb) tb.innerHTML = `<tr><td colspan="6" class="pp-empty">Carregando cadastros...</td></tr>`;
+
+  /* Busca dados */
+  const { data, error } = await sb.from(_tbl())
+    .select('*')
+    .eq('cadastrado_por', profileId)
+    .order('criado_em', { ascending: false })
+    .limit(100);
+
+  if (error) { if(typeof showToast==='function')showToast('Erro: '+error.message,true); return; }
+  _ppRecs = data || [];
+  _ppRenderRows(false);
+
+  /* Realtime */
+  if (_ppSub) { _ppSub.unsubscribe(); _ppSub = null; }
+  const tbl = _tbl();
+  _ppSub = sb.channel('pp_'+tbl+'_'+profileId)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:tbl,filter:'cadastrado_por=eq.'+profileId}, pl => {
+      _ppRecs.unshift(pl.new);
+      _ppRenderRows(true);
+      if (typeof showToast==='function') showToast('Novo cadastro em '+nome+'!');
+    }).subscribe();
+};
+
+/* ==================================================
+   B) BOTÃO EDITAR NOME — inline no card
+   ================================================== */
+function _addEditButtonsToCards() {
+  const grid = _$('pontos-grid');
+  if (!grid) return;
+  grid.querySelectorAll('.kpi-card').forEach(card => {
+    if (card.querySelector('.pp-edit-btn')) return; /* já tem */
+    const onclickAttr = card.getAttribute('onclick') || '';
+    const m = onclickAttr.match(/openPontoDetalhe\('([0-9a-f-]{36})','([^']*)'/);
+    if (!m) return;
+    const id = m[1], nome = m[2];
+
+    card.style.position = 'relative';
+
+    const btn = document.createElement('button');
+    btn.className = 'pp-edit-btn';
+    btn.title = 'Editar nome do ponto';
+    btn.textContent = '✏️';
+    btn.onclick = e => {
+      e.stopPropagation();
+      _ppInlineEdit(id, nome, card);
+    };
+    card.appendChild(btn);
+  });
+}
+
+function _ppInlineEdit(id, nomeAtual, card) {
+  /* Remove input anterior se existir */
+  card.querySelectorAll('.pp-inline-edit, .pp-save-btn').forEach(el => el.remove());
+
+  /* Esconde o texto do nome temporariamente */
+  const nameDiv = card.querySelector('[style*="font-size:14px"], [style*="font-size:15px"]');
+  const origNome = nameDiv ? nameDiv.textContent : nomeAtual;
+
+  /* Cria input inline */
+  const input = document.createElement('input');
+  input.className = 'pp-inline-edit';
+  input.value = origNome;
+  input.maxLength = 50;
+
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'pp-save-btn';
+  saveBtn.style.cssText = 'background:#00c853;border:none;color:#071a0f;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;margin-top:2px;width:100%;font-family:"DM Sans",sans-serif';
+  saveBtn.textContent = '✓ Salvar';
+
+  const doSave = async () => {
+    const novoNome = input.value.trim();
+    if (!novoNome) { input.focus(); return; }
+    saveBtn.textContent = 'Salvando...';
+    saveBtn.disabled = true;
+    /* Salva em nome_editavel (campo já existente em profiles) */
+    const { error } = await sb.from('profiles').update({ nome_editavel: novoNome }).eq('id', id);
+    if (error) {
+      if (typeof showToast === 'function') showToast('Erro: ' + error.message, true);
+      saveBtn.textContent = '✓ Salvar';
+      saveBtn.disabled = false;
+      return;
+    }
+    if (typeof showToast === 'function') showToast('"' + novoNome + '" salvo!');
+    /* Atualiza o card visualmente */
+    if (nameDiv) nameDiv.textContent = novoNome;
+    /* Atualiza onclick do card com novo nome */
+    const novoOnclick = card.getAttribute('onclick').replace(
+      /'[^']*','(fixo|movel)'/,
+      `'${novoNome.replace(/'/g,"\\'")}','</body>
+</html>'`
+    );
+    card.setAttribute('onclick', novoOnclick);
+    /* Remove input */
+    input.remove(); saveBtn.remove();
+    if (nameDiv) nameDiv.style.display = '';
+  };
+
+  input.onkeydown = e => {
+    if (e.key === 'Enter') doSave();
+    if (e.key === 'Escape') { input.remove(); saveBtn.remove(); if(nameDiv) nameDiv.style.display=''; }
+  };
+  saveBtn.onclick = doSave;
+
+  /* Esconde o nome e insere o input */
+  if (nameDiv) nameDiv.style.display = 'none';
+  card.insertBefore(input, saveBtn);
+  card.insertBefore(saveBtn, nameDiv ? nameDiv.nextSibling : card.firstChild);
+  input.focus();
+  input.select();
+}
+
+/* Observa mudanças no pontos-grid para adicionar botões */
+function _observePontosGrid() {
+  const grid = _$('pontos-grid');
+  if (!grid) return;
+  const obs = new MutationObserver(() => {
+    setTimeout(_addEditButtonsToCards, 50);
+  });
+  obs.observe(grid, { childList: true });
+  /* Adiciona nos cards já existentes */
+  _addEditButtonsToCards();
+}
+
+/* ==================================================
+   INIT — aguarda admin logado
+   ================================================== */
+function _minInit() {
+  if (typeof currentProfile === 'undefined' || !currentProfile) return false;
+  if (currentProfile.papel !== 'admin') return true;
+  _ensureDetailPanel();
+  _observePontosGrid();
+  return true;
+}
+
+if (!_minInit()) {
+  const _t = setInterval(() => { if (_minInit()) clearInterval(_t); }, 300);
+  setTimeout(() => clearInterval(_t), 30000);
+}
+
+})();
+</script>
+
 </body>
 </html>
