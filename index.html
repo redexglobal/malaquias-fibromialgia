@@ -832,7 +832,12 @@ tr:last-child td { border-bottom: none; }
     </div>
     <div class="form-group">
       <label class="form-label">Senha</label>
-      <input type="password" class="form-input" id="login-password" placeholder="••••••••" autocomplete="current-password">
+      <div style="position:relative">
+        <input type="password" class="form-input" id="login-password" placeholder="••••••••" autocomplete="current-password" style="padding-right:44px">
+        <button type="button" onclick="toggleSenha()" id="btn-toggle-senha" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:16px;padding:0;line-height:1" title="Mostrar/ocultar senha">
+          <i class="fas fa-eye" id="icon-toggle-senha"></i>
+        </button>
+      </div>
     </div>
     <button class="btn-primary" id="btn-login" onclick="doLogin()">
       <i class="fas fa-arrow-right"></i> Entrar
@@ -1203,6 +1208,18 @@ async function doLogin() {
   currentUser = data.user;
   await loadProfile();
   enterApp();
+}
+
+function toggleSenha() {
+  const inp = document.getElementById('login-password');
+  const icon = document.getElementById('icon-toggle-senha');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    icon.className = 'fas fa-eye-slash';
+  } else {
+    inp.type = 'password';
+    icon.className = 'fas fa-eye';
+  }
 }
 
 async function loadProfile() {
@@ -2581,9 +2598,10 @@ window.updatePontos = async function(){
     const isOnline=p.online_at&&p.online_at>agora5min;
     const dotStyle=isOnline?'background:#00c853;animation:dotPulse 2s infinite':'background:#4b5563';
     const dotTitle=isOnline?'🟢 Online agora':'⚫ Offline';
+    const isAdminUser = typeof currentProfile !== 'undefined' && currentProfile?.papel === 'admin';
     return `<div class="kpi-card" style="cursor:pointer;position:relative" onclick="openPontoDetalhe('${p.id}','${nome.replace(/'/g,"\\'")}','${p.tipo_ponto}')">
       <div id="pres-dot-${p.id}" style="position:absolute;top:10px;left:10px;width:10px;height:10px;border-radius:50%;${dotStyle};transition:all .4s;z-index:4" title="${dotTitle}"></div>
-      <button style="position:absolute;top:7px;right:7px;width:26px;height:26px;border-radius:7px;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.25);color:#00c853;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .15s;z-index:5;line-height:1;padding:0" title="Editar nome" onclick="event.stopPropagation();window._pontoEditNome('${p.id}','${nome.replace(/'/g,"\\'")}',this.closest('.kpi-card'))">✏️</button>
+      ${isAdminUser ? `<button style="position:absolute;top:7px;right:7px;width:26px;height:26px;border-radius:7px;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.25);color:#00c853;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .15s;z-index:5;line-height:1;padding:0" title="Editar nome" onclick="event.stopPropagation();window._pontoEditNome('${p.id}','${nome.replace(/'/g,"\\'")}',this.closest('.kpi-card'))">✏️</button>` : ''}
       <div class="kpi-header" style="padding-left:22px">
         <div class="kpi-icon"><i class="fas fa-${p.tipo_ponto==='fixo'?'map-pin':'route'}"></i></div>
         <span class="status-badge ${isAtivo?'ativo':''}" style="${isAtivo?'':'background:rgba(100,116,139,.15);color:var(--text-muted);'}">${isAtivo?'ativo':'inativo'}</span>
