@@ -5552,5 +5552,266 @@ if(!_ffInit()){
 })();
 </script>
 
+
+<script>
+/* ============================================================
+   FIX DEFINITIVO — Clique nos Pontos
+   Substitui toda a cadeia de overrides por uma implementação
+   limpa e auto-contida. Roda por último, ganha precedência.
+   ============================================================ */
+(function(){
+'use strict';
+
+/* ---- utils locais ---- */
+const $  = id  => document.getElementById(id);
+const qs = sel => document.querySelector(sel);
+const _proj  = () => (typeof currentProject !== 'undefined' ? currentProject : 'fibro');
+const _tbl   = () => _proj() === 'oculos' ? 'pacientes_oculos' : 'pacientes_fibro';
+const _today = () => new Date().toISOString().split('T')[0];
+const _hora  = iso => { try { return new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); } catch(e) { return '—'; } };
+const _date  = iso => { try { return new Date(iso+'T00:00:00').toLocaleDateString('pt-BR'); } catch(e) { return iso||'—'; } };
+const _toast = (m,e) => { if(typeof showToast === 'function') showToast(m, e); };
+
+/* ---- estado ---- */
+let _id = null, _nome = '', _recs = [], _sub = null;
+
+/* ============================================================
+   CRIA A SEÇÃO sec-ponto-detalhe (se não existir)
+   ============================================================ */
+function _ensureSection() {
+  if ($('sec-ponto-detalhe')) return;
+  const main = qs('.main');
+  if (!main) return;
+  const sec = document.createElement('div');
+  sec.className = 'section';
+  sec.id = 'sec-ponto-detalhe';
+  sec.innerHTML = `
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:22px">
+      <button id="pfd-back" style="background:none;border:1px solid var(--border-glass);color:var(--text-secondary);padding:8px 16px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s;display:flex;align-items:center;gap:6px;font-family:'DM Sans',sans-serif">← Voltar para Pontos</button>
+      <h1 id="pfd-title" style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--text-primary);flex:1;margin:0">—</h1>
+      <span id="pfd-badge-tipo" style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.3);color:#00c853"></span>
+      <span id="pfd-badge-status" style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px"></span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px" id="pfd-kpis">
+      <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:18px;text-align:center;backdrop-filter:blur(10px)">
+        <div id="pfd-hoje" style="font-family:'Playfair Display',serif;font-size:2.4rem;font-weight:700;color:#00c853;line-height:1">—</div>
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-top:5px">Hoje</div>
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:18px;text-align:center;backdrop-filter:blur(10px)">
+        <div id="pfd-semana" style="font-family:'Playfair Display',serif;font-size:2.4rem;font-weight:700;color:#00c853;line-height:1">—</div>
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-top:5px">Esta Semana</div>
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:18px;text-align:center;backdrop-filter:blur(10px)">
+        <div id="pfd-total" style="font-family:'Playfair Display',serif;font-size:2.4rem;font-weight:700;color:#00c853;line-height:1">—</div>
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-top:5px">Total Geral</div>
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:18px;text-align:center;backdrop-filter:blur(10px)">
+        <div id="pfd-media" style="font-family:'Playfair Display',serif;font-size:2.4rem;font-weight:700;color:#00c853;line-height:1">—</div>
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-top:5px">Média/Dia</div>
+      </div>
+    </div>
+
+    <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:16px;overflow:hidden;backdrop-filter:blur(10px)">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border-glass)">
+        <h3 style="font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px">
+          <span id="pfd-live-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#00c853;box-shadow:0 0 8px #00c853;animation:sfPulse 1.5s infinite"></span>
+          Últimos Cadastros — Tempo Real
+        </h3>
+        <span id="pfd-count" style="font-size:12px;color:var(--text-muted)">—</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse" id="pfd-table">
+          <thead id="pfd-thead"></thead>
+          <tbody id="pfd-tbody"></tbody>
+        </table>
+      </div>
+    </div>`;
+
+  main.appendChild(sec);
+
+  /* Botão voltar */
+  $('pfd-back').addEventListener('click', _pfdBack);
+}
+
+/* ---- voltar para pontos ---- */
+function _pfdBack() {
+  const pontosNav = qs('[data-section="pontos"]');
+  if (typeof showSection === 'function') showSection('pontos', pontosNav);
+  if (_sub) { _sub.unsubscribe(); _sub = null; }
+  _recs = []; _id = null;
+}
+
+/* ---- cabeçalhos da tabela ---- */
+function _setHeaders() {
+  const th = $('pfd-thead');
+  if (!th) return;
+  if (_proj() === 'oculos') {
+    th.innerHTML = '<tr><th style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">Paciente</th><th style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">Idade</th><th style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">WhatsApp</th><th style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">Status</th><th style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">Data Entrega</th><th style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">Registrado</th></tr>';
+  } else {
+    th.innerHTML = '<tr><th style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">Paciente</th><th style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">Idade</th><th style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">WhatsApp</th><th style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">Dor</th><th style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">Consulta</th><th style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);padding:11px 16px;text-align:left;border-bottom:1px solid var(--border-glass)">Registrado</th></tr>';
+  }
+}
+
+/* ---- renderiza tabela ---- */
+function _render(isNew) {
+  const tb = $('pfd-tbody'), cnt = $('pfd-count');
+  if (!tb) return;
+  const hoje = _today();
+  const sem  = new Date(Date.now()-7*86400000).toISOString().split('T')[0];
+
+  /* KPIs */
+  const todayCnt = _recs.filter(r => r.criado_em?.startsWith(hoje)).length;
+  const semCnt   = _recs.filter(r => r.criado_em && r.criado_em >= sem).length;
+  const total    = _recs.length;
+  /* Média por dia com base no primeiro cadastro */
+  let media = '—';
+  if (total > 0) {
+    const first = _recs[_recs.length-1]?.criado_em;
+    if (first) {
+      const dias = Math.max(1, Math.ceil((Date.now() - new Date(first).getTime()) / 86400000));
+      media = (total / dias).toFixed(1);
+    }
+  }
+
+  const _anim = (id, n) => {
+    const el = $(id); if(!el) return;
+    const dur=500, st=Date.now();
+    (function t(){const p=Math.min((Date.now()-st)/dur,1);el.textContent=typeof n==='number'?Math.round(n*(1-Math.pow(1-p,3))):n;if(p<1)requestAnimationFrame(t);})();
+  };
+  _anim('pfd-hoje',   todayCnt);
+  _anim('pfd-semana', semCnt);
+  _anim('pfd-total',  total);
+  if ($('pfd-media')) $('pfd-media').textContent = media;
+  if (cnt) cnt.textContent = total + ' registro' + (total !== 1 ? 's' : '');
+
+  if (!_recs.length) {
+    tb.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2.5rem;color:var(--text-muted);font-size:14px">Nenhum cadastro registrado ainda.<br><span style="font-size:12px;opacity:.7">Quando este ponto cadastrar, aparece aqui instantaneamente.</span></td></tr>`;
+    return;
+  }
+
+  const stLabels = {aguardando:'⏳ Aguardando', em_producao:'⚙️ Produção', pronto:'✅ Pronto', entregue:'📦 Entregue'};
+  const dorClass  = v => v <= 3 ? 'dor-low' : v <= 6 ? 'dor-mid' : 'dor-high';
+
+  tb.innerHTML = _recs.slice(0, 30).map((r, i) => {
+    let c4, c5;
+    if (_proj() === 'oculos') {
+      c4 = stLabels[r.status_pedido] || r.status_pedido || '—';
+      c5 = r.data_entrega ? _date(r.data_entrega) : '—';
+    } else {
+      c4 = r.nivel_dor != null ? `<span class="dor-badge ${dorClass(r.nivel_dor)}">${r.nivel_dor}/10</span>` : '—';
+      c5 = r.data_consulta ? _date(r.data_consulta) : '—';
+    }
+    const td = s => `<td style="font-size:13px;padding:11px 16px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text-primary)">${s}</td>`;
+    const flashStyle = (i === 0 && isNew) ? 'animation:pfdFlash .9s ease' : '';
+    return `<tr style="${flashStyle}">
+      ${td(`<span style="font-weight:600">${r.nome||'—'}</span>`)}
+      ${td(r.idade||'—')}
+      ${td(`<span style="color:var(--text-secondary)">${r.whatsapp||'—'}</span>`)}
+      ${td(c4)}${td(c5)}
+      ${td(`<span style="font-size:11px;color:var(--text-muted)">${_hora(r.criado_em)}</span>`)}
+    </tr>`;
+  }).join('');
+}
+
+/* ---- carrega dados do Supabase ---- */
+async function _load(profileId) {
+  const tb = $('pfd-tbody');
+  if (tb) tb.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">Carregando cadastros...</td></tr>`;
+  ['pfd-hoje','pfd-semana','pfd-total','pfd-media'].forEach(id => { const el=$(id); if(el) el.textContent='…'; });
+
+  const { data, error } = await sb
+    .from(_tbl())
+    .select('*')
+    .eq('cadastrado_por', profileId)
+    .order('criado_em', { ascending: false })
+    .limit(100);
+
+  if (error) {
+    _toast('Erro ao carregar: ' + error.message, true);
+    console.error(error);
+    return;
+  }
+  _recs = data || [];
+  _render(false);
+}
+
+/* ---- subscrição realtime ---- */
+function _subscribe(profileId) {
+  if (_sub) { _sub.unsubscribe(); _sub = null; }
+  const tbl = _tbl();
+  _sub = sb.channel('pfd_' + tbl + '_' + profileId)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: tbl,
+      filter: 'cadastrado_por=eq.' + profileId
+    }, payload => {
+      _recs.unshift(payload.new);
+      _render(true);
+      _toast('Novo cadastro em ' + _nome + '!');
+    })
+    .subscribe();
+}
+
+/* ============================================================
+   OVERRIDE FINAL — openPontoDetalhe
+   Esta versão substitui toda a cadeia anterior.
+   ============================================================ */
+window.openPontoDetalhe = async function(profileId, nome, tipo) {
+  /* 1. Garante que a seção existe */
+  _ensureSection();
+
+  /* 2. Guarda estado */
+  _id = profileId; _nome = nome;
+
+  /* 3. Preenche header */
+  const titleEl = $('pfd-title');
+  if (titleEl) titleEl.textContent = nome;
+
+  const badgeTipo = $('pfd-badge-tipo');
+  if (badgeTipo) badgeTipo.textContent = tipo === 'fixo' ? '📍 Ponto Fixo' : '🚀 Ponto Móvel';
+
+  const badgeStatus = $('pfd-badge-status');
+  if (badgeStatus) {
+    const temReg = (window.allPacientes||[]).some(p => p.cadastrado_por === profileId);
+    badgeStatus.textContent = temReg ? '🟢 Ativo' : '⚪ Inativo';
+    badgeStatus.style.cssText = temReg
+      ? 'font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.3);color:#00c853'
+      : 'font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;background:rgba(100,116,139,.1);border:1px solid rgba(100,116,139,.3);color:var(--text-muted)';
+  }
+
+  /* 4. Define colunas corretas */
+  _setHeaders();
+
+  /* 5. Navega para a seção */
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  const sec = $('sec-ponto-detalhe');
+  if (sec) sec.classList.add('active');
+
+  /* Mantém o nav item "Pontos" como ativo visualmente */
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const pontosNav = qs('[data-section="pontos"]');
+  if (pontosNav) pontosNav.classList.add('active');
+
+  /* Scroll para o topo */
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  /* 6. Carrega dados e subscreve */
+  await _load(profileId);
+  _subscribe(profileId);
+};
+
+/* Animação flash para novos registros */
+if (!document.getElementById('pfd-keyframes')) {
+  const s = document.createElement('style');
+  s.id = 'pfd-keyframes';
+  s.textContent = '@keyframes pfdFlash{from{background:rgba(0,200,83,.18);}to{background:transparent;}}';
+  document.head.appendChild(s);
+}
+
+})();
+</script>
+
 </body>
 </html>
