@@ -808,6 +808,39 @@ tr:last-child td { border-bottom: none; }
   .kpi-grid { grid-template-columns: 1fr; }
   .login-container { padding: 32px 20px; }
 }
+
+/* ====== UX MELHORIAS ====== */
+.autocomplete-wrap { position: relative; }
+.autocomplete-list { position:absolute; top:calc(100% + 2px); left:0; right:0; z-index:200; background:var(--bg-secondary); border:1px solid var(--border-glass); border-radius:8px; box-shadow:var(--shadow-card); max-height:220px; overflow-y:auto; display:none; }
+.autocomplete-list.show { display:block; }
+.autocomplete-item { padding:10px 14px; cursor:pointer; font-size:13px; border-bottom:1px solid var(--border-glass); transition:background 0.15s; }
+.autocomplete-item:hover { background:var(--hover-bg); }
+.autocomplete-item:last-child { border-bottom:none; }
+.autocomplete-warn { font-size:11px; color:var(--warning); margin-top:2px; }
+.save-preview { background:var(--bg-card); border:1px solid var(--green-light); border-radius:12px; padding:14px 16px; margin-top:12px; display:none; opacity:0; transform:translateY(-8px); transition:all 0.4s; }
+.save-preview.show { display:block; opacity:1; transform:translateY(0); }
+.save-preview-title { font-size:11px; color:var(--green-light); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+.save-preview-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.save-preview-item { font-size:12px; color:var(--text-secondary); }
+.save-preview-item span { color:var(--text-primary); font-weight:500; }
+.chips-wrap { display:flex; flex-wrap:wrap; gap:8px; padding:4px 0; }
+.chip { display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:20px; border:1px solid var(--border-glass); background:var(--input-bg); cursor:pointer; font-size:12px; color:var(--text-secondary); transition:all 0.2s; user-select:none; }
+.chip:hover { border-color:var(--green-light); color:var(--text-primary); }
+.chip.selected { background:rgba(45,138,94,0.2); border-color:var(--green-light); color:var(--accent); }
+.chip input { display:none; }
+.sex-radio-group { display:flex; gap:8px; flex-wrap:wrap; }
+.sex-radio { display:flex; align-items:center; gap:8px; padding:8px 14px; border-radius:8px; border:1px solid var(--border-glass); background:var(--input-bg); cursor:pointer; font-size:13px; transition:all 0.2s; }
+.sex-radio:hover { border-color:var(--green-light); }
+.sex-radio input { display:none; }
+.sex-radio.selected { background:rgba(45,138,94,0.2); border-color:var(--green-light); color:var(--accent); }
+.toggle-row { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:var(--input-bg); border:1px solid var(--input-border); border-radius:8px; }
+.toggle-label { font-size:13px; color:var(--text-secondary); }
+.toggle-switch { width:44px; height:24px; background:var(--border-glass); border-radius:12px; position:relative; cursor:pointer; transition:background 0.3s; flex-shrink:0; }
+.toggle-switch.on { background:var(--green-light); }
+.toggle-switch::after { content:''; position:absolute; top:3px; left:3px; width:18px; height:18px; background:#fff; border-radius:50%; transition:transform 0.3s; }
+.toggle-switch.on::after { transform:translateX(20px); }
+.btn-limpar { background:none; border:1px solid var(--border-glass); color:var(--text-muted); padding:10px 18px; border-radius:8px; cursor:pointer; font-size:13px; transition:all 0.2s; font-family:inherit; }
+.btn-limpar:hover { border-color:var(--danger); color:var(--danger); }
 </style>
 </head>
 <body data-theme="dark">
@@ -1011,32 +1044,69 @@ tr:last-child td { border-bottom: none; }
       <p class="page-subtitle">Registrar novo paciente com fibromialgia</p>
 
       <div class="form-card">
+        <!-- Nome + Autocomplete -->
         <div class="form-row">
-          <div class="form-group">
+          <div class="form-group autocomplete-wrap">
             <label class="form-label">Nome do Paciente</label>
-            <input type="text" class="form-input" id="f-nome" placeholder="Nome completo">
+            <input type="text" class="form-input" id="f-nome" placeholder="Nome completo" autocomplete="off" oninput="acNome(this.value)">
+            <div class="autocomplete-list" id="ac-nome-list"></div>
           </div>
           <div class="form-group">
             <label class="form-label">Idade</label>
             <input type="number" class="form-input" id="f-idade" placeholder="Ex: 42">
           </div>
         </div>
+        <!-- WhatsApp + Data -->
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">WhatsApp</label>
-            <input type="tel" class="form-input" id="f-whatsapp" placeholder="(00) 00000-0000">
+            <input type="tel" class="form-input" id="f-whatsapp" placeholder="(00) 00000-0000" oninput="maskWhatsApp(this)">
           </div>
           <div class="form-group">
             <label class="form-label">Data da Consulta</label>
             <input type="date" class="form-input" id="f-data">
           </div>
         </div>
+        <!-- Sexo + Tempo com dor -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Sexo</label>
+            <div class="sex-radio-group">
+              <label class="sex-radio" id="sex-f" onclick="selectSexo('F')"><input type="radio" name="sexo" value="F"> Feminino</label>
+              <label class="sex-radio" id="sex-m" onclick="selectSexo('M')"><input type="radio" name="sexo" value="M"> Masculino</label>
+              <label class="sex-radio" id="sex-o" onclick="selectSexo('O')"><input type="radio" name="sexo" value="O"> Outro</label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tempo com Dor</label>
+            <select class="form-input" id="f-tempo-dor">
+              <option value="">Selecione...</option>
+              <option value="menos de 1 ano">Menos de 1 ano</option>
+              <option value="1 a 3 anos">1 a 3 anos</option>
+              <option value="3 a 5 anos">3 a 5 anos</option>
+              <option value="mais de 5 anos">Mais de 5 anos</option>
+            </select>
+          </div>
+        </div>
+        <!-- Sintomas chips -->
         <div class="form-row full">
           <div class="form-group">
             <label class="form-label">Sintomas</label>
-            <input type="text" class="form-input" id="f-sintomas" placeholder="Descreva os principais sintomas">
+            <div class="chips-wrap" id="chips-sintomas">
+              <label class="chip"><input type="checkbox" value="Dor generalizada" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Dor generalizada</label>
+              <label class="chip"><input type="checkbox" value="Fadiga" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Fadiga</label>
+              <label class="chip"><input type="checkbox" value="Insônia" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Insônia</label>
+              <label class="chip"><input type="checkbox" value="Formigamento" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Formigamento</label>
+              <label class="chip"><input type="checkbox" value="Cefaleia" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Cefaleia</label>
+              <label class="chip"><input type="checkbox" value="Rigidez matinal" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Rigidez matinal</label>
+              <label class="chip"><input type="checkbox" value="Ansiedade" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Ansiedade</label>
+              <label class="chip"><input type="checkbox" value="Depressão" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Depressão</label>
+              <label class="chip"><input type="checkbox" value="Névoa mental" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Névoa mental</label>
+            </div>
+            <input type="text" class="form-input" id="f-sintomas-outros" placeholder="Outros sintomas..." style="margin-top:8px">
           </div>
         </div>
+        <!-- Nível de dor -->
         <div class="form-row full">
           <div class="form-group">
             <label class="form-label">Nível de Dor</label>
@@ -1047,15 +1117,35 @@ tr:last-child td { border-bottom: none; }
             </div>
           </div>
         </div>
+        <!-- Primeiro atendimento toggle -->
+        <div class="form-row full">
+          <div class="form-group">
+            <div class="toggle-row">
+              <span class="toggle-label"><i class="fas fa-user-plus" style="margin-right:8px;color:var(--green-light)"></i>Primeiro Atendimento?</span>
+              <div class="toggle-switch" id="toggle-primeiro" onclick="togglePrimeiro()"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Observações -->
         <div class="form-row full">
           <div class="form-group">
             <label class="form-label">Observações</label>
             <textarea class="form-input" id="f-obs" rows="3" placeholder="Anotações adicionais..." style="resize:vertical"></textarea>
           </div>
         </div>
-        <button class="btn-primary" onclick="salvarCadastro()" style="margin-top:16px">
-          <i class="fas fa-save"></i> Salvar Cadastro
-        </button>
+        <div style="display:flex;gap:12px;margin-top:16px;align-items:center;flex-wrap:wrap">
+          <button class="btn-primary" onclick="salvarCadastro()">
+            <i class="fas fa-save"></i> Salvar Cadastro
+          </button>
+          <button class="btn-limpar" onclick="limparFormulario()">
+            <i class="fas fa-times"></i> Limpar
+          </button>
+        </div>
+        <!-- Preview pós-save -->
+        <div class="save-preview" id="save-preview">
+          <div class="save-preview-title"><i class="fas fa-check-circle" style="margin-right:6px"></i>Cadastro realizado</div>
+          <div class="save-preview-grid" id="save-preview-grid"></div>
+        </div>
       </div>
     </div>
 
@@ -1577,14 +1667,26 @@ async function salvarCadastro() {
   const nome = document.getElementById('f-nome').value.trim();
   if (!nome) { showToast('Preencha o nome do paciente', true); return; }
 
+  const sintChips = [...document.querySelectorAll('#chips-sintomas .chip.selected')].map(c => c.querySelector('input').value);
+  const sintOutros = document.getElementById('f-sintomas-outros').value.trim();
+  const sintomas = [...sintChips, ...(sintOutros ? [sintOutros] : [])].join(', ') || null;
+
+  const extras = [];
+  if (_sexo) extras.push(`Sexo: ${_sexo === 'F' ? 'Feminino' : _sexo === 'M' ? 'Masculino' : 'Outro'}`);
+  const tempoDor = document.getElementById('f-tempo-dor').value;
+  if (tempoDor) extras.push(`Tempo dor: ${tempoDor}`);
+  if (_primeiroAtend) extras.push('Primeiro atendimento');
+  const obsBase = document.getElementById('f-obs').value.trim();
+  const observacoes = extras.length ? `[${extras.join(' | ')}]${obsBase ? ' ' + obsBase : ''}` : obsBase || null;
+
   const record = {
     nome,
     idade: parseInt(document.getElementById('f-idade').value) || null,
     whatsapp: document.getElementById('f-whatsapp').value.trim() || null,
-    sintomas: document.getElementById('f-sintomas').value.trim() || null,
+    sintomas,
     nivel_dor: parseInt(document.getElementById('f-dor').value),
     data_consulta: document.getElementById('f-data').value || null,
-    observacoes: document.getElementById('f-obs').value.trim() || null,
+    observacoes,
     cadastrado_por: currentUser.id,
   };
 
@@ -1592,15 +1694,86 @@ async function salvarCadastro() {
   if (error) { showToast('Erro ao salvar: ' + error.message, true); return; }
 
   showToast('Paciente cadastrado com sucesso!');
-  document.getElementById('f-nome').value = '';
-  document.getElementById('f-idade').value = '';
-  document.getElementById('f-whatsapp').value = '';
-  document.getElementById('f-sintomas').value = '';
-  document.getElementById('f-dor').value = 5;
-  document.getElementById('f-obs').value = '';
-  updateDor(5);
-
+  showSavePreview(record);
+  limparFormulario();
   loadData();
+}
+
+// ============== FORM UX ==============
+function maskWhatsApp(inp) {
+  let v = inp.value.replace(/\D/g, '');
+  if (v.length > 11) v = v.slice(0, 11);
+  if (v.length > 7) v = '(' + v.slice(0,2) + ') ' + v.slice(2,7) + '-' + v.slice(7);
+  else if (v.length > 2) v = '(' + v.slice(0,2) + ') ' + v.slice(2);
+  else if (v.length > 0) v = '(' + v;
+  inp.value = v;
+}
+
+let _sexo = '';
+function selectSexo(s) {
+  _sexo = s;
+  ['f','m','o'].forEach(x => document.getElementById('sex-'+x)?.classList.toggle('selected', x === s.toLowerCase()));
+}
+
+let _primeiroAtend = false;
+function togglePrimeiro() {
+  _primeiroAtend = !_primeiroAtend;
+  document.getElementById('toggle-primeiro')?.classList.toggle('on', _primeiroAtend);
+}
+
+function acNome(q) {
+  const list = document.getElementById('ac-nome-list');
+  if (!list) return;
+  if (q.length < 2) { list.classList.remove('show'); return; }
+  const matches = (window.allPacientes || [])
+    .filter(p => (p.nome || '').toLowerCase().includes(q.toLowerCase()))
+    .slice(0, 5);
+  if (!matches.length) { list.classList.remove('show'); return; }
+  list.innerHTML = matches.map(p => {
+    const d = p.criado_em ? new Date(p.criado_em).toLocaleDateString('pt-BR') : '';
+    const nome = (p.nome || '').replace(/'/g, "\\'");
+    return `<div class="autocomplete-item" onclick="document.getElementById('f-nome').value='${nome}';document.getElementById('ac-nome-list').classList.remove('show')">
+      ${p.nome || ''}
+      <div class="autocomplete-warn">⚠ Já cadastrado${d ? ' em ' + d : ''}</div>
+    </div>`;
+  }).join('');
+  list.classList.add('show');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.autocomplete-wrap')) document.getElementById('ac-nome-list')?.classList.remove('show');
+});
+
+function limparFormulario() {
+  ['f-nome','f-idade','f-whatsapp','f-data','f-sintomas-outros','f-obs'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.querySelectorAll('#chips-sintomas .chip').forEach(c => {
+    c.classList.remove('selected');
+    const inp = c.querySelector('input'); if (inp) inp.checked = false;
+  });
+  const dor = document.getElementById('f-dor'); if (dor) { dor.value = 5; updateDor(5); }
+  document.getElementById('f-tempo-dor') && (document.getElementById('f-tempo-dor').value = '');
+  _sexo = ''; ['sex-f','sex-m','sex-o'].forEach(id => document.getElementById(id)?.classList.remove('selected'));
+  _primeiroAtend = false; document.getElementById('toggle-primeiro')?.classList.remove('on');
+  document.getElementById('ac-nome-list')?.classList.remove('show');
+  const prev = document.getElementById('save-preview'); if (prev) prev.classList.remove('show');
+}
+
+function showSavePreview(rec) {
+  const el = document.getElementById('save-preview');
+  const grid = document.getElementById('save-preview-grid');
+  if (!el || !grid) return;
+  const items = [
+    rec.nome && `<div class="save-preview-item">Nome: <span>${rec.nome}</span></div>`,
+    rec.idade && `<div class="save-preview-item">Idade: <span>${rec.idade}</span></div>`,
+    rec.whatsapp && `<div class="save-preview-item">WhatsApp: <span>${rec.whatsapp}</span></div>`,
+    rec.sintomas && `<div class="save-preview-item">Sintomas: <span>${rec.sintomas}</span></div>`,
+    rec.nivel_dor != null && `<div class="save-preview-item">Nível dor: <span>${rec.nivel_dor}/10</span></div>`,
+    rec.data_consulta && `<div class="save-preview-item">Data: <span>${new Date(rec.data_consulta + 'T00:00').toLocaleDateString('pt-BR')}</span></div>`,
+  ].filter(Boolean).join('');
+  grid.innerHTML = items;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 6000);
 }
 
 // ============== UTILS ==============
