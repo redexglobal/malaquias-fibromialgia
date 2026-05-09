@@ -867,7 +867,7 @@ tr:last-child td { border-bottom: none; }
       <label class="form-label">Senha</label>
       <div style="position:relative">
         <input type="password" class="form-input" id="login-password" placeholder="••••••••" autocomplete="current-password" style="padding-right:44px">
-        <button type="button" onclick="toggleSenha()" id="btn-toggle-senha" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:16px;padding:0;line-height:1" title="Mostrar/ocultar senha">
+        <button type="button" onclick="toggleSenha()" id="btn-toggle-senha" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--green-light);font-size:18px;padding:4px;line-height:1;transition:opacity 0.2s;opacity:0.75" onmouseenter="this.style.opacity=1" onmouseleave="this.style.opacity=0.75" title="Mostrar/ocultar senha">
           <i class="fas fa-eye" id="icon-toggle-senha"></i>
         </button>
       </div>
@@ -1063,66 +1063,93 @@ tr:last-child td { border-bottom: none; }
             <input type="tel" class="form-input" id="f-whatsapp" placeholder="(00) 00000-0000" oninput="maskWhatsApp(this)">
           </div>
           <div class="form-group">
-            <label class="form-label">Data da Consulta</label>
+            <label class="form-label" id="f-data-label">Data da Consulta</label>
             <input type="date" class="form-input" id="f-data">
           </div>
         </div>
-        <!-- Sexo + Tempo com dor -->
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Sexo</label>
-            <div class="sex-radio-group">
-              <label class="sex-radio" id="sex-f" onclick="selectSexo('F')"><input type="radio" name="sexo" value="F"> Feminino</label>
-              <label class="sex-radio" id="sex-m" onclick="selectSexo('M')"><input type="radio" name="sexo" value="M"> Masculino</label>
-              <label class="sex-radio" id="sex-o" onclick="selectSexo('O')"><input type="radio" name="sexo" value="O"> Outro</label>
+        <!-- Campos óculos (ocultos por padrão, aparecem ao trocar projeto) -->
+        <div id="oculos-only-fields" style="display:none">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Grau OD (Olho Direito)</label>
+              <input type="text" class="form-input" id="f-grau-od" placeholder="Ex: -2.50">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Grau OE (Olho Esquerdo)</label>
+              <input type="text" class="form-input" id="f-grau-oe" placeholder="Ex: -1.75">
             </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">Tempo com Dor</label>
-            <select class="form-input" id="f-tempo-dor">
-              <option value="">Selecione...</option>
-              <option value="menos de 1 ano">Menos de 1 ano</option>
-              <option value="1 a 3 anos">1 a 3 anos</option>
-              <option value="3 a 5 anos">3 a 5 anos</option>
-              <option value="mais de 5 anos">Mais de 5 anos</option>
-            </select>
-          </div>
-        </div>
-        <!-- Sintomas chips -->
-        <div class="form-row full">
-          <div class="form-group">
-            <label class="form-label">Sintomas</label>
-            <div class="chips-wrap" id="chips-sintomas">
-              <label class="chip"><input type="checkbox" value="Dor generalizada" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Dor generalizada</label>
-              <label class="chip"><input type="checkbox" value="Fadiga" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Fadiga</label>
-              <label class="chip"><input type="checkbox" value="Insônia" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Insônia</label>
-              <label class="chip"><input type="checkbox" value="Formigamento" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Formigamento</label>
-              <label class="chip"><input type="checkbox" value="Cefaleia" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Cefaleia</label>
-              <label class="chip"><input type="checkbox" value="Rigidez matinal" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Rigidez matinal</label>
-              <label class="chip"><input type="checkbox" value="Ansiedade" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Ansiedade</label>
-              <label class="chip"><input type="checkbox" value="Depressão" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Depressão</label>
-              <label class="chip"><input type="checkbox" value="Névoa mental" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Névoa mental</label>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Armação</label>
+              <input type="text" class="form-input" id="f-armacao" placeholder="Modelo da armação">
             </div>
-            <input type="text" class="form-input" id="f-sintomas-outros" placeholder="Outros sintomas..." style="margin-top:8px">
-          </div>
-        </div>
-        <!-- Nível de dor -->
-        <div class="form-row full">
-          <div class="form-group">
-            <label class="form-label">Nível de Dor</label>
-            <div class="dor-value" id="dor-display">5</div>
-            <input type="range" class="dor-slider" id="f-dor" min="0" max="10" value="5" oninput="updateDor(this.value)">
-            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted)">
-              <span>Sem dor</span><span>Dor extrema</span>
+            <div class="form-group">
+              <label class="form-label">Status do Pedido</label>
+              <select class="form-input" id="f-status">
+                <option value="pendente">Pendente</option>
+                <option value="em_producao">Em Produção</option>
+                <option value="pronto">Pronto para Retirada</option>
+                <option value="entregue">Entregue</option>
+              </select>
             </div>
           </div>
         </div>
-        <!-- Primeiro atendimento toggle -->
-        <div class="form-row full">
-          <div class="form-group">
-            <div class="toggle-row">
-              <span class="toggle-label"><i class="fas fa-user-plus" style="margin-right:8px;color:var(--green-light)"></i>Primeiro Atendimento?</span>
-              <div class="toggle-switch" id="toggle-primeiro" onclick="togglePrimeiro()"></div>
+        <!-- Campos fibromialgia (visíveis por padrão, ocultam ao trocar projeto) -->
+        <div id="fibro-only-fields">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Sexo</label>
+              <div class="sex-radio-group">
+                <label class="sex-radio" id="sex-f" onclick="selectSexo('F')"><input type="radio" name="sexo" value="F"> Feminino</label>
+                <label class="sex-radio" id="sex-m" onclick="selectSexo('M')"><input type="radio" name="sexo" value="M"> Masculino</label>
+                <label class="sex-radio" id="sex-o" onclick="selectSexo('O')"><input type="radio" name="sexo" value="O"> Outro</label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tempo com Dor</label>
+              <select class="form-input" id="f-tempo-dor">
+                <option value="">Selecione...</option>
+                <option value="menos de 1 ano">Menos de 1 ano</option>
+                <option value="1 a 3 anos">1 a 3 anos</option>
+                <option value="3 a 5 anos">3 a 5 anos</option>
+                <option value="mais de 5 anos">Mais de 5 anos</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row full">
+            <div class="form-group">
+              <label class="form-label">Sintomas</label>
+              <div class="chips-wrap" id="chips-sintomas">
+                <label class="chip"><input type="checkbox" value="Dor generalizada" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Dor generalizada</label>
+                <label class="chip"><input type="checkbox" value="Fadiga" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Fadiga</label>
+                <label class="chip"><input type="checkbox" value="Insônia" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Insônia</label>
+                <label class="chip"><input type="checkbox" value="Formigamento" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Formigamento</label>
+                <label class="chip"><input type="checkbox" value="Cefaleia" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Cefaleia</label>
+                <label class="chip"><input type="checkbox" value="Rigidez matinal" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Rigidez matinal</label>
+                <label class="chip"><input type="checkbox" value="Ansiedade" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Ansiedade</label>
+                <label class="chip"><input type="checkbox" value="Depressão" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Depressão</label>
+                <label class="chip"><input type="checkbox" value="Névoa mental" onchange="this.parentElement.classList.toggle('selected',this.checked)"> Névoa mental</label>
+              </div>
+              <input type="text" class="form-input" id="f-sintomas-outros" placeholder="Outros sintomas..." style="margin-top:8px">
+            </div>
+          </div>
+          <div class="form-row full">
+            <div class="form-group">
+              <label class="form-label">Nível de Dor</label>
+              <div class="dor-value" id="dor-display">5</div>
+              <input type="range" class="dor-slider" id="f-dor" min="0" max="10" value="5" oninput="updateDor(this.value)">
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted)">
+                <span>Sem dor</span><span>Dor extrema</span>
+              </div>
+            </div>
+          </div>
+          <div class="form-row full">
+            <div class="form-group">
+              <div class="toggle-row">
+                <span class="toggle-label"><i class="fas fa-user-plus" style="margin-right:8px;color:var(--green-light)"></i>Primeiro Atendimento?</span>
+                <div class="toggle-switch" id="toggle-primeiro" onclick="togglePrimeiro()"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -2678,6 +2705,14 @@ window.switchProject = function(proj, btn){
     : '<th>Paciente</th><th>WhatsApp</th><th>Status</th><th>Data Entrega</th><th>Registrado em</th>';
   /* remove heatmap so it rebuilds */
   const hs=document.getElementById('adv-heat-section');if(hs)hs.remove();
+  /* toggle campos do formulário de cadastro */
+  const _fof=document.getElementById('fibro-only-fields');
+  const _oof=document.getElementById('oculos-only-fields');
+  if(_fof) _fof.style.display = proj==='fibro' ? '' : 'none';
+  if(_oof) _oof.style.display = proj==='oculos' ? '' : 'none';
+  /* atualiza label da data */
+  const _dlbl=document.getElementById('f-data-label');
+  if(_dlbl) _dlbl.textContent = proj==='fibro' ? 'Data da Consulta' : 'Data de Entrega';
   /* reload data */
   loadData();
   if(typeof showToast==='function') showToast('Projeto: '+projName);
@@ -3183,34 +3218,47 @@ window.salvarCadastro = async function() {
   const nome = document.getElementById('f-nome')?.value.trim();
   if (!nome) { if(typeof showToast==='function')showToast('Preencha o nome do paciente', true); return; }
 
+  /* Coleta sintomas dos chips (fibro) */
+  const _sintChips = [...document.querySelectorAll('#chips-sintomas .chip.selected')].map(c=>c.querySelector('input')?.value||'');
+  const _sintOutros = document.getElementById('f-sintomas-outros')?.value.trim();
+  const _sintomas = [..._sintChips,...(_sintOutros?[_sintOutros]:[])].join(', ') || null;
+
+  /* Extras → observações */
+  const _extras = [];
+  if(typeof _sexo!=='undefined'&&_sexo) _extras.push(`Sexo: ${_sexo==='F'?'Feminino':_sexo==='M'?'Masculino':'Outro'}`);
+  const _tmpDor = document.getElementById('f-tempo-dor')?.value;
+  if(_tmpDor) _extras.push(`Tempo dor: ${_tmpDor}`);
+  if(typeof _primeiroAtend!=='undefined'&&_primeiroAtend) _extras.push('Primeiro atendimento');
+  const _obsBase = document.getElementById('f-obs')?.value.trim();
+  const _obs = _extras.length?`[${_extras.join(' | ')}]${_obsBase?' '+_obsBase:''}`  :_obsBase||null;
+
   const record = {
     nome,
-    idade:       parseInt(document.getElementById('f-idade')?.value) || null,
-    whatsapp:    document.getElementById('f-whatsapp')?.value.trim() || null,
-    sintomas:    document.getElementById('f-sintomas')?.value.trim() || null,
-    nivel_dor:   proj === 'fibro' ? (parseInt(document.getElementById('f-dor')?.value) || null) : undefined,
-    status_pedido: proj === 'oculos' ? (document.getElementById('f-status')?.value || 'aguardando') : undefined,
-    data_consulta: proj === 'fibro' ? (document.getElementById('f-data')?.value || null) : undefined,
-    data_entrega:  proj === 'oculos' ? (document.getElementById('f-data')?.value || null) : undefined,
-    observacoes: document.getElementById('f-obs')?.value.trim() || null,
+    idade: parseInt(document.getElementById('f-idade')?.value) || null,
+    whatsapp: document.getElementById('f-whatsapp')?.value.trim() || null,
+    ...(proj === 'fibro' ? {
+      sintomas: _sintomas,
+      nivel_dor: parseInt(document.getElementById('f-dor')?.value) || null,
+      data_consulta: document.getElementById('f-data')?.value || null,
+    } : {
+      grau_od: document.getElementById('f-grau-od')?.value.trim() || null,
+      grau_oe: document.getElementById('f-grau-oe')?.value.trim() || null,
+      armacao: document.getElementById('f-armacao')?.value.trim() || null,
+      status_pedido: document.getElementById('f-status')?.value || 'pendente',
+      data_entrega: document.getElementById('f-data')?.value || null,
+    }),
+    observacoes: _obs,
     cadastrado_por: currentUser.id,
   };
-
-  /* Limpar undefined do payload */
-  Object.keys(record).forEach(k => record[k] === undefined && delete record[k]);
 
   const { error } = await sb.from(table).insert(record);
   if (error) { if(typeof showToast==='function')showToast('Erro ao salvar: ' + error.message, true); return; }
 
   if(typeof showToast==='function') showToast('Cadastro salvo em ' + (proj==='oculos'?'Óculos':'Fibromialgia') + '!');
-
-  /* Reset form */
-  ['f-nome','f-idade','f-whatsapp','f-sintomas','f-obs'].forEach(id => {
-    const el = document.getElementById(id); if(el) el.value = '';
-  });
-  const fdor = document.getElementById('f-dor');
-  if(fdor){fdor.value=5; if(typeof updateDor==='function')updateDor(5);}
-
+  if(typeof showSavePreview==='function') showSavePreview(record);
+  if(typeof limparFormulario==='function') limparFormulario(); else {
+    ['f-nome','f-idade','f-whatsapp','f-obs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  }
   loadData();
 };
 
