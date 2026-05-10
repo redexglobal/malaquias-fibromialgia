@@ -851,6 +851,14 @@ tr:last-child td { border-bottom: none; }
 .toggle-switch.on::after { transform:translateX(20px); }
 .btn-limpar { background:none; border:1px solid var(--border-glass); color:var(--text-muted); padding:10px 18px; border-radius:8px; cursor:pointer; font-size:13px; transition:all 0.2s; font-family:inherit; }
 .btn-limpar:hover { border-color:var(--danger); color:var(--danger); }
+.card-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  border-radius: 16px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  margin-bottom: 20px;
+}
 </style>
 </head>
 <body data-theme="dark">
@@ -946,6 +954,18 @@ tr:last-child td { border-bottom: none; }
       <div class="nav-item" data-section="pontos" onclick="showSection('pontos', this)">
         <i class="fas fa-map-marker-alt"></i> Pontos
         <span class="nav-badge" id="alertBadge" style="display:none">!</span>
+      </div>
+      <div class="nav-item" data-section="historico" onclick="showSection('historico', this)">
+        <i class="fas fa-clock"></i> Histórico
+      </div>
+      <div class="nav-item" data-section="editar-pontos" onclick="showSection('editar-pontos', this)">
+        <i class="fas fa-pen"></i> Editar Pontos
+      </div>
+      <div class="nav-item" data-section="resumo-semanal" onclick="showSection('resumo-semanal', this)">
+        <i class="fas fa-calendar-week"></i> Resumo Semanal
+      </div>
+      <div class="nav-item" data-section="exportar-pdf" onclick="showSection('exportar-pdf', this)">
+        <i class="fas fa-file-pdf"></i> Exportar PDF
       </div>
     </div>
   </nav>
@@ -1278,6 +1298,163 @@ tr:last-child td { border-bottom: none; }
       <p class="page-subtitle">20 fixos + 5 móveis editáveis</p>
 
       <div class="kpi-grid" id="pontos-grid"></div>
+    </div>
+
+    <!-- ===== HISTÓRICO DE ACESSO ===== -->
+    <div class="section" id="sec-historico">
+      <h1 class="page-title">Histórico de Acesso</h1>
+      <p class="page-subtitle">Último acesso e atividade de cada ponto</p>
+      <div class="kpi-grid" style="margin-bottom:24px">
+        <div class="kpi-card">
+          <div class="kpi-value" id="hist-ativos">—</div>
+          <div class="kpi-label">Ativos Hoje</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value" id="hist-inativos">—</div>
+          <div class="kpi-label">Inativos +2 dias</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value" id="hist-media">—</div>
+          <div class="kpi-label">Média Cadastros/dia</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value" id="hist-recorde">—</div>
+          <div class="kpi-label">Recorde (1 dia)</div>
+        </div>
+      </div>
+      <div class="card-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+          <div style="font-size:14px;font-weight:600;color:var(--text-primary)">Todos os Pontos</div>
+          <input type="text" class="search-input" id="hist-search" placeholder="Buscar ponto..." oninput="renderHistorico()" style="width:220px">
+        </div>
+        <div class="table-wrap">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr id="hist-thead">
+                <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-glass)">#</th>
+                <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-glass)">Ponto</th>
+                <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-glass)">Último Cadastro</th>
+                <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-glass)">Total</th>
+                <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-glass)">Dias sem atividade</th>
+                <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-glass)">Status</th>
+              </tr>
+            </thead>
+            <tbody id="hist-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== EDITAR PONTOS ===== -->
+    <div class="section" id="sec-editar-pontos">
+      <h1 class="page-title">Editar Pontos</h1>
+      <p class="page-subtitle">Renomear e gerenciar os pontos de atendimento</p>
+      <div class="card-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+          <div style="font-size:13px;color:var(--text-secondary)">Clique no ícone <i class="fas fa-pen" style="color:var(--accent)"></i> para renomear</div>
+          <input type="text" class="search-input" id="ep-search" placeholder="Buscar ponto..." oninput="renderEditarPontos()" style="width:220px">
+        </div>
+        <div class="table-wrap">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr>
+                <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-glass)">Email</th>
+                <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-glass)">Nome do Ponto</th>
+                <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-glass)">Tipo</th>
+                <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-glass)">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="ep-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== RESUMO SEMANAL ===== -->
+    <div class="section" id="sec-resumo-semanal">
+      <h1 class="page-title">Resumo Semanal</h1>
+      <p class="page-subtitle">Esta semana vs semana passada</p>
+      <div class="kpi-grid" style="margin-bottom:24px" id="rs-kpis">
+        <div class="kpi-card">
+          <div class="kpi-value" id="rs-esta">—</div>
+          <div class="kpi-label">Esta Semana</div>
+          <div id="rs-trend-esta" style="font-size:12px;margin-top:4px"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value" id="rs-passada">—</div>
+          <div class="kpi-label">Semana Passada</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value" id="rs-variacao">—</div>
+          <div class="kpi-label">Variação %</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value" id="rs-melhor-dia">—</div>
+          <div class="kpi-label">Melhor dia (semana)</div>
+        </div>
+      </div>
+      <div class="chart-grid" style="grid-template-columns:1fr 1fr;margin-bottom:24px">
+        <div class="chart-card">
+          <div class="chart-title">Comparativo 14 dias</div>
+          <div class="chart-subtitle">Esta semana (verde) vs anterior (cinza)</div>
+          <div class="chart-container"><canvas id="chart-rs-comp"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Top Pontos da Semana</div>
+          <div class="chart-subtitle">Mais ativos nos últimos 7 dias</div>
+          <div class="chart-container"><canvas id="chart-rs-top"></canvas></div>
+        </div>
+      </div>
+      <div class="card-section" id="rs-top-list-card">
+        <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:12px">Ranking da Semana</div>
+        <div id="rs-ranking"></div>
+      </div>
+    </div>
+
+    <!-- ===== EXPORTAR PDF ===== -->
+    <div class="section" id="sec-exportar-pdf">
+      <h1 class="page-title">Exportar PDF</h1>
+      <p class="page-subtitle">Gerar relatório formatado com logo Dr. Malaquias</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:800px">
+        <div class="chart-card">
+          <div class="chart-title">Configurações do Relatório</div>
+          <div style="display:flex;flex-direction:column;gap:16px;padding:8px 0">
+            <div class="form-group">
+              <label class="form-label">Período</label>
+              <select class="form-input" id="pdf-periodo">
+                <option value="7">Últimos 7 dias</option>
+                <option value="30" selected>Últimos 30 dias</option>
+                <option value="90">Últimos 90 dias</option>
+                <option value="0">Todos os registros</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Conteúdo</label>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="pdf-inc-resumo" checked style="accent-color:var(--accent)"> Resumo executivo</label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="pdf-inc-tabela" checked style="accent-color:var(--accent)"> Tabela de registros</label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="pdf-inc-ranking" checked style="accent-color:var(--accent)"> Ranking de pontos</label>
+              </div>
+            </div>
+            <button class="btn-primary" onclick="gerarPDF()" style="margin-top:8px">
+              <i class="fas fa-file-pdf"></i> Gerar e Baixar PDF
+            </button>
+            <button class="btn-limpar" onclick="window.print()" style="text-align:center">
+              <i class="fas fa-print"></i> Imprimir / Salvar PDF
+            </button>
+          </div>
+        </div>
+        <div class="chart-card" id="pdf-preview-card">
+          <div class="chart-title">Pré-visualização</div>
+          <div id="pdf-preview" style="font-size:12px;color:var(--text-secondary);padding:8px 0">
+            <div style="text-align:center;padding:20px 0;border-bottom:1px solid var(--border-glass);margin-bottom:12px">
+              <div style="font-size:22px;font-weight:700;color:var(--accent);font-family:'Playfair Display',serif">Dr. Malaquias</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Sistema de Gestão — Relatório</div>
+            </div>
+            <div id="pdf-preview-content" style="color:var(--text-secondary);font-size:12px;line-height:1.6"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
   </main>
@@ -7313,6 +7490,338 @@ if (!_gpInit()) {
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_clockInit);
   else setTimeout(_clockInit,800);
 })();
+</script>
+
+<script>
+/* ====== HISTÓRICO DE ACESSO ====== */
+let _histProfiles = [];
+
+async function loadHistorico() {
+  const proj = typeof currentProject !== 'undefined' ? currentProject : 'fibro';
+  const projDB = proj === 'fibro' ? 'fibromialgia' : 'oculos';
+  try {
+    const { data } = await sb.from('profiles').select('id,email,nome,nome_ponto,tipo_ponto').eq('papel','colaborador').eq('projeto',projDB);
+    _histProfiles = data || [];
+  } catch(e) { _histProfiles = []; }
+  renderHistorico();
+}
+
+function renderHistorico() {
+  const tbody = document.getElementById('hist-tbody');
+  if (!tbody) return;
+  const all = window.allPacientes || [];
+  const search = (document.getElementById('hist-search')?.value || '').toLowerCase();
+  const today = new Date().toISOString().split('T')[0];
+  const nowMs = Date.now();
+
+  let ativos = 0, inativos = 0, recorde = 0;
+  const dayCount = {};
+  all.forEach(p => {
+    const d = (p.criado_em || '').split('T')[0];
+    if (d) dayCount[d] = (dayCount[d] || 0) + 1;
+  });
+  recorde = Math.max(0, ...Object.values(dayCount));
+  const totalDias = Object.keys(dayCount).length || 1;
+  const media = (all.length / totalDias).toFixed(1);
+
+  const rows = _histProfiles
+    .filter(p => !search || (p.nome_ponto || p.nome || p.email || '').toLowerCase().includes(search))
+    .map(p => {
+      const recs = all.filter(r => r.cadastrado_por === p.id).sort((a,b) => (b.criado_em||'').localeCompare(a.criado_em||''));
+      const last = recs[0];
+      const total = recs.length;
+      let diasSem = '—', statusBadge = '';
+      if (last?.criado_em) {
+        const lastDate = new Date(last.criado_em);
+        const diffDays = Math.floor((nowMs - lastDate.getTime()) / 86400000);
+        diasSem = diffDays === 0 ? 'Hoje' : diffDays + 'd';
+        if (diffDays === 0) { ativos++; statusBadge = '<span style="background:rgba(0,230,118,0.15);color:#00e676;border:1px solid rgba(0,230,118,0.3);padding:2px 10px;border-radius:20px;font-size:11px">● Ativo</span>'; }
+        else if (diffDays <= 1) { statusBadge = '<span style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);padding:2px 10px;border-radius:20px;font-size:11px">● Ontem</span>'; }
+        else { inativos++; statusBadge = `<span style="background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3);padding:2px 10px;border-radius:20px;font-size:11px">● ${diffDays}d inativo</span>`; }
+      } else {
+        inativos++;
+        statusBadge = '<span style="background:rgba(100,116,139,0.15);color:#64748b;border:1px solid rgba(100,116,139,0.3);padding:2px 10px;border-radius:20px;font-size:11px">● Sem registros</span>';
+      }
+      const lastStr = last?.criado_em ? new Date(last.criado_em).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+      return `<tr style="border-bottom:1px solid var(--border-glass);transition:background 0.15s" onmouseover="this.style.background='var(--hover-bg)'" onmouseout="this.style.background=''">
+        <td style="padding:10px 12px;font-size:12px;color:var(--text-muted)">${p.tipo_ponto||'—'}</td>
+        <td style="padding:10px 12px;font-size:13px;font-weight:500;color:var(--text-primary)">${p.nome_ponto || p.nome || p.email}</td>
+        <td style="padding:10px 12px;font-size:12px;color:var(--text-secondary)">${lastStr}</td>
+        <td style="padding:10px 12px;font-size:13px;font-weight:600;color:var(--accent)">${total}</td>
+        <td style="padding:10px 12px;font-size:12px;color:var(--text-secondary)">${diasSem}</td>
+        <td style="padding:10px 12px">${statusBadge}</td>
+      </tr>`;
+    });
+
+  tbody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">Nenhum ponto encontrado.</td></tr>';
+
+  const el = id => document.getElementById(id);
+  if(el('hist-ativos')) el('hist-ativos').textContent = ativos;
+  if(el('hist-inativos')) el('hist-inativos').textContent = inativos;
+  if(el('hist-media')) el('hist-media').textContent = media;
+  if(el('hist-recorde')) el('hist-recorde').textContent = recorde;
+}
+
+/* ====== EDITAR PONTOS ====== */
+let _epProfiles = [];
+
+async function loadEditarPontos() {
+  const proj = typeof currentProject !== 'undefined' ? currentProject : 'fibro';
+  const projDB = proj === 'fibro' ? 'fibromialgia' : 'oculos';
+  try {
+    const { data } = await sb.from('profiles').select('id,email,nome,nome_ponto,tipo_ponto').eq('papel','colaborador').eq('projeto',projDB).order('tipo_ponto');
+    _epProfiles = data || [];
+  } catch(e) { _epProfiles = []; }
+  renderEditarPontos();
+}
+
+function renderEditarPontos() {
+  const tbody = document.getElementById('ep-tbody');
+  if (!tbody) return;
+  const search = (document.getElementById('ep-search')?.value || '').toLowerCase();
+  const rows = _epProfiles
+    .filter(p => !search || (p.nome_ponto || p.nome || p.email || '').toLowerCase().includes(search))
+    .map(p => {
+      const nomePonto = p.nome_ponto || p.nome || '';
+      return `<tr id="ep-row-${p.id}" style="border-bottom:1px solid var(--border-glass);transition:background 0.15s" onmouseover="this.style.background='var(--hover-bg)'" onmouseout="this.style.background=''">
+        <td style="padding:10px 12px;font-size:12px;color:var(--text-secondary)">${p.email}</td>
+        <td style="padding:10px 12px;font-size:13px;font-weight:500;color:var(--text-primary)" id="ep-nome-${p.id}">${nomePonto || '—'}</td>
+        <td style="padding:10px 12px;font-size:11px;color:var(--text-muted);text-transform:uppercase">${p.tipo_ponto||'—'}</td>
+        <td style="padding:10px 12px">
+          <button onclick="epStartEdit('${p.id}','${nomePonto.replace(/'/g,"\\'")}','${p.email}')" style="background:rgba(0,230,118,0.1);border:1px solid rgba(0,230,118,0.25);color:var(--accent);padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px;transition:all 0.2s" onmouseover="this.style.background='rgba(0,230,118,0.2)'" onmouseout="this.style.background='rgba(0,230,118,0.1)'">
+            <i class="fas fa-pen"></i> Editar
+          </button>
+        </td>
+      </tr>`;
+    });
+  tbody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-muted)">Nenhum ponto encontrado.</td></tr>';
+}
+
+function epStartEdit(id, nomeAtual, email) {
+  const nomeCell = document.getElementById('ep-nome-' + id);
+  if (!nomeCell) return;
+  nomeCell.innerHTML = `<div style="display:flex;gap:8px;align-items:center">
+    <input type="text" id="ep-input-${id}" value="${nomeAtual}" style="background:var(--input-bg);border:1px solid var(--accent);border-radius:6px;padding:5px 10px;color:var(--text-primary);font-size:13px;outline:none;flex:1">
+    <button onclick="epSalvar('${id}')" style="background:var(--accent);border:none;color:#020c07;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700">✓</button>
+    <button onclick="renderEditarPontos()" style="background:none;border:1px solid var(--border-glass);color:var(--text-muted);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px">✕</button>
+  </div>`;
+  document.getElementById('ep-input-' + id)?.focus();
+}
+
+async function epSalvar(id) {
+  const inp = document.getElementById('ep-input-' + id);
+  if (!inp) return;
+  const novoNome = inp.value.trim();
+  if (!novoNome) { if(typeof showToast==='function') showToast('Nome não pode ser vazio', true); return; }
+  try {
+    const { error } = await sb.from('profiles').update({ nome_ponto: novoNome }).eq('id', id);
+    if (error) throw error;
+    const prof = _epProfiles.find(p => p.id === id);
+    if (prof) prof.nome_ponto = novoNome;
+    if(typeof showToast==='function') showToast('Nome atualizado com sucesso!');
+    renderEditarPontos();
+  } catch(e) {
+    if(typeof showToast==='function') showToast('Erro ao salvar: ' + (e.message || e), true);
+  }
+}
+
+/* ====== RESUMO SEMANAL ====== */
+function loadResumoSemanal() {
+  const all = window.allPacientes || [];
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+
+  const startEsta = new Date(now); startEsta.setDate(now.getDate() - 6); startEsta.setHours(0,0,0,0);
+  const startPassada = new Date(now); startPassada.setDate(now.getDate() - 13); startPassada.setHours(0,0,0,0);
+  const endPassada = new Date(now); endPassada.setDate(now.getDate() - 7); endPassada.setHours(23,59,59,999);
+
+  const esta = all.filter(p => p.criado_em && new Date(p.criado_em) >= startEsta);
+  const passada = all.filter(p => p.criado_em && new Date(p.criado_em) >= startPassada && new Date(p.criado_em) <= endPassada);
+
+  const varPct = passada.length ? (((esta.length - passada.length) / passada.length) * 100).toFixed(1) : esta.length ? '+∞' : '0';
+  const varColor = esta.length >= passada.length ? '#00e676' : '#ef4444';
+  const varIcon = esta.length >= passada.length ? '▲' : '▼';
+
+  const el = id => document.getElementById(id);
+  if(el('rs-esta')) el('rs-esta').textContent = esta.length;
+  if(el('rs-passada')) el('rs-passada').textContent = passada.length;
+  if(el('rs-variacao')) { el('rs-variacao').textContent = varIcon + ' ' + Math.abs(varPct) + '%'; el('rs-variacao').style.color = varColor; }
+
+  const byDay = {};
+  esta.forEach(p => { const d = (p.criado_em||'').split('T')[0]; byDay[d] = (byDay[d]||0)+1; });
+  const melhorDia = Object.values(byDay).length ? Math.max(...Object.values(byDay)) : 0;
+  if(el('rs-melhor-dia')) el('rs-melhor-dia').textContent = melhorDia;
+
+  if(el('rs-trend-esta')) el('rs-trend-esta').innerHTML = `<span style="color:${varColor}">${varIcon} ${Math.abs(varPct)}% vs semana anterior</span>`;
+
+  /* Gráfico comparativo 14 dias */
+  const labels14 = [], dataEsta = [], dataPassada14 = [];
+  for(let i = 6; i >= 0; i--) {
+    const d = new Date(now); d.setDate(now.getDate() - i);
+    const dStr = d.toISOString().split('T')[0];
+    const dAnterior = new Date(now); dAnterior.setDate(now.getDate() - i - 7);
+    const dAntStr = dAnterior.toISOString().split('T')[0];
+    labels14.push(d.toLocaleDateString('pt-BR',{weekday:'short'}));
+    dataEsta.push(all.filter(p => (p.criado_em||'').startsWith(dStr)).length);
+    dataPassada14.push(all.filter(p => (p.criado_em||'').startsWith(dAntStr)).length);
+  }
+
+  const ctx1 = document.getElementById('chart-rs-comp');
+  if(ctx1) {
+    if(ctx1._rsChart) ctx1._rsChart.destroy();
+    const isDark = document.body.dataset.theme !== 'light';
+    ctx1._rsChart = new Chart(ctx1, {
+      type:'bar',
+      data:{
+        labels:labels14,
+        datasets:[
+          {label:'Esta semana',data:dataEsta,backgroundColor:'rgba(0,230,118,0.7)',borderRadius:4},
+          {label:'Semana anterior',data:dataPassada14,backgroundColor:'rgba(100,116,139,0.4)',borderRadius:4}
+        ]
+      },
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:isDark?'#7dd4a8':'#475569',font:{size:11}}}},scales:{x:{grid:{display:false},ticks:{color:isDark?'#7dd4a8':'#475569',font:{size:10}}},y:{beginAtZero:true,grid:{color:isDark?'rgba(0,230,118,0.06)':'rgba(0,0,0,0.05)'},ticks:{color:isDark?'#7dd4a8':'#475569'}}}}
+    });
+  }
+
+  /* Gráfico top pontos */
+  const pontoMap = {};
+  esta.forEach(p => { pontoMap[p.cadastrado_por] = (pontoMap[p.cadastrado_por]||0)+1; });
+  const topPontos = Object.entries(pontoMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const ctx2 = document.getElementById('chart-rs-top');
+  if(ctx2 && topPontos.length) {
+    if(ctx2._rsTopChart) ctx2._rsTopChart.destroy();
+    const isDark = document.body.dataset.theme !== 'light';
+    const pMap = window._pMap || window._pdPontoMap || {};
+    ctx2._rsTopChart = new Chart(ctx2, {
+      type:'bar', indexAxis:'y',
+      data:{
+        labels:topPontos.map(([id])=>pMap[id]||id.substring(0,8)),
+        datasets:[{data:topPontos.map(([,v])=>v),backgroundColor:'rgba(0,230,118,0.6)',borderRadius:4}]
+      },
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:isDark?'rgba(0,230,118,0.06)':'rgba(0,0,0,0.05)'},ticks:{color:isDark?'#7dd4a8':'#475569'}},y:{grid:{display:false},ticks:{color:isDark?'#7dd4a8':'#475569',font:{size:11}}}}}
+    });
+  }
+
+  /* Ranking textual */
+  const rankEl = document.getElementById('rs-ranking');
+  if(rankEl) {
+    const pMap = window._pMap || window._pdPontoMap || {};
+    rankEl.innerHTML = topPontos.map(([id,cnt],i) => {
+      const nome = pMap[id] || id.substring(0,8);
+      const medals = ['🥇','🥈','🥉','4º','5º'];
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border-glass)">
+        <span style="font-size:18px;width:28px">${medals[i]||''}</span>
+        <span style="flex:1;font-size:13px;color:var(--text-primary)">${nome}</span>
+        <span style="font-size:16px;font-weight:700;color:var(--accent)">${cnt}</span>
+      </div>`;
+    }).join('') || '<div style="color:var(--text-muted);padding:12px;text-align:center">Sem dados nesta semana</div>';
+  }
+}
+
+/* ====== EXPORTAR PDF ====== */
+function atualizarPreviewPDF() {
+  const all = window.allPacientes || [];
+  const dias = parseInt(document.getElementById('pdf-periodo')?.value || 30);
+  const cutoff = dias > 0 ? new Date(Date.now() - dias * 86400000) : null;
+  const filtered = cutoff ? all.filter(p => p.criado_em && new Date(p.criado_em) >= cutoff) : all;
+  const proj = typeof currentProject !== 'undefined' ? (currentProject === 'fibro' ? 'Fibromialgia' : 'Óculos') : '—';
+  const periodo = dias > 0 ? `Últimos ${dias} dias` : 'Todos os registros';
+  const dataGer = new Date().toLocaleDateString('pt-BR');
+  const prev = document.getElementById('pdf-preview-content');
+  if(prev) prev.innerHTML = `
+    <div style="margin-bottom:8px"><b>Projeto:</b> ${proj}</div>
+    <div style="margin-bottom:8px"><b>Período:</b> ${periodo}</div>
+    <div style="margin-bottom:8px"><b>Total de registros:</b> ${filtered.length}</div>
+    <div style="margin-bottom:8px"><b>Gerado em:</b> ${dataGer}</div>
+    <div style="margin-bottom:8px;color:var(--accent)">Pronto para exportar</div>
+  `;
+}
+
+function gerarPDF() {
+  const all = window.allPacientes || [];
+  const dias = parseInt(document.getElementById('pdf-periodo')?.value || 30);
+  const cutoff = dias > 0 ? new Date(Date.now() - dias * 86400000) : null;
+  const filtered = cutoff ? all.filter(p => p.criado_em && new Date(p.criado_em) >= cutoff) : all;
+  const proj = typeof currentProject !== 'undefined' ? (currentProject === 'fibro' ? 'Fibromialgia' : 'Óculos') : 'Sistema';
+  const periodo = dias > 0 ? `Últimos ${dias} dias` : 'Todos os registros';
+  const dataGer = new Date().toLocaleDateString('pt-BR');
+  const incTabela = document.getElementById('pdf-inc-tabela')?.checked;
+  const incRanking = document.getElementById('pdf-inc-ranking')?.checked;
+
+  const pontoMap = {};
+  filtered.forEach(p => { pontoMap[p.cadastrado_por] = (pontoMap[p.cadastrado_por]||0)+1; });
+  const topPontos = Object.entries(pontoMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const pMap = window._pMap || window._pdPontoMap || {};
+
+  let html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <style>
+    body{font-family:Arial,sans-serif;margin:40px;color:#1e293b;background:#fff}
+    .header{text-align:center;border-bottom:3px solid #00a855;padding-bottom:20px;margin-bottom:30px}
+    .logo{font-size:32px;font-weight:700;color:#00a855;margin-bottom:4px}
+    .subtitle{font-size:13px;color:#64748b}
+    .meta{display:flex;gap:24px;margin-bottom:24px;flex-wrap:wrap}
+    .meta-item{background:#f8faf9;border:1px solid #e2e8f0;border-radius:8px;padding:12px 20px}
+    .meta-label{font-size:11px;text-transform:uppercase;color:#64748b;margin-bottom:4px}
+    .meta-value{font-size:20px;font-weight:700;color:#00a855}
+    table{width:100%;border-collapse:collapse;margin-bottom:24px}
+    th{background:#00a855;color:#fff;padding:8px 12px;text-align:left;font-size:12px}
+    td{padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:12px}
+    tr:nth-child(even) td{background:#f8faf9}
+    h2{color:#00a855;margin:24px 0 12px;font-size:16px}
+    .footer{margin-top:40px;text-align:center;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:16px}
+  </style></head><body>
+  <div class="header">
+    <div class="logo">Dr. Malaquias</div>
+    <div class="subtitle">Sistema de Gestão — Relatório ${proj}</div>
+  </div>
+  <div class="meta">
+    <div class="meta-item"><div class="meta-label">Período</div><div class="meta-value" style="font-size:14px">${periodo}</div></div>
+    <div class="meta-item"><div class="meta-label">Total Registros</div><div class="meta-value">${filtered.length}</div></div>
+    <div class="meta-item"><div class="meta-label">Gerado em</div><div class="meta-value" style="font-size:14px">${dataGer}</div></div>
+  </div>`;
+
+  if(incRanking && topPontos.length) {
+    html += `<h2>Ranking de Pontos</h2><table><tr><th>#</th><th>Ponto</th><th>Registros</th></tr>`;
+    topPontos.forEach(([id,cnt],i) => {
+      html += `<tr><td>${i+1}</td><td>${pMap[id]||id.substring(0,8)}</td><td>${cnt}</td></tr>`;
+    });
+    html += `</table>`;
+  }
+
+  if(incTabela && filtered.length) {
+    const isOculos = typeof currentProject !== 'undefined' && currentProject === 'oculos';
+    html += `<h2>Registros (${filtered.length})</h2><table>`;
+    if(isOculos) html += `<tr><th>Nome</th><th>Idade</th><th>WhatsApp</th><th>Status</th><th>Data Entrega</th></tr>`;
+    else html += `<tr><th>Nome</th><th>Idade</th><th>WhatsApp</th><th>Nível Dor</th><th>Data Consulta</th></tr>`;
+    filtered.slice(0,100).forEach(p => {
+      if(isOculos) html += `<tr><td>${p.nome||'—'}</td><td>${p.idade||'—'}</td><td>${p.whatsapp||'—'}</td><td>${p.status_pedido||'—'}</td><td>${p.data_entrega?new Date(p.data_entrega+'T00:00').toLocaleDateString('pt-BR'):'—'}</td></tr>`;
+      else html += `<tr><td>${p.nome||'—'}</td><td>${p.idade||'—'}</td><td>${p.whatsapp||'—'}</td><td>${p.nivel_dor!=null?p.nivel_dor+'/10':'—'}</td><td>${p.data_consulta?new Date(p.data_consulta+'T00:00').toLocaleDateString('pt-BR'):'—'}</td></tr>`;
+    });
+    if(filtered.length > 100) html += `<tr><td colspan="5" style="text-align:center;color:#64748b">... e mais ${filtered.length-100} registros</td></tr>`;
+    html += `</table>`;
+  }
+
+  html += `<div class="footer">Relatório gerado automaticamente — Dr. Malaquias © ${new Date().getFullYear()}</div></body></html>`;
+
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `relatorio-malaquias-${proj.toLowerCase()}-${new Date().toISOString().split('T')[0]}.html`;
+  a.click();
+  if(typeof showToast==='function') showToast('Relatório gerado! Abra o arquivo e use Ctrl+P para salvar como PDF.');
+}
+
+/* ====== HOOK NO showSection PARA CARREGAR DADOS DAS NOVAS SEÇÕES ====== */
+const _origShowSecNew = window.showSection;
+window.showSection = function(id, el) {
+  if(typeof _origShowSecNew === 'function') _origShowSecNew(id, el);
+  if(id === 'historico') setTimeout(loadHistorico, 100);
+  if(id === 'editar-pontos') setTimeout(loadEditarPontos, 100);
+  if(id === 'resumo-semanal') setTimeout(loadResumoSemanal, 100);
+  if(id === 'exportar-pdf') setTimeout(atualizarPreviewPDF, 100);
+};
+
+document.getElementById('pdf-periodo')?.addEventListener('change', atualizarPreviewPDF);
 </script>
 
 </body>
