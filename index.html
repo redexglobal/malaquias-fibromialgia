@@ -859,6 +859,12 @@ tr:last-child td { border-bottom: none; }
   backdrop-filter: blur(10px);
   margin-bottom: 20px;
 }
+
+/* ===================== STAR RATING ===================== */
+.star-rating { display:flex; gap:6px; margin-top:4px; }
+.star { font-size:28px; color:#ccc; cursor:pointer; transition:color .15s; }
+.star.active { color:#f59e0b; }
+.star:hover { color:#fbbf24; }
 </style>
 </head>
 <body data-theme="dark">
@@ -1060,6 +1066,7 @@ tr:last-child td { border-bottom: none; }
                 <th>Dor</th>
                 <th>Data</th>
                 <th>Ponto</th>
+                <th>Avaliação</th>
               </tr>
             </thead>
             <tbody id="table-body"></tbody>
@@ -1188,6 +1195,20 @@ tr:last-child td { border-bottom: none; }
           <div class="form-group">
             <label class="form-label">Observações</label>
             <textarea class="form-input" id="f-obs" rows="3" placeholder="Anotações adicionais..." style="resize:vertical"></textarea>
+          </div>
+        </div>
+        <!-- Avaliação do atendimento -->
+        <div class="form-row full">
+          <div class="form-group">
+            <label class="form-label">Avaliação do Atendimento</label>
+            <div class="star-rating" id="star-rating">
+              <span class="star" data-v="1" onclick="setEstrela(1)">★</span>
+              <span class="star" data-v="2" onclick="setEstrela(2)">★</span>
+              <span class="star" data-v="3" onclick="setEstrela(3)">★</span>
+              <span class="star" data-v="4" onclick="setEstrela(4)">★</span>
+              <span class="star" data-v="5" onclick="setEstrela(5)">★</span>
+            </div>
+            <input type="hidden" id="f-avaliacao" value="0">
           </div>
         </div>
         <div style="display:flex;gap:12px;margin-top:16px;align-items:center;flex-wrap:wrap">
@@ -1621,6 +1642,10 @@ function updateTable() {
   body.innerHTML = filtered.slice(0, 50).map(p => {
     const dorClass = p.nivel_dor <= 3 ? 'dor-low' : p.nivel_dor <= 6 ? 'dor-mid' : 'dor-high';
     const data = p.data_consulta ? new Date(p.data_consulta).toLocaleDateString('pt-BR') : '—';
+    const avalNum = parseInt(p.avaliacao) || 0;
+    const avalStars = avalNum > 0
+      ? Array.from({length:5},(_,i)=>`<span style="color:${i<avalNum?'#f59e0b':'#4a5568'};font-size:14px">★</span>`).join('')
+      : '<span style="color:var(--text-muted);font-size:12px">—</span>';
     return `<tr>
       <td style="font-weight:500;color:var(--text-primary)">${p.nome || '—'}</td>
       <td>${p.idade || '—'}</td>
@@ -1628,6 +1653,7 @@ function updateTable() {
       <td><span class="dor-badge ${dorClass}">${p.nivel_dor || '—'}</span></td>
       <td>${data}</td>
       <td style="font-size:12px;color:var(--text-muted)">${p.cadastrado_por?.substring(0,8) || '—'}</td>
+      <td style="white-space:nowrap">${avalStars}</td>
     </tr>`;
   }).join('');
 }
@@ -1901,6 +1927,7 @@ async function salvarCadastro() {
     nivel_dor: parseInt(document.getElementById('f-dor').value),
     data_consulta: document.getElementById('f-data').value || null,
     observacoes,
+    avaliacao: parseInt(document.getElementById('f-avaliacao')?.value || '0'),
     cadastrado_por: currentUser.id,
   };
 
@@ -1921,6 +1948,13 @@ function maskWhatsApp(inp) {
   else if (v.length > 2) v = '(' + v.slice(0,2) + ') ' + v.slice(2);
   else if (v.length > 0) v = '(' + v;
   inp.value = v;
+}
+
+function setEstrela(v) {
+  document.getElementById('f-avaliacao').value = v;
+  document.querySelectorAll('#star-rating .star').forEach((s, i) => {
+    s.classList.toggle('active', i < v);
+  });
 }
 
 let _sexo = '';
@@ -1971,6 +2005,8 @@ function limparFormulario() {
   _primeiroAtend = false; document.getElementById('toggle-primeiro')?.classList.remove('on');
   document.getElementById('ac-nome-list')?.classList.remove('show');
   const prev = document.getElementById('save-preview'); if (prev) prev.classList.remove('show');
+  const fAval = document.getElementById('f-avaliacao'); if (fAval) fAval.value = '0';
+  document.querySelectorAll('#star-rating .star').forEach(s => s.classList.remove('active'));
 }
 
 function showSavePreview(rec) {
@@ -2027,9 +2063,9 @@ function setPeriod(p, btn) {
 
 function exportCSV() {
   if (!allPacientes.length) { showToast('Sem dados para exportar', true); return; }
-  const headers = 'Nome,Idade,WhatsApp,Sintomas,Nível Dor,Data Consulta,Observações\n';
+  const headers = 'Nome,Idade,WhatsApp,Sintomas,Nível Dor,Data Consulta,Observações,Avaliação\n';
   const rows = allPacientes.map(p =>
-    `"${p.nome||''}",${p.idade||''},${p.whatsapp||''},"${p.sintomas||''}",${p.nivel_dor||''},${p.data_consulta||''},"${p.observacoes||''}"`
+    `"${p.nome||''}",${p.idade||''},${p.whatsapp||''},"${p.sintomas||''}",${p.nivel_dor||''},${p.data_consulta||''},"${p.observacoes||''}",${p.avaliacao||0}`
   ).join('\n');
   const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
   const a = document.createElement('a');
@@ -3248,7 +3284,7 @@ window.updateTable = function() {
   if (cnt) cnt.textContent = filtered.length + ' registros';
 
   if (!filtered.length) {
-    body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">Nenhum registro.</td></tr>';
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">Nenhum registro.</td></tr>';
     return;
   }
 
@@ -3269,6 +3305,10 @@ window.updateTable = function() {
     }
 
     const pontoNome = pontoMap[p.cadastrado_por] || p.cadastrado_por?.substring(0, 8) || '—';
+    const avalNum = parseInt(p.avaliacao) || 0;
+    const avalStars = avalNum > 0
+      ? Array.from({length:5},(_,i)=>`<span style="color:${i<avalNum?'#f59e0b':'#4a5568'};font-size:14px">★</span>`).join('')
+      : '<span style="color:var(--text-muted);font-size:12px">—</span>';
 
     return `<tr>
       <td style="font-weight:500;color:var(--text-primary)">${p.nome || '—'}</td>
@@ -3277,6 +3317,7 @@ window.updateTable = function() {
       <td>${col4}</td>
       <td>${colDate}</td>
       <td style="font-size:12px;color:var(--text-muted)">${pontoNome}</td>
+      <td style="white-space:nowrap">${avalStars}</td>
     </tr>`;
   }).join('');
 };
@@ -3427,6 +3468,7 @@ window.salvarCadastro = async function() {
       sintomas: _sintomas,
       nivel_dor: parseInt(document.getElementById('f-dor')?.value) || null,
       data_consulta: document.getElementById('f-data')?.value || null,
+      avaliacao: parseInt(document.getElementById('f-avaliacao')?.value || '0'),
     } : {
       grau_od: document.getElementById('f-grau-od')?.value.trim() || null,
       grau_oe: document.getElementById('f-grau-oe')?.value.trim() || null,
