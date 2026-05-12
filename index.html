@@ -9485,11 +9485,35 @@ function _injectSec() {
     </div>
     <div id="_rn-status" style="font-size:13px;color:var(--text-muted);text-align:center;min-height:22px"></div>
     <hr style="border:none;border-top:1px solid rgba(167,139,250,0.2);margin:32px 0">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:6px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:12px">
       <h2 style="font-size:16px;font-weight:700;color:var(--text-primary);margin:0"><i class="fas fa-history" style="color:#a78bfa;margin-right:8px"></i>Histórico Acumulado — Projeto Dr. Malaquias</h2>
-      <button onclick="window._rnHistPrint()" style="background:#a78bfa;color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:7px"><i class="fas fa-print"></i> Imprimir Relatório</button>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select id="_rn-hist-cidade" onchange="window._rnHistFilterApply()" style="background:var(--bg-secondary);border:1px solid var(--border-glass);border-radius:8px;padding:6px 10px;color:var(--text-primary);font-size:12px">
+          <option value="todas">Todas as cidades</option>
+          <option value="Visão do Futuro">Visão do Futuro</option>
+          <option value="Goiânia Viva">Goiânia Viva</option>
+          <option value="Goiânia Viva 2ª Etapa">Goiânia Viva 2ª Etapa</option>
+          <option value="Indiara">Indiara</option>
+          <option value="Indiara 2ª Etapa">Indiara 2ª Etapa</option>
+          <option value="Anápolis">Anápolis</option>
+          <option value="Jardim Novo Mundo">Jardim Novo Mundo</option>
+          <option value="Águas Lindas">Águas Lindas</option>
+          <option value="Panamá">Panamá</option>
+          <option value="Itaipu">Itaipu</option>
+          <option value="Vera Cruz">Vera Cruz</option>
+          <option value="Real Conquista">Real Conquista</option>
+        </select>
+        <select id="_rn-hist-proj-filter" onchange="window._rnHistFilterApply()" style="background:var(--bg-secondary);border:1px solid var(--border-glass);border-radius:8px;padding:6px 10px;color:var(--text-primary);font-size:12px">
+          <option value="ambos">Todos os projetos</option>
+          <option value="fibromialgia">Fibromialgia</option>
+          <option value="oculos">Óculos</option>
+        </select>
+        <button onclick="window._rnHistSave()" style="background:rgba(167,139,250,0.15);border:1px solid #a78bfa;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;color:#a78bfa;cursor:pointer"><i class="fas fa-save"></i> Salvar</button>
+        <span id="_rn-hist-save-status" style="font-size:12px;color:var(--text-muted)"></span>
+        <button onclick="window._rnHistPrint()" style="background:#a78bfa;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:7px"><i class="fas fa-print"></i> Imprimir</button>
+      </div>
     </div>
-    <p style="font-size:12px;color:var(--text-muted);margin-bottom:20px">Dados históricos consolidados — referência para apresentação aos superiores. Somente Natália.</p>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:20px">Dados históricos consolidados — edite os números, os gráficos atualizam em tempo real. Filtre por cidade ou projeto para imprimir. Somente Natália.</p>
     <div id="_rn-hist-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:24px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
       <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:20px">
@@ -9547,7 +9571,7 @@ window._rnRender = async function() {
   _rnKpis(inicio,fim);
   _rnCharts();
   _rnTabela();
-  _rnHistPanel();
+  _rnHistLoad();
   _rnStatus('');
 };
 
@@ -9673,50 +9697,77 @@ function _rnStatus(m){const el=document.getElementById('_rn-status');if(el)el.te
 
 const _DL_PLUGIN={id:'_dlhist',afterDatasetsDraw(chart){const{ctx}=chart;chart.data.datasets.forEach((ds,i)=>{const meta=chart.getDatasetMeta(i);if(!meta.hidden){meta.data.forEach((bar,idx)=>{const v=ds.data[idx];if(!v&&v!==0)return;ctx.save();ctx.fillStyle='#e2e8f0';ctx.font='bold 9px Arial,sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(v,bar.x,bar.y-3);ctx.restore();});}});}};
 
-function _rnHistPanel(){
-  const el=document.getElementById('_rn-hist-kpis'); if(!el)return;
-  const tP=_RN_HIST.reduce((a,b)=>a+b.pos,0);
-  const tN=_RN_HIST.reduce((a,b)=>a+b.neg,0);
-  const tNe=_RN_HIST.reduce((a,b)=>a+b.neu,0);
-  const tot=tP+tN+tNe; const tF=tot||1;
-  const pctGeral=(tP/tF*100).toFixed(1);
-  const kpi=(lbl,val,cor,sub)=>`<div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:12px;padding:16px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted)">${lbl}</div><div style="font-size:24px;font-weight:800;color:${cor};margin-top:4px">${val}</div>${sub?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${sub}</div>`:''}</div>`;
-  el.innerHTML=
-    kpi('Total Atendimentos',tot.toLocaleString('pt-BR'),'#a78bfa','')+
-    kpi('Total Positivos',tP.toLocaleString('pt-BR'),'#4ade80',pctGeral+'% de aprovação')+
-    kpi('Total Negativos',tN.toLocaleString('pt-BR'),'#ef4444',((tN/tF)*100).toFixed(1)+'% negativo')+
-    kpi('Neutros',tNe.toLocaleString('pt-BR'),'#f59e0b','')+
-    kpi('% Geral Positivo',pctGeral+'%','#4ade80','Percentual geral');
-  const tb=document.getElementById('_rn-hist-tbody'); if(!tb)return;
-  tb.innerHTML=_RN_HIST.map(h=>{
-    const tot2=(h.pos+h.neg+h.neu)||1;
-    const pct=(h.pos/tot2*100).toFixed(1);
-    const cor=parseFloat(pct)>=70?'#4ade80':parseFloat(pct)>=40?'#f59e0b':'#ef4444';
-    return `<tr style="border-bottom:1px solid rgba(167,139,250,0.07)">
-      <td style="padding:10px 12px;font-size:13px;font-weight:600;color:var(--text-primary)">${h.nome}</td>
-      <td style="text-align:center;color:#4ade80;font-weight:700">${h.pos.toLocaleString('pt-BR')}</td>
-      <td style="text-align:center;color:#ef4444;font-weight:700">${h.neg.toLocaleString('pt-BR')}</td>
-      <td style="text-align:center;color:#f59e0b;font-weight:700">${h.neu.toLocaleString('pt-BR')}</td>
-      <td style="text-align:center"><span style="background:rgba(167,139,250,0.15);color:#a78bfa;border-radius:20px;padding:4px 14px;font-size:13px;font-weight:700">${(h.pos+h.neg+h.neu).toLocaleString('pt-BR')}</span></td>
-      <td style="text-align:center;font-weight:800;color:${cor}">${pct}%</td>
-    </tr>`;
-  }).join('')+
-  `<tr style="background:rgba(167,139,250,0.12);font-weight:800">
-    <td style="padding:10px 12px;font-size:13px;color:#a78bfa">TOTAL GERAL</td>
-    <td style="text-align:center;color:#4ade80">${tP.toLocaleString('pt-BR')}</td>
-    <td style="text-align:center;color:#ef4444">${tN.toLocaleString('pt-BR')}</td>
-    <td style="text-align:center;color:#f59e0b">${tNe.toLocaleString('pt-BR')}</td>
-    <td style="text-align:center;color:#a78bfa">${tot.toLocaleString('pt-BR')}</td>
-    <td style="text-align:center;color:#4ade80">${pctGeral}%</td>
-  </tr>`;
-  _rnHistCharts(tP,tN,tNe);
+function _rnHistGetData(){
+  const rows=document.querySelectorAll('#_rn-hist-tbody tr[data-nome]');
+  return Array.from(rows).map(tr=>({
+    nome:tr.dataset.nome,
+    pos:parseInt(tr.querySelector('[data-col="pos"]')?.value)||0,
+    neg:parseInt(tr.querySelector('[data-col="neg"]')?.value)||0,
+    neu:parseInt(tr.querySelector('[data-col="neu"]')?.value)||0,
+  }));
 }
 
-function _rnHistCharts(tP,tN,tNe){
-  const labels=_RN_HIST.map(h=>h.nome);
-  const tots=_RN_HIST.map(h=>h.pos+h.neg+h.neu);
-  const pcts=_RN_HIST.map(h=>{ const t=(h.pos+h.neg+h.neu)||1; return parseFloat((h.pos/t*100).toFixed(1)); });
+function _rnHistGetFiltered(){
+  const all=_rnHistGetData();
+  const cidade=document.getElementById('_rn-hist-cidade')?.value||'todas';
+  return cidade==='todas'?all:all.filter(h=>h.nome===cidade);
+}
+
+function _rnHistKpiUpdate(data){
+  const tP=data.reduce((a,b)=>a+b.pos,0);
+  const tN=data.reduce((a,b)=>a+b.neg,0);
+  const tNe=data.reduce((a,b)=>a+b.neu,0);
+  const tot=tP+tN+tNe; const tF=tot||1;
+  const pct=(tP/tF*100).toFixed(1);
+  const $=id=>document.getElementById(id);
+  if($('_rn-hk-tot'))$('_rn-hk-tot').textContent=tot.toLocaleString('pt-BR');
+  if($('_rn-hk-pos'))$('_rn-hk-pos').textContent=tP.toLocaleString('pt-BR');
+  if($('_rn-hk-neg'))$('_rn-hk-neg').textContent=tN.toLocaleString('pt-BR');
+  if($('_rn-hk-neu'))$('_rn-hk-neu').textContent=tNe.toLocaleString('pt-BR');
+  if($('_rn-hk-pct'))$('_rn-hk-pct').textContent=pct+'%';
+  const tr=document.getElementById('_rn-hist-total');
+  if(tr){
+    tr.children[1].textContent=tP.toLocaleString('pt-BR');
+    tr.children[2].textContent=tN.toLocaleString('pt-BR');
+    tr.children[3].textContent=tNe.toLocaleString('pt-BR');
+    tr.children[4].textContent=tot.toLocaleString('pt-BR');
+    tr.children[5].textContent=pct+'%';
+  }
+}
+
+window._rnHistUpdate=function(){
+  document.querySelectorAll('#_rn-hist-tbody tr[data-nome]').forEach(tr=>{
+    const pos=parseInt(tr.querySelector('[data-col="pos"]')?.value)||0;
+    const neg=parseInt(tr.querySelector('[data-col="neg"]')?.value)||0;
+    const neu=parseInt(tr.querySelector('[data-col="neu"]')?.value)||0;
+    const tot2=pos+neg+neu;
+    const pct=tot2?(pos/tot2*100).toFixed(1):'0.0';
+    const cor=parseFloat(pct)>=70?'#4ade80':parseFloat(pct)>=40?'#f59e0b':'#ef4444';
+    const totEl=tr.querySelector('._rn-row-tot');
+    const pctEl=tr.querySelector('._rn-row-pct');
+    if(totEl)totEl.textContent=tot2.toLocaleString('pt-BR');
+    if(pctEl){pctEl.textContent=pct+'%';pctEl.style.color=cor;}
+  });
+  const filtered=_rnHistGetFiltered();
+  _rnHistKpiUpdate(filtered);
+  _rnHistChartsFrom(filtered);
+};
+
+window._rnHistFilterApply=function(){
+  const cidade=document.getElementById('_rn-hist-cidade')?.value||'todas';
+  document.querySelectorAll('#_rn-hist-tbody tr[data-nome]').forEach(tr=>{
+    tr.style.display=(cidade==='todas'||tr.dataset.nome===cidade)?'':'none';
+  });
+  const filtered=_rnHistGetFiltered();
+  _rnHistKpiUpdate(filtered);
+  _rnHistChartsFrom(filtered);
+};
+
+function _rnHistChartsFrom(data){
   const _DL_PCT={id:'_dlpct',afterDatasetsDraw(chart){const{ctx}=chart;chart.data.datasets.forEach((ds,i)=>{const meta=chart.getDatasetMeta(i);if(!meta.hidden){meta.data.forEach((bar,idx)=>{const v=ds.data[idx];if(!v&&v!==0)return;ctx.save();ctx.fillStyle='#e2e8f0';ctx.font='bold 9px Arial,sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(v+'%',bar.x,bar.y-3);ctx.restore();});}})}};
+  const labels=data.map(h=>h.nome);
+  const tots=data.map(h=>h.pos+h.neg+h.neu);
+  const pcts=data.map(h=>{const t=(h.pos+h.neg+h.neu)||1;return parseFloat((h.pos/t*100).toFixed(1));});
   const baseOpts={responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:8},color:'#94a3b8',maxRotation:45},grid:{display:false}},y:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.05)'},beginAtZero:true}}};
   const ctxB=document.getElementById('_rn-hist-bar');
   if(ctxB){if(_rnHistBar)_rnHistBar.destroy();_rnHistBar=new Chart(ctxB,{type:'bar',plugins:[_DL_PLUGIN],data:{labels,datasets:[{label:'Atendimentos',data:tots,backgroundColor:'rgba(167,139,250,0.7)',borderColor:'#a78bfa',borderWidth:1,borderRadius:4}]},options:{...baseOpts,plugins:{...baseOpts.plugins,tooltip:{callbacks:{label:c=>c.raw.toLocaleString('pt-BR')+' atendimentos'}}}}});}
@@ -9724,22 +9775,91 @@ function _rnHistCharts(tP,tN,tNe){
   if(ctxP){if(_rnHistPct)_rnHistPct.destroy();_rnHistPct=new Chart(ctxP,{type:'bar',plugins:[_DL_PCT],data:{labels,datasets:[{label:'% Positivo',data:pcts,backgroundColor:pcts.map(p=>p>=70?'rgba(74,222,128,0.7)':p>=40?'rgba(245,158,11,0.7)':'rgba(239,68,68,0.7)'),borderColor:pcts.map(p=>p>=70?'#4ade80':p>=40?'#f59e0b':'#ef4444'),borderWidth:1,borderRadius:4}]},options:{...baseOpts,scales:{...baseOpts.scales,y:{...baseOpts.scales.y,max:110}},plugins:{...baseOpts.plugins,tooltip:{callbacks:{label:c=>c.raw+'% positivos'}}}}});}
 }
 
-window._rnHistPrint = function(){
+function _rnHistPanel(hist){
+  const el=document.getElementById('_rn-hist-kpis'); if(!el)return;
+  const tP=hist.reduce((a,b)=>a+b.pos,0);
+  const tN=hist.reduce((a,b)=>a+b.neg,0);
+  const tNe=hist.reduce((a,b)=>a+b.neu,0);
+  const tot=tP+tN+tNe; const tF=tot||1;
+  const pctGeral=(tP/tF*100).toFixed(1);
+  const kpi=(id,lbl,val,cor,sub)=>`<div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:12px;padding:16px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted)">${lbl}</div><div id="${id}" style="font-size:24px;font-weight:800;color:${cor};margin-top:4px">${val}</div>${sub?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${sub}</div>`:''}</div>`;
+  el.innerHTML=
+    kpi('_rn-hk-tot','Total Atendimentos',tot.toLocaleString('pt-BR'),'#a78bfa','')+
+    kpi('_rn-hk-pos','Total Positivos',tP.toLocaleString('pt-BR'),'#4ade80',pctGeral+'% de aprovação')+
+    kpi('_rn-hk-neg','Total Negativos',tN.toLocaleString('pt-BR'),'#ef4444',((tN/tF)*100).toFixed(1)+'% negativo')+
+    kpi('_rn-hk-neu','Neutros',tNe.toLocaleString('pt-BR'),'#f59e0b','')+
+    kpi('_rn-hk-pct','% Geral Positivo',pctGeral+'%','#4ade80','Percentual geral');
+  const tb=document.getElementById('_rn-hist-tbody'); if(!tb)return;
+  const inp=(col,val,cor)=>`<input type="number" min="0" value="${val}" data-col="${col}" style="width:70px;text-align:center;background:${cor}22;border:1px solid ${cor}55;border-radius:6px;padding:4px;color:${cor};font-size:13px;font-weight:700" oninput="window._rnHistUpdate()">`;
+  tb.innerHTML=hist.map(h=>{
+    const tot2=h.pos+h.neg+h.neu;
+    const pct=tot2?(h.pos/tot2*100).toFixed(1):'0.0';
+    const cor=parseFloat(pct)>=70?'#4ade80':parseFloat(pct)>=40?'#f59e0b':'#ef4444';
+    return `<tr style="border-bottom:1px solid rgba(167,139,250,0.07)" data-nome="${h.nome}">
+      <td style="padding:10px 12px;font-size:13px;font-weight:600;color:var(--text-primary)">${h.nome}</td>
+      <td style="text-align:center;padding:8px">${inp('pos',h.pos,'#4ade80')}</td>
+      <td style="text-align:center;padding:8px">${inp('neg',h.neg,'#ef4444')}</td>
+      <td style="text-align:center;padding:8px">${inp('neu',h.neu,'#f59e0b')}</td>
+      <td style="text-align:center"><span class="_rn-row-tot" style="background:rgba(167,139,250,0.15);color:#a78bfa;border-radius:20px;padding:4px 14px;font-size:13px;font-weight:700">${tot2.toLocaleString('pt-BR')}</span></td>
+      <td style="text-align:center;font-weight:800"><span class="_rn-row-pct" style="color:${cor}">${pct}%</span></td>
+    </tr>`;
+  }).join('')+
+  `<tr id="_rn-hist-total" style="background:rgba(167,139,250,0.12);font-weight:800">
+    <td style="padding:10px 12px;font-size:13px;color:#a78bfa">TOTAL GERAL</td>
+    <td style="text-align:center;color:#4ade80">${tP.toLocaleString('pt-BR')}</td>
+    <td style="text-align:center;color:#ef4444">${tN.toLocaleString('pt-BR')}</td>
+    <td style="text-align:center;color:#f59e0b">${tNe.toLocaleString('pt-BR')}</td>
+    <td style="text-align:center;color:#a78bfa">${tot.toLocaleString('pt-BR')}</td>
+    <td style="text-align:center;color:#4ade80">${pctGeral}%</td>
+  </tr>`;
+  _rnHistChartsFrom(hist);
+}
+
+async function _rnHistLoad(){
+  const{data}=await sb.from('historico_natalia').select('nome,positivos,negativos,neutros').order('id').catch(()=>({data:null}));
+  const hist=(data&&data.length)
+    ?data.map(r=>({nome:r.nome,pos:r.positivos||0,neg:r.negativos||0,neu:r.neutros||0}))
+    :_RN_HIST;
+  _rnHistPanel(hist);
+}
+
+window._rnHistSave=async function(){
+  const st=document.getElementById('_rn-hist-save-status');
+  if(st){st.textContent='Salvando...';st.style.color='#a78bfa';}
+  const data=_rnHistGetData();
+  let erros=0;
+  for(const h of data){
+    const{error}=await sb.from('historico_natalia').upsert({nome:h.nome,positivos:h.pos,negativos:h.neg,neutros:h.neu,atualizado_em:new Date().toISOString()},{onConflict:'nome'}).catch(e=>({error:e}));
+    if(error){console.error(error);erros++;}
+  }
+  if(st){
+    st.textContent=erros?'⚠️ Erro ao salvar':'✅ Salvo!';
+    st.style.color=erros?'#ef4444':'#4ade80';
+    setTimeout(()=>{if(st)st.textContent='';},4000);
+  }
+};
+
+window._rnHistPrint=function(){
+  const filteredData=_rnHistGetFiltered();
+  const cidade=document.getElementById('_rn-hist-cidade')?.value||'todas';
+  const projFilter=document.getElementById('_rn-hist-proj-filter')?.value||'ambos';
+  const projN=projFilter==='fibromialgia'?'Fibromialgia':projFilter==='oculos'?'Óculos':'Fibromialgia + Óculos';
+  const tituloFiltro=cidade==='todas'?'Todas as cidades':cidade;
   const barImg=document.getElementById('_rn-hist-bar')?.toDataURL('image/png')||'';
   const pctImg=document.getElementById('_rn-hist-pct')?.toDataURL('image/png')||'';
-  const tP=_RN_HIST.reduce((a,b)=>a+b.pos,0);
-  const tN=_RN_HIST.reduce((a,b)=>a+b.neg,0);
-  const tNe=_RN_HIST.reduce((a,b)=>a+b.neu,0);
+  const tP=filteredData.reduce((a,b)=>a+b.pos,0);
+  const tN=filteredData.reduce((a,b)=>a+b.neg,0);
+  const tNe=filteredData.reduce((a,b)=>a+b.neu,0);
   const tot=tP+tN+tNe; const tF=tot||1;
   const pctG=(tP/tF*100).toFixed(1);
-  let rows=_RN_HIST.map(h=>{
+  let rows=filteredData.map(h=>{
     const t=(h.pos+h.neg+h.neu)||1;
     const pct=(h.pos/t*100).toFixed(1);
     return `<tr><td>${h.nome}</td><td style="text-align:center;color:#16a34a;font-weight:700">${h.pos.toLocaleString('pt-BR')}</td><td style="text-align:center;color:#dc2626;font-weight:700">${h.neg.toLocaleString('pt-BR')}</td><td style="text-align:center;color:#d97706;font-weight:700">${h.neu}</td><td style="text-align:center;font-weight:700;color:#7c3aed">${(h.pos+h.neg+h.neu).toLocaleString('pt-BR')}</td><td style="text-align:center;font-weight:800;color:${parseFloat(pct)>=70?'#16a34a':'#dc2626'}">${pct}%</td></tr>`;
   }).join('');
   const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relatório Natália — Dr. Malaquias</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:13px;color:#111}h1{font-size:20px;color:#4c1d95;margin-bottom:4px}p.sub{color:#6b7280;font-size:12px;margin-bottom:20px}.kpis{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}.kpi{border:1px solid #ede9fe;border-radius:8px;padding:12px 16px;flex:1;min-width:110px;background:#faf5ff}.kl{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#6b7280}.kv{font-size:22px;font-weight:800;margin-top:3px}.ks{font-size:10px;color:#9ca3af;margin-top:2px}.charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}.cb{border:1px solid #ede9fe;border-radius:8px;padding:14px}.ct{font-size:11px;font-weight:700;color:#4c1d95;margin-bottom:8px}img{max-width:100%}table{width:100%;border-collapse:collapse;margin-bottom:16px}th{background:#4c1d95;color:#fff;padding:8px 10px;font-size:11px;text-align:left}td{padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px}tr:nth-child(even)td{background:#f9fafb}.totais{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}.tot{border:2px solid;border-radius:8px;padding:14px 20px;flex:1;min-width:140px;text-align:center}.tot-l{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6b7280}.tot-v{font-size:28px;font-weight:900;margin-top:4px}.ft{text-align:center;color:#9ca3af;font-size:10px;margin-top:16px;border-top:1px solid #e5e7eb;padding-top:12px}@media print{body{padding:14px}}</style></head><body>
   <h1>Relatório de Atendimentos — Projeto Dr. Malaquias</h1>
-  <p class="sub">Somente Natália · Dados históricos consolidados · Gerado em ${new Date().toLocaleString('pt-BR')}</p>
+  <p class="sub">Somente Natália · Projeto: ${projN} · Filtro: ${tituloFiltro} · Gerado em ${new Date().toLocaleString('pt-BR')}</p>
   <div class="kpis">
     <div class="kpi"><div class="kl">Total Atendimentos</div><div class="kv" style="color:#4c1d95">${tot.toLocaleString('pt-BR')}</div></div>
     <div class="kpi"><div class="kl">Total Positivos</div><div class="kv" style="color:#16a34a">${tP.toLocaleString('pt-BR')}</div><div class="ks">${pctG}% de aprovação</div></div>
