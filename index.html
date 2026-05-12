@@ -9370,7 +9370,7 @@ function _seg(dt) {
 function _dom(seg) { const d=new Date(seg+'T12:00:00'); d.setDate(d.getDate()+6); return d.toISOString().split('T')[0]; }
 function _ptBR(iso) { return iso ? new Date(iso+'T12:00:00').toLocaleDateString('pt-BR') : '—'; }
 
-let _rnBar=null, _rnPizza=null, _rnHistBar=null, _rnHistPizza=null;
+let _rnBar=null, _rnPizza=null, _rnHistBar=null, _rnHistPct=null;
 let _rnPontos=[], _rnAtend={}, _rnFb={};
 
 const _RN_HIST=[
@@ -9469,28 +9469,32 @@ function _injectSec() {
     </div>
     <div id="_rn-status" style="font-size:13px;color:var(--text-muted);text-align:center;min-height:22px"></div>
     <hr style="border:none;border-top:1px solid rgba(167,139,250,0.2);margin:32px 0">
-    <h2 style="font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:6px"><i class="fas fa-history" style="color:#a78bfa;margin-right:8px"></i>Histórico Acumulado por Local</h2>
-    <p style="font-size:12px;color:var(--text-muted);margin-bottom:20px">Dados históricos consolidados — referência para apresentação aos superiores</p>
-    <div id="_rn-hist-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:14px;margin-bottom:24px"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:6px">
+      <h2 style="font-size:16px;font-weight:700;color:var(--text-primary);margin:0"><i class="fas fa-history" style="color:#a78bfa;margin-right:8px"></i>Histórico Acumulado — Projeto Dr. Malaquias</h2>
+      <button onclick="window._rnHistPrint()" style="background:#a78bfa;color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:7px"><i class="fas fa-print"></i> Imprimir Relatório</button>
+    </div>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:20px">Dados históricos consolidados — referência para apresentação aos superiores. Somente Natália.</p>
+    <div id="_rn-hist-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:24px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
       <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:20px">
-        <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:12px"><i class="fas fa-chart-bar" style="color:#a78bfa;margin-right:6px"></i>Atendimentos Históricos por Local</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:12px"><i class="fas fa-chart-bar" style="color:#a78bfa;margin-right:6px"></i>Atendimentos por Local</div>
         <canvas id="_rn-hist-bar"></canvas>
       </div>
       <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:20px">
-        <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:12px"><i class="fas fa-chart-pie" style="color:#a78bfa;margin-right:6px"></i>Distribuição Histórica de Feedbacks</div>
-        <canvas id="_rn-hist-pizza"></canvas>
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:12px"><i class="fas fa-percentage" style="color:#a78bfa;margin-right:6px"></i>Feedbacks por Local (%)</div>
+        <canvas id="_rn-hist-pct"></canvas>
       </div>
     </div>
     <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:20px">
-      <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:16px">Detalhamento Histórico por Local de Atendimento</div>
+      <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:16px">Tabela de Feedbacks</div>
       <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse">
           <thead><tr style="border-bottom:2px solid rgba(167,139,250,0.3)">
-            <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--text-muted)">Local</th>
-            <th style="text-align:center;padding:10px;font-size:11px;text-transform:uppercase;color:#a78bfa">Total</th>
+            <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--text-muted)">Nome</th>
             <th style="text-align:center;padding:10px;font-size:11px;text-transform:uppercase;color:#4ade80">Positivos</th>
             <th style="text-align:center;padding:10px;font-size:11px;text-transform:uppercase;color:#ef4444">Negativos</th>
+            <th style="text-align:center;padding:10px;font-size:11px;text-transform:uppercase;color:#f59e0b">Neutros</th>
+            <th style="text-align:center;padding:10px;font-size:11px;text-transform:uppercase;color:#a78bfa">Total</th>
             <th style="text-align:center;padding:10px;font-size:11px;text-transform:uppercase;color:var(--text-muted)">% Positivo</th>
           </tr></thead>
           <tbody id="_rn-hist-tbody"></tbody>
@@ -9651,42 +9655,99 @@ window._rnBaixar = function(){
 
 function _rnStatus(m){const el=document.getElementById('_rn-status');if(el)el.textContent=m;}
 
+const _DL_PLUGIN={id:'_dlhist',afterDatasetsDraw(chart){const{ctx}=chart;chart.data.datasets.forEach((ds,i)=>{const meta=chart.getDatasetMeta(i);if(!meta.hidden){meta.data.forEach((bar,idx)=>{const v=ds.data[idx];if(!v&&v!==0)return;ctx.save();ctx.fillStyle='#e2e8f0';ctx.font='bold 9px Arial,sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(v,bar.x,bar.y-3);ctx.restore();});}});}};
+
 function _rnHistPanel(){
   const el=document.getElementById('_rn-hist-kpis'); if(!el)return;
   const tP=_RN_HIST.reduce((a,b)=>a+b.pos,0);
   const tN=_RN_HIST.reduce((a,b)=>a+b.neg,0);
   const tNe=_RN_HIST.reduce((a,b)=>a+b.neu,0);
   const tot=tP+tN+tNe; const tF=tot||1;
-  const kpi=(lbl,val,cor,sub)=>`<div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:12px;padding:16px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted)">${lbl}</div><div style="font-size:26px;font-weight:800;color:${cor};margin-top:4px">${val}</div>${sub?`<div style="font-size:11px;color:var(--text-muted)">${sub}</div>`:''}</div>`;
+  const pctGeral=(tP/tF*100).toFixed(1);
+  const kpi=(lbl,val,cor,sub)=>`<div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:12px;padding:16px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted)">${lbl}</div><div style="font-size:24px;font-weight:800;color:${cor};margin-top:4px">${val}</div>${sub?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${sub}</div>`:''}</div>`;
   el.innerHTML=
-    kpi('Total Histórico',tot.toLocaleString('pt-BR'),'#a78bfa','')+
-    kpi('Positivos',tP.toLocaleString('pt-BR'),'#4ade80',Math.round(tP/tF*100)+'% de aprovação')+
-    kpi('Negativos',tN.toLocaleString('pt-BR'),'#ef4444',Math.round(tN/tF*100)+'% negativo');
+    kpi('Total Atendimentos',tot.toLocaleString('pt-BR'),'#a78bfa','')+
+    kpi('Total Positivos',tP.toLocaleString('pt-BR'),'#4ade80',pctGeral+'% de aprovação')+
+    kpi('Total Negativos',tN.toLocaleString('pt-BR'),'#ef4444',((tN/tF)*100).toFixed(1)+'% negativo')+
+    kpi('Neutros',tNe.toLocaleString('pt-BR'),'#f59e0b','')+
+    kpi('% Geral Positivo',pctGeral+'%','#4ade80','Percentual geral');
   const tb=document.getElementById('_rn-hist-tbody'); if(!tb)return;
   tb.innerHTML=_RN_HIST.map(h=>{
     const tot2=(h.pos+h.neg+h.neu)||1;
-    const pct=Math.round(h.pos/tot2*100);
-    const cor=pct>=70?'#4ade80':pct>=40?'#f59e0b':'#ef4444';
+    const pct=(h.pos/tot2*100).toFixed(1);
+    const cor=parseFloat(pct)>=70?'#4ade80':parseFloat(pct)>=40?'#f59e0b':'#ef4444';
     return `<tr style="border-bottom:1px solid rgba(167,139,250,0.07)">
       <td style="padding:10px 12px;font-size:13px;font-weight:600;color:var(--text-primary)">${h.nome}</td>
-      <td style="text-align:center"><span style="background:rgba(167,139,250,0.15);color:#a78bfa;border-radius:20px;padding:4px 14px;font-size:13px;font-weight:700">${(h.pos+h.neg+h.neu).toLocaleString('pt-BR')}</span></td>
       <td style="text-align:center;color:#4ade80;font-weight:700">${h.pos.toLocaleString('pt-BR')}</td>
       <td style="text-align:center;color:#ef4444;font-weight:700">${h.neg.toLocaleString('pt-BR')}</td>
-      <td style="text-align:center;font-weight:700;color:${cor}">${pct}%</td>
+      <td style="text-align:center;color:#f59e0b;font-weight:700">${h.neu.toLocaleString('pt-BR')}</td>
+      <td style="text-align:center"><span style="background:rgba(167,139,250,0.15);color:#a78bfa;border-radius:20px;padding:4px 14px;font-size:13px;font-weight:700">${(h.pos+h.neg+h.neu).toLocaleString('pt-BR')}</span></td>
+      <td style="text-align:center;font-weight:800;color:${cor}">${pct}%</td>
     </tr>`;
   }).join('')+
-  `<tr style="background:rgba(167,139,250,0.1)"><td style="padding:10px 12px;font-size:13px;font-weight:800;color:#a78bfa">TOTAL GERAL</td><td style="text-align:center;font-weight:800;color:#a78bfa">${tot.toLocaleString('pt-BR')}</td><td style="text-align:center;font-weight:800;color:#4ade80">${tP.toLocaleString('pt-BR')}</td><td style="text-align:center;font-weight:800;color:#ef4444">${tN.toLocaleString('pt-BR')}</td><td style="text-align:center;font-weight:800;color:#4ade80">${Math.round(tP/tF*100)}%</td></tr>`;
+  `<tr style="background:rgba(167,139,250,0.12);font-weight:800">
+    <td style="padding:10px 12px;font-size:13px;color:#a78bfa">TOTAL GERAL</td>
+    <td style="text-align:center;color:#4ade80">${tP.toLocaleString('pt-BR')}</td>
+    <td style="text-align:center;color:#ef4444">${tN.toLocaleString('pt-BR')}</td>
+    <td style="text-align:center;color:#f59e0b">${tNe.toLocaleString('pt-BR')}</td>
+    <td style="text-align:center;color:#a78bfa">${tot.toLocaleString('pt-BR')}</td>
+    <td style="text-align:center;color:#4ade80">${pctGeral}%</td>
+  </tr>`;
   _rnHistCharts(tP,tN,tNe);
 }
 
 function _rnHistCharts(tP,tN,tNe){
   const labels=_RN_HIST.map(h=>h.nome);
-  const vals=_RN_HIST.map(h=>h.pos+h.neg+h.neu);
+  const tots=_RN_HIST.map(h=>h.pos+h.neg+h.neu);
+  const pcts=_RN_HIST.map(h=>{ const t=(h.pos+h.neg+h.neu)||1; return parseFloat((h.pos/t*100).toFixed(1)); });
+  const _DL_PCT={id:'_dlpct',afterDatasetsDraw(chart){const{ctx}=chart;chart.data.datasets.forEach((ds,i)=>{const meta=chart.getDatasetMeta(i);if(!meta.hidden){meta.data.forEach((bar,idx)=>{const v=ds.data[idx];if(!v&&v!==0)return;ctx.save();ctx.fillStyle='#e2e8f0';ctx.font='bold 9px Arial,sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(v+'%',bar.x,bar.y-3);ctx.restore();});}})}};
+  const baseOpts={responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:8},color:'#94a3b8',maxRotation:45},grid:{display:false}},y:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.05)'},beginAtZero:true}}};
   const ctxB=document.getElementById('_rn-hist-bar');
-  if(ctxB){if(_rnHistBar)_rnHistBar.destroy();_rnHistBar=new Chart(ctxB,{type:'bar',data:{labels,datasets:[{label:'Total',data:vals,backgroundColor:'rgba(167,139,250,0.65)',borderColor:'#a78bfa',borderWidth:1,borderRadius:5}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9},color:'#94a3b8',maxRotation:45},grid:{display:false}},y:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.05)'},beginAtZero:true}}}});}
-  const ctxP=document.getElementById('_rn-hist-pizza');
-  if(ctxP){if(_rnHistPizza)_rnHistPizza.destroy();_rnHistPizza=new Chart(ctxP,{type:'doughnut',data:{labels:['Positivos','Negativos'],datasets:[{data:[tP,tN],backgroundColor:['rgba(74,222,128,0.85)','rgba(239,68,68,0.85)'],borderColor:['#4ade80','#ef4444'],borderWidth:2}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:11}}}}}});}
+  if(ctxB){if(_rnHistBar)_rnHistBar.destroy();_rnHistBar=new Chart(ctxB,{type:'bar',plugins:[_DL_PLUGIN],data:{labels,datasets:[{label:'Atendimentos',data:tots,backgroundColor:'rgba(167,139,250,0.7)',borderColor:'#a78bfa',borderWidth:1,borderRadius:4}]},options:{...baseOpts,plugins:{...baseOpts.plugins,tooltip:{callbacks:{label:c=>c.raw.toLocaleString('pt-BR')+' atendimentos'}}}}});}
+  const ctxP=document.getElementById('_rn-hist-pct');
+  if(ctxP){if(_rnHistPct)_rnHistPct.destroy();_rnHistPct=new Chart(ctxP,{type:'bar',plugins:[_DL_PCT],data:{labels,datasets:[{label:'% Positivo',data:pcts,backgroundColor:pcts.map(p=>p>=70?'rgba(74,222,128,0.7)':p>=40?'rgba(245,158,11,0.7)':'rgba(239,68,68,0.7)'),borderColor:pcts.map(p=>p>=70?'#4ade80':p>=40?'#f59e0b':'#ef4444'),borderWidth:1,borderRadius:4}]},options:{...baseOpts,scales:{...baseOpts.scales,y:{...baseOpts.scales.y,max:110}},plugins:{...baseOpts.plugins,tooltip:{callbacks:{label:c=>c.raw+'% positivos'}}}}});}
 }
+
+window._rnHistPrint = function(){
+  const barImg=document.getElementById('_rn-hist-bar')?.toDataURL('image/png')||'';
+  const pctImg=document.getElementById('_rn-hist-pct')?.toDataURL('image/png')||'';
+  const tP=_RN_HIST.reduce((a,b)=>a+b.pos,0);
+  const tN=_RN_HIST.reduce((a,b)=>a+b.neg,0);
+  const tNe=_RN_HIST.reduce((a,b)=>a+b.neu,0);
+  const tot=tP+tN+tNe; const tF=tot||1;
+  const pctG=(tP/tF*100).toFixed(1);
+  let rows=_RN_HIST.map(h=>{
+    const t=(h.pos+h.neg+h.neu)||1;
+    const pct=(h.pos/t*100).toFixed(1);
+    return `<tr><td>${h.nome}</td><td style="text-align:center;color:#16a34a;font-weight:700">${h.pos.toLocaleString('pt-BR')}</td><td style="text-align:center;color:#dc2626;font-weight:700">${h.neg.toLocaleString('pt-BR')}</td><td style="text-align:center;color:#d97706;font-weight:700">${h.neu}</td><td style="text-align:center;font-weight:700;color:#7c3aed">${(h.pos+h.neg+h.neu).toLocaleString('pt-BR')}</td><td style="text-align:center;font-weight:800;color:${parseFloat(pct)>=70?'#16a34a':'#dc2626'}">${pct}%</td></tr>`;
+  }).join('');
+  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relatório Natália — Dr. Malaquias</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:13px;color:#111}h1{font-size:20px;color:#4c1d95;margin-bottom:4px}p.sub{color:#6b7280;font-size:12px;margin-bottom:20px}.kpis{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}.kpi{border:1px solid #ede9fe;border-radius:8px;padding:12px 16px;flex:1;min-width:110px;background:#faf5ff}.kl{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#6b7280}.kv{font-size:22px;font-weight:800;margin-top:3px}.ks{font-size:10px;color:#9ca3af;margin-top:2px}.charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}.cb{border:1px solid #ede9fe;border-radius:8px;padding:14px}.ct{font-size:11px;font-weight:700;color:#4c1d95;margin-bottom:8px}img{max-width:100%}table{width:100%;border-collapse:collapse;margin-bottom:16px}th{background:#4c1d95;color:#fff;padding:8px 10px;font-size:11px;text-align:left}td{padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px}tr:nth-child(even)td{background:#f9fafb}.totais{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}.tot{border:2px solid;border-radius:8px;padding:14px 20px;flex:1;min-width:140px;text-align:center}.tot-l{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6b7280}.tot-v{font-size:28px;font-weight:900;margin-top:4px}.ft{text-align:center;color:#9ca3af;font-size:10px;margin-top:16px;border-top:1px solid #e5e7eb;padding-top:12px}@media print{body{padding:14px}}</style></head><body>
+  <h1>Relatório de Atendimentos — Projeto Dr. Malaquias</h1>
+  <p class="sub">Somente Natália · Dados históricos consolidados · Gerado em ${new Date().toLocaleString('pt-BR')}</p>
+  <div class="kpis">
+    <div class="kpi"><div class="kl">Total Atendimentos</div><div class="kv" style="color:#4c1d95">${tot.toLocaleString('pt-BR')}</div></div>
+    <div class="kpi"><div class="kl">Total Positivos</div><div class="kv" style="color:#16a34a">${tP.toLocaleString('pt-BR')}</div><div class="ks">${pctG}% de aprovação</div></div>
+    <div class="kpi"><div class="kl">Total Negativos</div><div class="kv" style="color:#dc2626">${tN.toLocaleString('pt-BR')}</div><div class="ks">${(tN/tF*100).toFixed(1)}% negativo</div></div>
+    <div class="kpi"><div class="kl">Neutros</div><div class="kv" style="color:#d97706">${tNe.toLocaleString('pt-BR')}</div></div>
+    <div class="kpi"><div class="kl">% Geral Positivo</div><div class="kv" style="color:#16a34a">${pctG}%</div></div>
+  </div>
+  <div class="charts">
+    <div class="cb"><div class="ct">Atendimentos por Local</div>${barImg?`<img src="${barImg}">`:'N/D'}</div>
+    <div class="cb"><div class="ct">Feedbacks por Local (%)</div>${pctImg?`<img src="${pctImg}">`:'N/D'}</div>
+  </div>
+  <table><thead><tr><th>Nome</th><th style="text-align:center">Positivos</th><th style="text-align:center">Negativos</th><th style="text-align:center">Neutros</th><th style="text-align:center">Total</th><th style="text-align:center">% Positivo</th></tr></thead>
+  <tbody>${rows}<tr style="background:#ede9fe;font-weight:900"><td>TOTAL GERAL</td><td style="text-align:center;color:#16a34a">${tP.toLocaleString('pt-BR')}</td><td style="text-align:center;color:#dc2626">${tN.toLocaleString('pt-BR')}</td><td style="text-align:center;color:#d97706">${tNe}</td><td style="text-align:center;color:#4c1d95">${tot.toLocaleString('pt-BR')}</td><td style="text-align:center;color:#16a34a">${pctG}%</td></tr></tbody></table>
+  <div class="totais">
+    <div class="tot" style="border-color:#16a34a"><div class="tot-l">Total Geral de Positivos</div><div class="tot-v" style="color:#16a34a">${tP.toLocaleString('pt-BR')}</div></div>
+    <div class="tot" style="border-color:#d97706"><div class="tot-l">Total Geral de Neutros</div><div class="tot-v" style="color:#d97706">${tNe.toLocaleString('pt-BR')}</div></div>
+    <div class="tot" style="border-color:#dc2626"><div class="tot-l">Total Geral de Negativos</div><div class="tot-v" style="color:#dc2626">${tN.toLocaleString('pt-BR')}</div></div>
+  </div>
+  <div class="ft">Percentual geral de feedbacks positivos: ${pctG}% &nbsp;|&nbsp; Sistema Dr. Malaquias — Somente Natália</div>
+  <script>window.onload=function(){window.print();}<\/script></body></html>`;
+  const w=window.open('','_blank');
+  if(w){w.document.write(html);w.document.close();}
+  else alert('Permita pop-ups para imprimir.');
+};
 
 const _prevSSrn=window.showSection;
 window.showSection=function(id,el){
