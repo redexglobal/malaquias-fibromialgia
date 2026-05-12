@@ -3403,6 +3403,7 @@ window.loadData = async function(){
 
 /* ---- override switchProject with real implementation ---- */
 window.switchProject = function(proj, btn){
+  console.log('[PONTOS] switchProject chamada: proj=', proj);
   document.querySelectorAll('.switch-btn').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
   window.currentProject = proj;
@@ -3501,15 +3502,20 @@ window.exportCSV = function(){
 
 /* ---- override updatePontos to use currentProject ---- */
 window.updatePontos = async function(){
+  console.log('[PONTOS] updatePontos chamada. currentProject=', typeof currentProject!=='undefined'?currentProject:'(undefined)', 'currentProfile=', typeof currentProfile!=='undefined'?currentProfile?.papel:'(undefined)');
   try {
     const grid=document.getElementById('pontos-grid');
-    if(!grid) return;
+    console.log('[PONTOS] grid element:', grid);
+    if(!grid) { console.warn('[PONTOS] pontos-grid não existe no DOM — saindo'); return; }
     /* Fase 3: data específica → RPC; senão → view + filtros */
     const dataEsp = typeof window._getDataEspecifica === 'function' ? window._getDataEspecifica() : null;
+    console.log('[PONTOS] dataEsp:', dataEsp);
     let profiles = [];
     if (dataEsp) {
       const rpc = currentProject === 'oculos' ? 'get_pontos_por_data_oculos' : 'get_pontos_por_data_fibro';
+      console.log('[PONTOS] vai chamar RPC:', rpc, 'data:', dataEsp);
       const { data, error } = await sb.rpc(rpc, { p_data: dataEsp });
+      console.log('[PONTOS] RPC resposta:', { error, count: data?.length, sample: data?.[0] });
       if (error) {
         console.error('[PONTOS RPC ERROR]', error);
         grid.innerHTML='<div style="grid-column:1/-1;color:#fca5a5;text-align:center;padding:2rem;font-size:14px"><i class="fas fa-exclamation-triangle" style="font-size:28px;margin-bottom:8px;display:block;opacity:.6"></i>Erro ao carregar pontos por data: '+error.message+'</div>';
@@ -3518,7 +3524,9 @@ window.updatePontos = async function(){
       profiles = data || [];
     } else {
       const view = currentProject === 'oculos' ? 'v_pontos_oculos' : 'v_pontos_fibro';
+      console.log('[PONTOS] vai consultar view:', view);
       const { data, error } = await sb.from(view).select('*');
+      console.log('[PONTOS] view resposta:', { error, count: data?.length, sample: data?.[0] });
       if (error) {
         console.error('[PONTOS ERROR]', error);
         grid.innerHTML='<div style="grid-column:1/-1;color:#fca5a5;text-align:center;padding:2rem;font-size:14px"><i class="fas fa-exclamation-triangle" style="font-size:28px;margin-bottom:8px;display:block;opacity:.6"></i>Erro ao carregar pontos: '+error.message+'</div>';
@@ -3527,9 +3535,12 @@ window.updatePontos = async function(){
       profiles = data || [];
       /* Aplica filtros chips + slider (Fase 3) */
       if (typeof window._aplicarFiltrosPontos === 'function') {
+        const before = profiles.length;
         profiles = window._aplicarFiltrosPontos(profiles);
+        console.log('[PONTOS] após filtros: '+before+' → '+profiles.length);
       }
     }
+    console.log('[PONTOS] about to render', profiles.length, 'cards');
     if(!profiles.length){
       grid.innerHTML='<div style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:2rem;font-size:14px"><i class="fas fa-filter" style="font-size:28px;margin-bottom:8px;display:block;opacity:.4"></i>Nenhum ponto encontrado'+(dataEsp?' nesta data':' com os filtros atuais')+'.</div>';
       return;
@@ -5030,11 +5041,17 @@ function _toast(m,e){if(typeof showToast==='function')showToast(m,e);}
 /* ---- Corrigir showSection para aceitar el=null ---- */
 const _origShowSec = window.showSection;
 window.showSection = function(id, el) {
+  if(id==='pontos') console.log('[PONTOS] aba Pontos clicada — vai chamar updatePontos via showSection');
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   const t = document.getElementById('sec-'+id);
   if(t) t.classList.add('active'); else { console.warn('sec-'+id+' not found'); return; }
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   if(el) el.classList.add('active');
+  /* DEBUG TEMPORÁRIO: força updatePontos quando aba Pontos é aberta */
+  if(id==='pontos' && typeof updatePontos==='function'){
+    console.log('[PONTOS] disparando updatePontos a partir de showSection');
+    setTimeout(()=>updatePontos(), 50);
+  }
 };
 
 /* ====== 1. SEÇÃO DETALHE DO PONTO ====== */
