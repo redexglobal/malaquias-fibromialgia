@@ -3504,24 +3504,42 @@ window.updatePontos = async function(){
   try {
     const grid=document.getElementById('pontos-grid');
     if(!grid) return;
-    /* Fase 1: consome view v_pontos_fibro / v_pontos_oculos (KPIs já agregados) */
-    const view = currentProject === 'oculos' ? 'v_pontos_oculos' : 'v_pontos_fibro';
-    const { data: profiles, error } = await sb.from(view).select('*');
-    if(error){
-      console.error('[PONTOS ERROR]', error);
-      grid.innerHTML='<div style="grid-column:1/-1;color:#fca5a5;text-align:center;padding:2rem;font-size:14px"><i class="fas fa-exclamation-triangle" style="font-size:28px;margin-bottom:8px;display:block;opacity:.6"></i>Erro ao carregar pontos: '+error.message+'</div>';
-      return;
+    /* Fase 3: data específica → RPC; senão → view + filtros */
+    const dataEsp = typeof window._getDataEspecifica === 'function' ? window._getDataEspecifica() : null;
+    let profiles = [];
+    if (dataEsp) {
+      const rpc = currentProject === 'oculos' ? 'get_pontos_por_data_oculos' : 'get_pontos_por_data_fibro';
+      const { data, error } = await sb.rpc(rpc, { p_data: dataEsp });
+      if (error) {
+        console.error('[PONTOS RPC ERROR]', error);
+        grid.innerHTML='<div style="grid-column:1/-1;color:#fca5a5;text-align:center;padding:2rem;font-size:14px"><i class="fas fa-exclamation-triangle" style="font-size:28px;margin-bottom:8px;display:block;opacity:.6"></i>Erro ao carregar pontos por data: '+error.message+'</div>';
+        return;
+      }
+      profiles = data || [];
+    } else {
+      const view = currentProject === 'oculos' ? 'v_pontos_oculos' : 'v_pontos_fibro';
+      const { data, error } = await sb.from(view).select('*');
+      if (error) {
+        console.error('[PONTOS ERROR]', error);
+        grid.innerHTML='<div style="grid-column:1/-1;color:#fca5a5;text-align:center;padding:2rem;font-size:14px"><i class="fas fa-exclamation-triangle" style="font-size:28px;margin-bottom:8px;display:block;opacity:.6"></i>Erro ao carregar pontos: '+error.message+'</div>';
+        return;
+      }
+      profiles = data || [];
+      /* Aplica filtros chips + slider (Fase 3) */
+      if (typeof window._aplicarFiltrosPontos === 'function') {
+        profiles = window._aplicarFiltrosPontos(profiles);
+      }
     }
-    if(!profiles || !profiles.length){
-      grid.innerHTML='<div style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:2rem;font-size:14px"><i class="fas fa-map-marker-alt" style="font-size:28px;margin-bottom:8px;display:block;opacity:.4"></i>Nenhum ponto cadastrado ainda.</div>';
+    if(!profiles.length){
+      grid.innerHTML='<div style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:2rem;font-size:14px"><i class="fas fa-filter" style="font-size:28px;margin-bottom:8px;display:block;opacity:.4"></i>Nenhum ponto encontrado'+(dataEsp?' nesta data':' com os filtros atuais')+'.</div>';
       return;
     }
     const isAdminUser=typeof currentProfile!=='undefined'&&currentProfile?.papel==='admin';
     grid.innerHTML=profiles.map(p=>{
       const nome=p.nome_ponto||p.nome||('Ponto '+p.numero_ponto);
-      /* Campos da view: total_cadastros, cadastros_hoje, online (bool) */
-      const cnt=p.total_cadastros||0;
-      const cntH=p.cadastros_hoje||0;
+      /* Campos da view (sem data) ou RPC (com data específica) */
+      const cnt = dataEsp ? (p.cadastros_no_dia||0) : (p.total_cadastros||0);
+      const cntH = dataEsp ? null : (p.cadastros_hoje||0);
       const status=p.status||'ativo';
       const isAtivo=status==='ativo';
       const isOnline=!!p.online;
@@ -3543,13 +3561,122 @@ window.updatePontos = async function(){
           <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:${statusBg};color:${statusCor}">${statusLabel}</span>
         </div>
         <div style="font-size:14px;font-weight:600;margin-bottom:4px;padding-right:${isAdminUser?'58':'8'}px;line-height:1.3" class="ponto-nome-txt">${nome}</div>
-        <div style="font-size:12px;color:var(--text-muted)">${cnt} registro${cnt!==1?'s':''}${cntH>0?' · <span style="color:var(--accent);font-weight:600">+'+cntH+' hoje</span>':''}</div>
+        <div style="font-size:12px;color:var(--text-muted)">${dataEsp?`<span style="color:#10b981;font-weight:600">${cnt}</span> cadastro${cnt!==1?'s':''} em ${new Date(dataEsp+'T12:00:00').toLocaleDateString('pt-BR')}`:`${cnt} registro${cnt!==1?'s':''}${cntH>0?' · <span style="color:var(--accent);font-weight:600">+'+cntH+' hoje</span>':''}`}</div>
       </div>`;
     }).join('');
   } catch(e) {
     console.error('[PONTOS UNCAUGHT]', e);
   }
 };
+
+/* ===== Fase 3: IIFE de filtros — estado + handlers (DOMContentLoaded) ===== */
+(() => {
+  let _pf_chip = 'todos';
+  let _pf_dor = [0, 10];
+  let _pf_data = null;
+
+  /* Expõe globais consumidos pelo updatePontos */
+  window._aplicarFiltrosPontos = function(arr) {
+    try {
+      if (!Array.isArray(arr)) return arr || [];
+      let r = [...arr];
+      const isFibro = typeof currentProject !== 'undefined' && currentProject !== 'oculos';
+
+      /* Slider dor — só fibro */
+      if (isFibro) {
+        r = r.filter(p => {
+          const dor = parseFloat(p.media_dor) || 0;
+          return dor === 0 || (dor >= _pf_dor[0] && dor <= _pf_dor[1]);
+        });
+      }
+
+      /* Chips temporais — desativados se data específica está setada */
+      if (!_pf_data) {
+        if (_pf_chip === 'dor-alta' && isFibro) {
+          r = r.filter(p => (p.cadastros_dor_alta || 0) > 0);
+        } else if (_pf_chip === 'hoje') {
+          r = r.filter(p => (p.cadastros_hoje || 0) > 0);
+        } else if (_pf_chip === 'semana') {
+          r = r.filter(p => (p.cadastros_semana || 0) > 0);
+        }
+      }
+      return r;
+    } catch (e) {
+      console.error('[FILTROS ERROR]', e);
+      return arr || [];
+    }
+  };
+
+  window._getDataEspecifica = () => _pf_data;
+
+  function _initFiltros() {
+    try {
+      const chips = document.querySelectorAll('.pf-chip');
+      chips.forEach(btn => {
+        if (btn._wired) return; btn._wired = true;
+        btn.addEventListener('click', () => {
+          chips.forEach(c => c.classList.remove('active'));
+          btn.classList.add('active');
+          _pf_chip = btn.dataset.filter;
+          if (typeof updatePontos === 'function') updatePontos();
+        });
+      });
+
+      ['pf-dor-min', 'pf-dor-max'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el || el._wired) return; el._wired = true;
+        el.addEventListener('input', () => {
+          const mn = parseInt(document.getElementById('pf-dor-min').value) || 0;
+          const mx = parseInt(document.getElementById('pf-dor-max').value) || 10;
+          _pf_dor = [Math.min(mn, mx), Math.max(mn, mx)];
+          if (typeof updatePontos === 'function') updatePontos();
+        });
+      });
+
+      const dataInput = document.getElementById('pf-data-especifica');
+      if (dataInput && !dataInput._wired) {
+        dataInput._wired = true;
+        dataInput.addEventListener('change', () => {
+          _pf_data = dataInput.value || null;
+          const clearBtn = document.getElementById('pf-data-clear');
+          if (clearBtn) clearBtn.style.display = _pf_data ? '' : 'none';
+          document.querySelectorAll('.pf-chip').forEach(c => {
+            c.style.opacity = _pf_data ? '0.4' : '1';
+            c.style.pointerEvents = _pf_data ? 'none' : '';
+          });
+          if (typeof updatePontos === 'function') updatePontos();
+        });
+      }
+
+      const clearBtn = document.getElementById('pf-data-clear');
+      if (clearBtn && !clearBtn._wired) {
+        clearBtn._wired = true;
+        clearBtn.style.display = 'none';
+        clearBtn.addEventListener('click', () => {
+          _pf_data = null;
+          const di = document.getElementById('pf-data-especifica');
+          if (di) di.value = '';
+          clearBtn.style.display = 'none';
+          document.querySelectorAll('.pf-chip').forEach(c => {
+            c.style.opacity = '1';
+            c.style.pointerEvents = '';
+          });
+          if (typeof updatePontos === 'function') updatePontos();
+        });
+      }
+    } catch (e) {
+      console.error('[FILTROS INIT ERROR]', e);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _initFiltros);
+  } else {
+    _initFiltros();
+  }
+  /* fallback: re-tenta após delay caso DOM dos filtros chegue tardiamente */
+  setTimeout(_initFiltros, 1500);
+})();
 
 window._pontoToggleStatus = async function(id, statusAtual, btn){
   const novoStatus = statusAtual==='ativo'?'offline':'ativo';
