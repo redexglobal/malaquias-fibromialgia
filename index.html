@@ -9354,6 +9354,276 @@ window.enterApp = async function() {
 
 <script>
 /* ============================
+   RELATÓRIO SEMANAL — NATÁLIA
+   ============================ */
+(function(){
+'use strict';
+
+const _RN_SEC = 'relatorio-nat';
+const _RN_FTBL = 'feedback_semanal';
+
+function _seg(dt) {
+  const d = dt ? new Date(dt+'T12:00:00') : new Date();
+  const diff = d.getDate() - d.getDay() + (d.getDay()===0 ? -6 : 1);
+  return new Date(d.setDate(diff)).toISOString().split('T')[0];
+}
+function _dom(seg) { const d=new Date(seg+'T12:00:00'); d.setDate(d.getDate()+6); return d.toISOString().split('T')[0]; }
+function _ptBR(iso) { return iso ? new Date(iso+'T12:00:00').toLocaleDateString('pt-BR') : '—'; }
+
+let _rnBar=null, _rnPizza=null;
+let _rnPontos=[], _rnAtend={}, _rnFb={};
+
+function _injectNav() {
+  if(!currentProfile||currentProfile.papel!=='admin') return;
+  if(document.getElementById('_rn-nav')) return;
+  const navAdmin = document.getElementById('nav-admin-section');
+  if(!navAdmin) return;
+  const ni = document.createElement('div');
+  ni.id = '_rn-nav'; ni.className = 'nav-item';
+  ni.setAttribute('data-section', _RN_SEC);
+  ni.innerHTML = '<i class="fas fa-chart-pie"></i> Relatório Natália';
+  ni.style.cssText = 'border-left:3px solid #a78bfa!important;color:#a78bfa';
+  ni.onclick = function() { window.showSection(_RN_SEC, ni); };
+  navAdmin.appendChild(ni);
+}
+
+function _injectSec() {
+  if(document.getElementById('sec-'+_RN_SEC)) return;
+  const main = document.querySelector('main.main')||document.querySelector('.main');
+  if(!main) return;
+  const hoje = new Date().toISOString().split('T')[0];
+  const sec = document.createElement('div');
+  sec.id = 'sec-'+_RN_SEC; sec.className = 'section';
+  sec.innerHTML = `
+    <h1 class="page-title">Relatório Semanal</h1>
+    <p class="page-subtitle">Atendimentos e feedbacks por local de atendimento</p>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:13px;color:var(--text-muted)">Semana:</label>
+        <input type="date" id="_rn-semana" value="${_seg(hoje)}"
+          style="background:var(--bg-secondary);border:1px solid var(--border-glass);border-radius:8px;padding:6px 12px;color:var(--text-primary);font-size:13px"
+          onchange="_rnRender()">
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:13px;color:var(--text-muted)">Projeto:</label>
+        <select id="_rn-proj" onchange="_rnRender()"
+          style="background:var(--bg-secondary);border:1px solid var(--border-glass);border-radius:8px;padding:6px 12px;color:var(--text-primary);font-size:13px">
+          <option value="fibro">Fibromialgia</option>
+          <option value="oculos">Óculos</option>
+          <option value="ambos">Ambos</option>
+        </select>
+      </div>
+      <button onclick="_rnSalvar()"
+        style="background:var(--accent);color:#000;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer">
+        <i class="fas fa-save"></i> Salvar Feedbacks
+      </button>
+      <button onclick="_rnBaixar()"
+        style="background:var(--bg-secondary);border:1px solid #a78bfa;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;color:#a78bfa;cursor:pointer">
+        <i class="fas fa-download"></i> Baixar / Imprimir
+      </button>
+    </div>
+    <div id="_rn-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:14px;margin-bottom:24px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+      <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:20px">
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:12px"><i class="fas fa-chart-bar" style="color:var(--accent);margin-right:6px"></i>Atendimentos por Ponto</div>
+        <canvas id="_rn-chart-bar"></canvas>
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:20px">
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:12px"><i class="fas fa-chart-pie" style="color:#a78bfa;margin-right:6px"></i>Distribuição de Feedbacks</div>
+        <canvas id="_rn-chart-pizza"></canvas>
+      </div>
+    </div>
+    <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:20px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:16px">Feedbacks por Local de Atendimento</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="border-bottom:2px solid rgba(0,200,83,0.2)">
+              <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--text-muted)">Ponto / Local</th>
+              <th style="text-align:center;padding:10px;font-size:11px;text-transform:uppercase;color:var(--accent)">Atendimentos</th>
+              <th style="text-align:center;padding:10px;font-size:11px;text-transform:uppercase;color:#4ade80">Positivos</th>
+              <th style="text-align:center;padding:10px;font-size:11px;text-transform:uppercase;color:#ef4444">Negativos</th>
+              <th style="text-align:center;padding:10px;font-size:11px;text-transform:uppercase;color:#f59e0b">Neutros</th>
+              <th style="text-align:center;padding:10px;font-size:11px;text-transform:uppercase;color:var(--text-muted)">% Positivo</th>
+              <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--text-muted)">Observações</th>
+            </tr>
+          </thead>
+          <tbody id="_rn-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="_rn-status" style="font-size:13px;color:var(--text-muted);text-align:center;min-height:22px"></div>
+  `;
+  main.appendChild(sec);
+}
+
+window._rnRender = async function() {
+  _rnStatus('Carregando dados...');
+  const semIn = document.getElementById('_rn-semana'); if(!semIn)return;
+  const inicio = _seg(semIn.value); semIn.value = inicio;
+  const fim = _dom(inicio);
+  const proj = document.getElementById('_rn-proj')?.value||'fibro';
+
+  let qp = sb.from('profiles').select('id,nome,nome_ponto,numero_ponto,projeto').eq('papel','colaborador');
+  if(proj!=='ambos') qp = qp.eq('projeto',proj);
+  const {data:pts} = await qp.order('numero_ponto').catch(()=>({data:[]}));
+  _rnPontos = pts||[];
+
+  _rnAtend = {};
+  const tbls = proj==='ambos'?['pacientes_fibro','pacientes_oculos']:proj==='oculos'?['pacientes_oculos']:['pacientes_fibro'];
+  for(const tbl of tbls){
+    const {data:pacs} = await sb.from(tbl).select('cadastrado_por').gte('criado_em',inicio+'T00:00:00').lte('criado_em',fim+'T23:59:59').catch(()=>({data:[]}));
+    (pacs||[]).forEach(p=>{ _rnAtend[p.cadastrado_por]=(_rnAtend[p.cadastrado_por]||0)+1; });
+  }
+
+  _rnFb = {};
+  const {data:fbList} = await sb.from(_RN_FTBL).select('*').eq('semana_inicio',inicio).catch(()=>({data:null}));
+  (fbList||[]).forEach(f=>{ _rnFb[f.ponto_id]={pos:f.positivos||0,neg:f.negativos||0,neu:f.neutros||0,obs:f.observacoes||'',id:f.id}; });
+
+  _rnKpis(inicio,fim);
+  _rnCharts();
+  _rnTabela();
+  _rnStatus('');
+};
+
+function _rnKpis(inicio,fim){
+  const el=document.getElementById('_rn-kpis'); if(!el)return;
+  const tot=Object.values(_rnAtend).reduce((a,b)=>a+b,0);
+  let tP=0,tN=0,tNe=0;
+  Object.values(_rnFb).forEach(f=>{tP+=f.pos;tN+=f.neg;tNe+=f.neu;});
+  const tF=(tP+tN+tNe)||1;
+  const kpi=(lbl,val,cor,sub)=>`<div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:12px;padding:16px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted)">${lbl}</div><div style="font-size:${typeof val==='number'?'26':'14'}px;font-weight:800;color:${cor};margin-top:4px">${val}</div>${sub?`<div style="font-size:11px;color:var(--text-muted)">${sub}</div>`:''}</div>`;
+  el.innerHTML=
+    kpi('Período',`${_ptBR(inicio)} – ${_ptBR(fim)}`,'var(--text-primary)','')+
+    kpi('Total Atendimentos',tot,'var(--accent)','')+
+    kpi('Positivos',Math.round(tP/tF*100)+'%','#4ade80',tP+' registros')+
+    kpi('Negativos',Math.round(tN/tF*100)+'%','#ef4444',tN+' registros')+
+    kpi('Neutros',Math.round(tNe/tF*100)+'%','#f59e0b',tNe+' registros');
+}
+
+function _rnCharts(){
+  const labels=_rnPontos.map(p=>p.nome_ponto||p.nome||'Pt '+p.numero_ponto);
+  const vals=_rnPontos.map(p=>_rnAtend[p.id]||0);
+  let tP=0,tN=0,tNe=0;
+  Object.values(_rnFb).forEach(f=>{tP+=f.pos;tN+=f.neg;tNe+=f.neu;});
+  const ctxB=document.getElementById('_rn-chart-bar');
+  if(ctxB){if(_rnBar)_rnBar.destroy();_rnBar=new Chart(ctxB,{type:'bar',data:{labels,datasets:[{label:'Atendimentos',data:vals,backgroundColor:'rgba(0,200,83,0.65)',borderColor:'#00e676',borderWidth:1,borderRadius:5}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9},color:'#94a3b8',maxRotation:45},grid:{display:false}},y:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.05)'},beginAtZero:true}}}});}
+  const ctxP=document.getElementById('_rn-chart-pizza');
+  if(ctxP){if(_rnPizza)_rnPizza.destroy();_rnPizza=new Chart(ctxP,{type:'doughnut',data:{labels:['Positivos','Negativos','Neutros'],datasets:[{data:[tP,tN,tNe],backgroundColor:['rgba(74,222,128,0.85)','rgba(239,68,68,0.85)','rgba(245,158,11,0.85)'],borderColor:['#4ade80','#ef4444','#f59e0b'],borderWidth:2}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:11}}}}}});}
+}
+
+function _rnTabela(){
+  const tb=document.getElementById('_rn-tbody'); if(!tb)return;
+  if(!_rnPontos.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-muted)">Nenhum ponto encontrado.</td></tr>';return;}
+  tb.innerHTML=_rnPontos.map(p=>{
+    const at=_rnAtend[p.id]||0;
+    const fb=_rnFb[p.id]||{pos:0,neg:0,neu:0,obs:''};
+    const tot2=(fb.pos+fb.neg+fb.neu)||1;
+    const pct=Math.round(fb.pos/tot2*100);
+    const cor=pct>=70?'#4ade80':pct>=40?'#f59e0b':'#ef4444';
+    const nome=p.nome_ponto||p.nome||'Ponto '+p.numero_ponto;
+    const inp=(f,v,c)=>`<input type="number" min="0" value="${v}" data-f="${f}" style="width:58px;text-align:center;background:${c}22;border:1px solid ${c}55;border-radius:6px;padding:4px;color:${c};font-size:13px;font-weight:700" oninput="_rnRow(this)">`;
+    return `<tr style="border-bottom:1px solid rgba(0,200,83,0.07)" data-pid="${p.id}">
+      <td style="padding:10px 12px;font-size:13px;font-weight:600;color:var(--text-primary)">${nome}</td>
+      <td style="text-align:center"><span style="background:rgba(0,200,83,0.15);color:var(--accent);border-radius:20px;padding:4px 14px;font-size:13px;font-weight:700">${at}</span></td>
+      <td style="text-align:center;padding:8px">${inp('pos',fb.pos,'#4ade80')}</td>
+      <td style="text-align:center;padding:8px">${inp('neg',fb.neg,'#ef4444')}</td>
+      <td style="text-align:center;padding:8px">${inp('neu',fb.neu,'#f59e0b')}</td>
+      <td style="text-align:center"><span class="_rn-pct" style="font-weight:700;color:${cor}">${pct}%</span></td>
+      <td style="padding:8px"><input type="text" value="${fb.obs}" data-f="obs" placeholder="Observações..."
+        style="width:100%;background:var(--bg-secondary);border:1px solid var(--border-glass);border-radius:6px;padding:5px 8px;color:var(--text-primary);font-size:12px"
+        oninput="_rnRow(this)"></td>
+    </tr>`;
+  }).join('');
+}
+
+window._rnRow = function(inp){
+  const row=inp.closest('tr'); if(!row)return;
+  const pos=parseInt(row.querySelector('[data-f="pos"]')?.value)||0;
+  const neg=parseInt(row.querySelector('[data-f="neg"]')?.value)||0;
+  const neu=parseInt(row.querySelector('[data-f="neu"]')?.value)||0;
+  const tot=(pos+neg+neu)||1;
+  const pct=Math.round(pos/tot*100);
+  const el=row.querySelector('._rn-pct');
+  if(el){el.textContent=pct+'%';el.style.color=pct>=70?'#4ade80':pct>=40?'#f59e0b':'#ef4444';}
+};
+
+window._rnSalvar = async function(){
+  _rnStatus('Salvando...');
+  const inicio=_seg(document.getElementById('_rn-semana')?.value);
+  const proj=document.getElementById('_rn-proj')?.value||'fibro';
+  let erros=0;
+  for(const p of _rnPontos){
+    const row=document.querySelector(`[data-pid="${p.id}"]`); if(!row)continue;
+    const pos=parseInt(row.querySelector('[data-f="pos"]')?.value)||0;
+    const neg=parseInt(row.querySelector('[data-f="neg"]')?.value)||0;
+    const neu=parseInt(row.querySelector('[data-f="neu"]')?.value)||0;
+    const obs=row.querySelector('[data-f="obs"]')?.value||'';
+    const payload={semana_inicio:inicio,ponto_id:p.id,nome_ponto:p.nome_ponto||p.nome,projeto:proj,positivos:pos,negativos:neg,neutros:neu,observacoes:obs,atualizado_em:new Date().toISOString()};
+    const fbId=_rnFb[p.id]?.id;
+    const {error}=fbId?await sb.from(_RN_FTBL).update(payload).eq('id',fbId):await sb.from(_RN_FTBL).insert(payload);
+    if(error){console.error(error);erros++;}
+  }
+  _rnStatus(erros?'⚠️ Erro ao salvar alguns feedbacks.':'✅ Feedbacks salvos com sucesso!');
+  if(!erros) setTimeout(()=>_rnRender(),400);
+  setTimeout(()=>_rnStatus(''),5000);
+};
+
+window._rnBaixar = function(){
+  const inicio=_seg(document.getElementById('_rn-semana')?.value);
+  const fim=_dom(inicio);
+  const proj=document.getElementById('_rn-proj')?.value||'fibro';
+  const projN=proj==='fibro'?'Fibromialgia':proj==='oculos'?'Óculos':'Fibromialgia + Óculos';
+  const barImg=document.getElementById('_rn-chart-bar')?.toDataURL('image/png')||'';
+  const pizImg=document.getElementById('_rn-chart-pizza')?.toDataURL('image/png')||'';
+  const tot=Object.values(_rnAtend).reduce((a,b)=>a+b,0);
+  let tP=0,tN=0,tNe=0,tRows='';
+  _rnPontos.forEach(p=>{
+    const row=document.querySelector(`[data-pid="${p.id}"]`);
+    const at=_rnAtend[p.id]||0;
+    const pos=parseInt(row?.querySelector('[data-f="pos"]')?.value)||0;
+    const neg=parseInt(row?.querySelector('[data-f="neg"]')?.value)||0;
+    const neu=parseInt(row?.querySelector('[data-f="neu"]')?.value)||0;
+    const obs=row?.querySelector('[data-f="obs"]')?.value||'';
+    tP+=pos;tN+=neg;tNe+=neu;
+    const t2=(pos+neg+neu)||1;
+    const pct=Math.round(pos/t2*100);
+    const nome=p.nome_ponto||p.nome||'Ponto '+p.numero_ponto;
+    tRows+=`<tr><td>${nome}</td><td style="text-align:center">${at}</td><td style="text-align:center;color:#16a34a;font-weight:700">${pos}</td><td style="text-align:center;color:#dc2626;font-weight:700">${neg}</td><td style="text-align:center;color:#d97706;font-weight:700">${neu}</td><td style="text-align:center;font-weight:800;color:${pct>=70?'#16a34a':pct>=40?'#d97706':'#dc2626'}">${pct}%</td><td style="font-size:11px">${obs}</td></tr>`;
+  });
+  const tF=(tP+tN+tNe)||1;
+  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relatório Semanal</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:13px;color:#111}h1{font-size:20px;color:#065f46}p.sub{color:#6b7280;font-size:12px;margin:4px 0 20px}.kpis{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}.kpi{border:1px solid #d1fae5;border-radius:8px;padding:12px 16px;flex:1;min-width:110px}.kl{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#6b7280}.kv{font-size:22px;font-weight:800;margin-top:3px}.ks{font-size:10px;color:#9ca3af}.charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}.cb{border:1px solid #d1fae5;border-radius:8px;padding:14px}.ct{font-size:11px;font-weight:700;color:#374151;margin-bottom:8px}img{max-width:100%}table{width:100%;border-collapse:collapse;margin-bottom:16px}th{background:#065f46;color:#fff;padding:8px 10px;font-size:11px;text-align:left}td{padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px}tr:nth-child(even)td{background:#f9fafb}.ft{text-align:center;color:#9ca3af;font-size:10px;margin-top:16px;border-top:1px solid #e5e7eb;padding-top:12px}@media print{body{padding:14px}}</style></head><body>
+  <h1>Relatório Semanal de Atendimentos</h1><p class="sub">Período: ${_ptBR(inicio)} a ${_ptBR(fim)} &nbsp;|&nbsp; Projeto: ${projN} &nbsp;|&nbsp; Dr. Malaquias</p>
+  <div class="kpis"><div class="kpi"><div class="kl">Total Atendimentos</div><div class="kv" style="color:#065f46">${tot}</div></div><div class="kpi"><div class="kl">Positivos</div><div class="kv" style="color:#16a34a">${Math.round(tP/tF*100)}%</div><div class="ks">${tP} registros</div></div><div class="kpi"><div class="kl">Negativos</div><div class="kv" style="color:#dc2626">${Math.round(tN/tF*100)}%</div><div class="ks">${tN} registros</div></div><div class="kpi"><div class="kl">Neutros</div><div class="kv" style="color:#d97706">${Math.round(tNe/tF*100)}%</div><div class="ks">${tNe} registros</div></div></div>
+  <div class="charts"><div class="cb"><div class="ct">Atendimentos por Ponto</div>${barImg?`<img src="${barImg}">`:'N/D'}</div><div class="cb"><div class="ct">Distribuição de Feedbacks</div>${pizImg?`<img src="${pizImg}">`:'N/D'}</div></div>
+  <table><thead><tr><th>Ponto / Local</th><th style="text-align:center">Atendimentos</th><th style="text-align:center">Positivos</th><th style="text-align:center">Negativos</th><th style="text-align:center">Neutros</th><th style="text-align:center">% Positivo</th><th>Observações</th></tr></thead><tbody>${tRows}</tbody></table>
+  <div class="ft">Gerado em ${new Date().toLocaleString('pt-BR')} — Sistema Dr. Malaquias</div>
+  <script>window.onload=function(){window.print();}<\/script></body></html>`;
+  const w=window.open('','_blank');
+  if(w){w.document.write(html);w.document.close();}
+  else alert('Permita pop-ups para gerar o relatório.');
+};
+
+function _rnStatus(m){const el=document.getElementById('_rn-status');if(el)el.textContent=m;}
+
+const _prevSSrn=window.showSection;
+window.showSection=function(id,el){
+  if(typeof _prevSSrn==='function') _prevSSrn(id,el);
+  if(id===_RN_SEC) setTimeout(()=>_rnRender(),80);
+};
+
+function _rnInit(){
+  if(typeof currentProfile==='undefined'||!currentProfile) return false;
+  if(currentProfile.papel!=='admin') return true;
+  _injectSec(); _injectNav(); return true;
+}
+if(!_rnInit()){const _t=setInterval(()=>{if(_rnInit())clearInterval(_t);},500);setTimeout(()=>clearInterval(_t),30000);}
+
+})();
+</script>
+
+<script>
+/* ============================
    ADMIN — CADASTRADOR + FICHA COMPLETA DO PACIENTE
    ============================ */
 (function(){
