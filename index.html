@@ -3458,37 +3458,53 @@ window.exportCSV = function(){
 window.updatePontos = async function(){
   const grid=document.getElementById('pontos-grid');
   if(!grid) return;
-  const proj=currentProject==='fibro'?'fibromialgia':'oculos';
-  const {data:profiles}=await sb.from('profiles')
-    .select('id,nome,numero_ponto,tipo_ponto,nome_ponto,online_at')
-    .eq('papel','colaborador').eq('projeto',proj).order('numero_ponto')
-    .catch(()=>({data:null}));
+  /* Busca colaboradores: para fibro exclui 'oculos', para oculos filtra exato */
+  let q=sb.from('profiles').select('id,nome,numero_ponto,tipo_ponto,nome_ponto,online_at,status').eq('papel','colaborador');
+  if(currentProject==='oculos') q=q.eq('projeto','oculos');
+  else q=q.neq('projeto','oculos');
+  const {data:profiles}=await q.order('numero_ponto').catch(()=>({data:null}));
   const hoje=new Date().toISOString().split('T')[0];
   if(!profiles||!profiles.length){
-    grid.innerHTML='<div style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:2rem;">Nenhum ponto encontrado para '+proj+'</div>';
+    grid.innerHTML='<div style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:2rem;font-size:14px"><i class="fas fa-map-marker-alt" style="font-size:28px;margin-bottom:8px;display:block;opacity:.4"></i>Nenhum ponto cadastrado ainda.</div>';
     return;
   }
   const agora5min=new Date(Date.now()-5*60000).toISOString();
+  const isAdminUser=typeof currentProfile!=='undefined'&&currentProfile?.papel==='admin';
   grid.innerHTML=profiles.map(p=>{
     const nome=p.nome_ponto||p.nome;
     const cnt=(allPacientes||[]).filter(pac=>pac.cadastrado_por===p.id).length;
     const cntH=(allPacientes||[]).filter(pac=>pac.cadastrado_por===p.id&&pac.criado_em?.startsWith(hoje)).length;
-    const isAtivo=cnt>0;
+    const status=p.status||'ativo';
+    const isAtivo=status==='ativo';
     const isOnline=p.online_at&&p.online_at>agora5min;
-    const dotStyle=isOnline?'background:#00c853;animation:dotPulse 2s infinite':'background:#4b5563';
-    const dotTitle=isOnline?'🟢 Online agora':'⚫ Offline';
-    const isAdminUser = typeof currentProfile !== 'undefined' && currentProfile?.papel === 'admin';
-    return `<div class="kpi-card" style="cursor:pointer;position:relative" onclick="openPontoDetalhe('${p.id}','${nome.replace(/'/g,"\\'")}','${p.tipo_ponto}')">
-      <div id="pres-dot-${p.id}" style="position:absolute;top:10px;left:10px;width:10px;height:10px;border-radius:50%;${dotStyle};transition:all .4s;z-index:4" title="${dotTitle}"></div>
-      ${isAdminUser ? `<button style="position:absolute;top:7px;right:7px;width:26px;height:26px;border-radius:7px;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.25);color:#00c853;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .15s;z-index:5;line-height:1;padding:0" title="Editar nome" onclick="event.stopPropagation();window._pontoEditNome('${p.id}','${nome.replace(/'/g,"\\'")}',this.closest('.kpi-card'))">✏️</button>` : ''}
-      <div class="kpi-header" style="padding-left:22px">
-        <div class="kpi-icon"><i class="fas fa-${p.tipo_ponto==='fixo'?'map-pin':'route'}"></i></div>
-        <span class="status-badge ${isAtivo?'ativo':''}" style="${isAtivo?'':'background:rgba(100,116,139,.15);color:var(--text-muted);'}">${isAtivo?'ativo':'inativo'}</span>
+    /* dot: verde pulsando = online nos últimos 5min; cinza = offline */
+    const dotStyle=isOnline?'background:#00c853;box-shadow:0 0 6px #00c853;animation:dotPulse 2s infinite':'background:#4b5563';
+    const statusBg=isAtivo?'rgba(0,200,83,.15)':'rgba(239,68,68,.15)';
+    const statusCor=isAtivo?'#00c853':'#ef4444';
+    const statusLabel=isAtivo?'● Ativo':'○ Offline';
+    return `<div class="kpi-card" style="cursor:pointer;position:relative;border:1px solid ${isAtivo?'rgba(0,200,83,.2)':'rgba(239,68,68,.2)'}" onclick="openPontoDetalhe('${p.id}','${nome.replace(/'/g,"\\'")}','${p.tipo_ponto||'fixo'}')">
+      <div style="position:absolute;top:10px;left:10px;width:10px;height:10px;border-radius:50%;${dotStyle};z-index:4" title="${isOnline?'Online agora':'Sem atividade recente'}"></div>
+      ${isAdminUser?`<div style="position:absolute;top:7px;right:7px;display:flex;gap:4px;z-index:5">
+        <button title="Editar nome" onclick="event.stopPropagation();window._pontoEditNome('${p.id}','${nome.replace(/'/g,"\\'")}',this.closest('.kpi-card'))" style="width:26px;height:26px;border-radius:6px;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.25);color:#00c853;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;padding:0">✏️</button>
+        <button id="st-btn-${p.id}" title="${isAtivo?'Marcar offline':'Marcar ativo'}" onclick="event.stopPropagation();window._pontoToggleStatus('${p.id}','${status}',this)" style="width:26px;height:26px;border-radius:6px;background:${statusBg};border:1px solid ${statusCor}55;color:${statusCor};cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;padding:0;font-weight:700">${isAtivo?'ON':'OFF'}</button>
+      </div>`:''}
+      <div class="kpi-header" style="padding-left:22px;margin-bottom:6px">
+        <div class="kpi-icon"><i class="fas fa-${p.tipo_ponto==='movel'?'route':'map-pin'}"></i></div>
+        <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:${statusBg};color:${statusCor}">${statusLabel}</span>
       </div>
-      <div style="font-size:14px;font-weight:600;margin-bottom:4px;padding-right:28px" class="ponto-nome-txt">${nome}</div>
-      <div style="font-size:12px;color:var(--text-muted)">${cnt} reg.${cntH>0?' · <span style="color:var(--accent)">+'+cntH+' hoje</span>':''}</div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px;padding-right:${isAdminUser?'58':'8'}px;line-height:1.3" class="ponto-nome-txt">${nome}</div>
+      <div style="font-size:12px;color:var(--text-muted)">${cnt} registro${cnt!==1?'s':''}${cntH>0?' · <span style="color:var(--accent);font-weight:600">+'+cntH+' hoje</span>':''}</div>
     </div>`;
   }).join('');
+};
+
+window._pontoToggleStatus = async function(id, statusAtual, btn){
+  const novoStatus = statusAtual==='ativo'?'offline':'ativo';
+  btn.disabled=true; btn.textContent='...';
+  const{error}=await sb.from('profiles').update({status:novoStatus}).eq('id',id);
+  if(error){btn.disabled=false;btn.textContent=statusAtual==='ativo'?'ON':'OFF';if(typeof showToast==='function')showToast('Erro ao alterar status',true);return;}
+  if(typeof showToast==='function')showToast('Status do ponto atualizado para '+novoStatus+'!');
+  setTimeout(()=>window.updatePontos(),300);
 };
 
 /* ---- override openPontoDetalhe to be project-aware ---- */
