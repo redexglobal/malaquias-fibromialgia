@@ -9370,11 +9370,26 @@ function _seg(dt) {
 function _dom(seg) { const d=new Date(seg+'T12:00:00'); d.setDate(d.getDate()+6); return d.toISOString().split('T')[0]; }
 function _ptBR(iso) { return iso ? new Date(iso+'T12:00:00').toLocaleDateString('pt-BR') : '—'; }
 
-let _rnBar=null, _rnPizza=null;
+let _rnBar=null, _rnPizza=null, _rnHistBar=null, _rnHistPizza=null;
 let _rnPontos=[], _rnAtend={}, _rnFb={};
 
+const _RN_HIST=[
+  {nome:'Visão do Futuro',       pos:3670,neg:630,neu:0},
+  {nome:'Goiânia Viva',          pos:107, neg:22, neu:0},
+  {nome:'Goiânia Viva 2ª Etapa', pos:112, neg:25, neu:0},
+  {nome:'Indiara',               pos:181, neg:32, neu:0},
+  {nome:'Indiara 2ª Etapa',      pos:237, neg:63, neu:0},
+  {nome:'Anápolis',              pos:104, neg:29, neu:0},
+  {nome:'Jardim Novo Mundo',     pos:59,  neg:25, neu:0},
+  {nome:'Águas Lindas',          pos:104, neg:0,  neu:0},
+  {nome:'Panamá',                pos:129, neg:89, neu:0},
+  {nome:'Itaipu',                pos:370, neg:65, neu:0},
+  {nome:'Vera Cruz',             pos:98,  neg:59, neu:0},
+  {nome:'Real Conquista',        pos:100, neg:51, neu:0},
+];
+
 function _injectNav() {
-  if(!currentProfile||currentProfile.papel!=='admin') return;
+  if(!currentProfile||currentProfile.email!=='natalia@malaquias.com') return;
   if(document.getElementById('_rn-nav')) return;
   const navAdmin = document.getElementById('nav-admin-section');
   if(!navAdmin) return;
@@ -9453,6 +9468,35 @@ function _injectSec() {
       </div>
     </div>
     <div id="_rn-status" style="font-size:13px;color:var(--text-muted);text-align:center;min-height:22px"></div>
+    <hr style="border:none;border-top:1px solid rgba(167,139,250,0.2);margin:32px 0">
+    <h2 style="font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:6px"><i class="fas fa-history" style="color:#a78bfa;margin-right:8px"></i>Histórico Acumulado por Local</h2>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:20px">Dados históricos consolidados — referência para apresentação aos superiores</p>
+    <div id="_rn-hist-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:14px;margin-bottom:24px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+      <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:20px">
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:12px"><i class="fas fa-chart-bar" style="color:#a78bfa;margin-right:6px"></i>Atendimentos Históricos por Local</div>
+        <canvas id="_rn-hist-bar"></canvas>
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:20px">
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:12px"><i class="fas fa-chart-pie" style="color:#a78bfa;margin-right:6px"></i>Distribuição Histórica de Feedbacks</div>
+        <canvas id="_rn-hist-pizza"></canvas>
+      </div>
+    </div>
+    <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:20px">
+      <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:16px">Detalhamento Histórico por Local de Atendimento</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="border-bottom:2px solid rgba(167,139,250,0.3)">
+            <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--text-muted)">Local</th>
+            <th style="text-align:center;padding:10px;font-size:11px;text-transform:uppercase;color:#a78bfa">Total</th>
+            <th style="text-align:center;padding:10px;font-size:11px;text-transform:uppercase;color:#4ade80">Positivos</th>
+            <th style="text-align:center;padding:10px;font-size:11px;text-transform:uppercase;color:#ef4444">Negativos</th>
+            <th style="text-align:center;padding:10px;font-size:11px;text-transform:uppercase;color:var(--text-muted)">% Positivo</th>
+          </tr></thead>
+          <tbody id="_rn-hist-tbody"></tbody>
+        </table>
+      </div>
+    </div>
   `;
   main.appendChild(sec);
 }
@@ -9483,6 +9527,7 @@ window._rnRender = async function() {
   _rnKpis(inicio,fim);
   _rnCharts();
   _rnTabela();
+  _rnHistPanel();
   _rnStatus('');
 };
 
@@ -9606,6 +9651,43 @@ window._rnBaixar = function(){
 
 function _rnStatus(m){const el=document.getElementById('_rn-status');if(el)el.textContent=m;}
 
+function _rnHistPanel(){
+  const el=document.getElementById('_rn-hist-kpis'); if(!el)return;
+  const tP=_RN_HIST.reduce((a,b)=>a+b.pos,0);
+  const tN=_RN_HIST.reduce((a,b)=>a+b.neg,0);
+  const tNe=_RN_HIST.reduce((a,b)=>a+b.neu,0);
+  const tot=tP+tN+tNe; const tF=tot||1;
+  const kpi=(lbl,val,cor,sub)=>`<div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:12px;padding:16px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted)">${lbl}</div><div style="font-size:26px;font-weight:800;color:${cor};margin-top:4px">${val}</div>${sub?`<div style="font-size:11px;color:var(--text-muted)">${sub}</div>`:''}</div>`;
+  el.innerHTML=
+    kpi('Total Histórico',tot.toLocaleString('pt-BR'),'#a78bfa','')+
+    kpi('Positivos',tP.toLocaleString('pt-BR'),'#4ade80',Math.round(tP/tF*100)+'% de aprovação')+
+    kpi('Negativos',tN.toLocaleString('pt-BR'),'#ef4444',Math.round(tN/tF*100)+'% negativo');
+  const tb=document.getElementById('_rn-hist-tbody'); if(!tb)return;
+  tb.innerHTML=_RN_HIST.map(h=>{
+    const tot2=(h.pos+h.neg+h.neu)||1;
+    const pct=Math.round(h.pos/tot2*100);
+    const cor=pct>=70?'#4ade80':pct>=40?'#f59e0b':'#ef4444';
+    return `<tr style="border-bottom:1px solid rgba(167,139,250,0.07)">
+      <td style="padding:10px 12px;font-size:13px;font-weight:600;color:var(--text-primary)">${h.nome}</td>
+      <td style="text-align:center"><span style="background:rgba(167,139,250,0.15);color:#a78bfa;border-radius:20px;padding:4px 14px;font-size:13px;font-weight:700">${(h.pos+h.neg+h.neu).toLocaleString('pt-BR')}</span></td>
+      <td style="text-align:center;color:#4ade80;font-weight:700">${h.pos.toLocaleString('pt-BR')}</td>
+      <td style="text-align:center;color:#ef4444;font-weight:700">${h.neg.toLocaleString('pt-BR')}</td>
+      <td style="text-align:center;font-weight:700;color:${cor}">${pct}%</td>
+    </tr>`;
+  }).join('')+
+  `<tr style="background:rgba(167,139,250,0.1)"><td style="padding:10px 12px;font-size:13px;font-weight:800;color:#a78bfa">TOTAL GERAL</td><td style="text-align:center;font-weight:800;color:#a78bfa">${tot.toLocaleString('pt-BR')}</td><td style="text-align:center;font-weight:800;color:#4ade80">${tP.toLocaleString('pt-BR')}</td><td style="text-align:center;font-weight:800;color:#ef4444">${tN.toLocaleString('pt-BR')}</td><td style="text-align:center;font-weight:800;color:#4ade80">${Math.round(tP/tF*100)}%</td></tr>`;
+  _rnHistCharts(tP,tN,tNe);
+}
+
+function _rnHistCharts(tP,tN,tNe){
+  const labels=_RN_HIST.map(h=>h.nome);
+  const vals=_RN_HIST.map(h=>h.pos+h.neg+h.neu);
+  const ctxB=document.getElementById('_rn-hist-bar');
+  if(ctxB){if(_rnHistBar)_rnHistBar.destroy();_rnHistBar=new Chart(ctxB,{type:'bar',data:{labels,datasets:[{label:'Total',data:vals,backgroundColor:'rgba(167,139,250,0.65)',borderColor:'#a78bfa',borderWidth:1,borderRadius:5}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9},color:'#94a3b8',maxRotation:45},grid:{display:false}},y:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.05)'},beginAtZero:true}}}});}
+  const ctxP=document.getElementById('_rn-hist-pizza');
+  if(ctxP){if(_rnHistPizza)_rnHistPizza.destroy();_rnHistPizza=new Chart(ctxP,{type:'doughnut',data:{labels:['Positivos','Negativos'],datasets:[{data:[tP,tN],backgroundColor:['rgba(74,222,128,0.85)','rgba(239,68,68,0.85)'],borderColor:['#4ade80','#ef4444'],borderWidth:2}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:11}}}}}});}
+}
+
 const _prevSSrn=window.showSection;
 window.showSection=function(id,el){
   if(typeof _prevSSrn==='function') _prevSSrn(id,el);
@@ -9614,7 +9696,7 @@ window.showSection=function(id,el){
 
 function _rnInit(){
   if(typeof currentProfile==='undefined'||!currentProfile) return false;
-  if(currentProfile.papel!=='admin') return true;
+  if(currentProfile.email!=='natalia@malaquias.com') return true;
   _injectSec(); _injectNav(); return true;
 }
 if(!_rnInit()){const _t=setInterval(()=>{if(_rnInit())clearInterval(_t);},500);setTimeout(()=>clearInterval(_t),30000);}
@@ -9777,6 +9859,49 @@ function _init() {
   return true;
 }
 if(!_init()){ const _t=setInterval(()=>{if(_init())clearInterval(_t);},500); setTimeout(()=>clearInterval(_t),30000); }
+
+})();
+</script>
+
+<script>
+/* ============================
+   NOTIFICAÇÕES EM TEMPO REAL — ADMINS
+   ============================ */
+(function(){
+'use strict';
+
+let _rtChannels=[];
+
+function _rtToast(nome,proj,cadPor){
+  const t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:24px;right:24px;z-index:99999;background:#0a2416;border:1px solid #00e676;border-radius:14px;padding:16px 20px;font-size:13px;max-width:300px;box-shadow:0 8px 32px rgba(0,200,83,0.2);display:flex;gap:12px;align-items:flex-start;cursor:pointer';
+  t.innerHTML=`<div style="font-size:22px;flex-shrink:0">🔔</div><div><div style="font-weight:700;color:#f1f5f9;margin-bottom:3px">Novo cadastro — ${proj}</div><div style="color:#00e676;font-weight:600">${nome}</div><div style="color:#94a3b8;font-size:11px;margin-top:2px">Por: ${cadPor}</div></div>`;
+  t.onclick=()=>t.remove();
+  document.body.appendChild(t);
+  setTimeout(()=>{ if(t.parentNode) t.remove(); },8000);
+}
+
+function _rtInit(){
+  if(!window.currentProfile||window.currentProfile.papel!=='admin') return false;
+  if(_rtChannels.length) return true;
+  const tbls=['pacientes_fibro'];
+  tbls.forEach(tbl=>{
+    const ch=sb.channel('rt-new-'+tbl)
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:tbl},payload=>{
+        const p=payload.new||{};
+        const nome=p.nome||'Novo paciente';
+        const pr=window._profilesMap?.[p.cadastrado_por];
+        const cadPor=pr?(pr.nome_ponto||pr.nome||'Colaborador'):'Colaborador';
+        _rtToast(nome,'Fibromialgia',cadPor);
+        if(typeof window.loadData==='function') setTimeout(()=>window.loadData(),1000);
+      })
+      .subscribe();
+    _rtChannels.push(ch);
+  });
+  return true;
+}
+
+if(!_rtInit()){const _t=setInterval(()=>{if(_rtInit())clearInterval(_t);},600);setTimeout(()=>clearInterval(_t),30000);}
 
 })();
 </script>
