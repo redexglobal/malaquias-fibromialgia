@@ -1679,29 +1679,6 @@ tr:last-child td { border-bottom: none; }
       <h1 class="page-title">Gestão de Pontos</h1>
       <p class="page-subtitle">20 fixos + 5 móveis editáveis</p>
 
-      <div id="pontos-filters" style="display:flex;flex-wrap:wrap;gap:18px;align-items:center;margin:14px 0 18px;padding:12px 16px;background:rgba(0,0,0,0.15);border:1px solid var(--border-glass);border-radius:10px">
-        <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-muted)">
-          <i class="fas fa-heartbeat" style="color:#ef4444"></i>
-          <span>Dor</span>
-          <span id="pt-dor-label" style="font-weight:700;color:var(--accent);min-width:46px">0 – 10</span>
-          <input type="range" id="pt-dor-min" min="0" max="10" value="0" style="width:80px;accent-color:#00c853">
-          <span style="opacity:0.6">–</span>
-          <input type="range" id="pt-dor-max" min="0" max="10" value="10" style="width:80px;accent-color:#00c853">
-        </div>
-        <div id="pontos-chips" style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="pt-chip active" data-filter="todos">Todos</button>
-          <button class="pt-chip" data-filter="dor-alta">Dor Alta (7+)</button>
-          <button class="pt-chip" data-filter="hoje">Hoje</button>
-          <button class="pt-chip" data-filter="semana">Semana</button>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);margin-left:auto">
-          <i class="fas fa-calendar-day" style="color:#a78bfa"></i>
-          <span>Data:</span>
-          <input type="date" id="pt-data-especifica" style="background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.3);border-radius:6px;padding:4px 8px;color:#cbb6ff;font-size:11px;cursor:pointer;font-family:inherit">
-          <button id="pt-data-clear" title="Limpar data" style="background:transparent;border:1px solid var(--border-glass);color:var(--text-muted);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;display:none">✕</button>
-        </div>
-      </div>
-
       <div class="kpi-grid" id="pontos-grid"></div>
     </div>
 
@@ -2723,25 +2700,19 @@ document.getElementById('login-password').addEventListener('keypress', e => {
       <div class="d-kpi"><div class="d-kpi-val" id="d-semana">—</div><div class="d-kpi-label">Esta Semana</div></div>
       <div class="d-kpi"><div class="d-kpi-val" id="d-total">—</div><div class="d-kpi-label">Total</div></div>
     </div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
-      <input class="d-search" id="d-search" placeholder="🔍 Buscar por nome ou WhatsApp..." oninput="filtrarDetalhe()" style="flex:1;min-width:200px">
-      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted)">
-        <i class="fas fa-calendar" style="color:#a78bfa"></i>
-        <span>De:</span>
-        <input type="date" id="d-data-de" style="background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.3);border-radius:6px;padding:5px 8px;color:#cbb6ff;font-size:11px;font-family:inherit" onchange="window._dFilterByDate()">
-        <span>Até:</span>
-        <input type="date" id="d-data-ate" style="background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.3);border-radius:6px;padding:5px 8px;color:#cbb6ff;font-size:11px;font-family:inherit" onchange="window._dFilterByDate()">
-      </div>
-      <button onclick="window._dExportCSV()" title="Exportar CSV do que está sendo exibido" style="background:rgba(0,200,83,0.15);border:1px solid rgba(0,200,83,0.4);color:#00e676;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="fas fa-file-csv"></i> Exportar CSV</button>
-    </div>
+    <input class="d-search" id="d-search" placeholder="🔍 Buscar por nome ou WhatsApp..." oninput="filtrarDetalhe()">
     <div class="d-table-wrap">
       <div class="d-table-top">
         <h3>Cadastros deste Ponto</h3>
         <span class="d-count" id="d-count">—</span>
       </div>
-      <div id="d-grouped" style="max-height:60vh;overflow-y:auto"></div>
+      <div style="overflow-x:auto;">
+        <table class="d-tbl">
+          <thead><tr><th>Paciente</th><th>WhatsApp</th><th>Nível de Dor</th><th>Data Consulta</th><th>Registrado em</th></tr></thead>
+          <tbody id="d-tbody"></tbody>
+        </table>
+      </div>
     </div>
-    <div id="d-footer" style="margin-top:12px;padding:10px 14px;background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.2);border-radius:8px;text-align:center;font-size:12px;color:var(--text-muted)">—</div>
   </div>
 </div>
 
@@ -3504,174 +3475,49 @@ window.exportCSV = function(){
   a.click();
 };
 
-/* ---- override updatePontos: usa view v_pontos_{fibro|oculos} OU RPC por data ---- */
-window._pontosCache = [];
-window._pontosFiltroAtivo = 'todos';
-window._pontosFiltroDor = [0, 10];
-window._pontosDataEspecifica = null; /* string YYYY-MM-DD ou null */
-
-/* Esconde aba "Pontos" pra quem não é admin */
-function _gatePontosTab(){
-  const tab=typeof currentProfile!=='undefined'&&currentProfile?.papel==='admin';
-  const sec=document.getElementById('sec-pontos');
-  const navItems=document.querySelectorAll('[data-section="pontos"]');
-  if(!tab){
-    if(sec) sec.style.display='none';
-    navItems.forEach(n=>n.style.display='none');
-  } else {
-    if(sec) sec.style.display='';
-    navItems.forEach(n=>n.style.display='');
-  }
-}
-
+/* ---- override updatePontos to use currentProject ---- */
 window.updatePontos = async function(){
-  _gatePontosTab();
   const grid=document.getElementById('pontos-grid');
   if(!grid) return;
-  const dataEsp=window._pontosDataEspecifica;
-  let resp;
-  if(dataEsp){
-    /* RPC por data específica */
-    const rpc = currentProject==='oculos' ? 'get_pontos_por_data_oculos' : 'get_pontos_por_data_fibro';
-    resp = await sb.rpc(rpc, {p_data: dataEsp});
-  } else {
-    /* View padrão */
-    const view = currentProject==='oculos' ? 'v_pontos_oculos' : 'v_pontos_fibro';
-    resp = await sb.from(view).select('*');
-  }
-  const {data, error} = resp;
-  if(error){
-    console.error('[PONTOS ERROR]', error);
-    grid.innerHTML = `<div style="grid-column:1/-1;color:#fca5a5;text-align:center;padding:2rem;font-size:14px"><i class="fas fa-exclamation-triangle" style="font-size:28px;margin-bottom:8px;display:block;opacity:.6"></i>Erro ao carregar pontos: ${error.message}<br><span style="font-size:11px;opacity:.7">Verifique se as views v_pontos_fibro/v_pontos_oculos e as RPCs get_pontos_por_data_* foram criadas no Supabase.</span></div>`;
+  /* Busca colaboradores: para fibro exclui 'oculos', para oculos filtra exato */
+  let q=sb.from('profiles').select('id,nome,numero_ponto,tipo_ponto,nome_ponto,online_at,status').eq('papel','colaborador');
+  if(currentProject==='oculos') q=q.eq('projeto','oculos');
+  else q=q.neq('projeto','oculos');
+  const {data:profiles}=await q.order('numero_ponto').catch(()=>({data:null}));
+  const hoje=new Date().toISOString().split('T')[0];
+  if(!profiles||!profiles.length){
+    grid.innerHTML='<div style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:2rem;font-size:14px"><i class="fas fa-map-marker-alt" style="font-size:28px;margin-bottom:8px;display:block;opacity:.4"></i>Nenhum ponto cadastrado ainda.</div>';
     return;
   }
-  window._pontosCache = data || [];
-  window._aplicarFiltrosPontos();
-};
-
-window._aplicarFiltrosPontos = function(){
-  const grid=document.getElementById('pontos-grid');
-  if(!grid) return;
-  let pontos = [...(window._pontosCache||[])];
-  const isFibro = currentProject !== 'oculos';
-  const dataEsp = window._pontosDataEspecifica;
-
-  /* Filtro slider de dor — só fibro */
-  if(isFibro){
-    const [min,max] = window._pontosFiltroDor;
-    if(min>0 || max<10){
-      pontos = pontos.filter(p=>{
-        const dor = parseFloat(p.media_dor)||0;
-        if(dor===0) return min===0;
-        return dor>=min && dor<=max;
-      });
-    }
-  }
-
-  /* Filtros chip — DESATIVADOS quando data específica está ativa */
-  if(!dataEsp){
-    const flt = window._pontosFiltroAtivo;
-    if(flt==='dor-alta' && isFibro){
-      pontos = pontos.filter(p => (p.cadastros_dor_alta||0) > 0);
-    } else if(flt==='hoje'){
-      pontos = pontos.filter(p => (p.cadastros_hoje||0) > 0);
-    } else if(flt==='semana'){
-      pontos = pontos.filter(p => (p.cadastros_semana||0) > 0);
-    }
-  }
-
-  if(!pontos.length){
-    grid.innerHTML='<div style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:2rem;font-size:14px"><i class="fas fa-filter" style="font-size:28px;margin-bottom:8px;display:block;opacity:.4"></i>Nenhum ponto encontrado com os filtros atuais.</div>';
-    return;
-  }
-
+  const agora5min=new Date(Date.now()-5*60000).toISOString();
   const isAdminUser=typeof currentProfile!=='undefined'&&currentProfile?.papel==='admin';
-  grid.innerHTML=pontos.map(p=>{
-    const nome=p.nome_ponto||p.nome||('Ponto '+p.numero_ponto);
-    const cnt = dataEsp ? (p.cadastros_no_dia||0) : (p.total_cadastros||0);
-    const cntH = dataEsp ? null : (p.cadastros_hoje||0);
-    const dataLabel = dataEsp ? new Date(dataEsp+'T12:00:00').toLocaleDateString('pt-BR') : null;
+  grid.innerHTML=profiles.map(p=>{
+    const nome=p.nome_ponto||p.nome;
+    const cnt=(allPacientes||[]).filter(pac=>pac.cadastrado_por===p.id).length;
+    const cntH=(allPacientes||[]).filter(pac=>pac.cadastrado_por===p.id&&pac.criado_em?.startsWith(hoje)).length;
     const status=p.status||'ativo';
     const isAtivo=status==='ativo';
-    const isOnline=!!p.online;
+    const isOnline=p.online_at&&p.online_at>agora5min;
+    /* dot: verde pulsando = online nos últimos 5min; cinza = offline */
     const dotStyle=isOnline?'background:#00c853;box-shadow:0 0 6px #00c853;animation:dotPulse 2s infinite':'background:#4b5563';
     const statusBg=isAtivo?'rgba(0,200,83,.15)':'rgba(239,68,68,.15)';
     const statusCor=isAtivo?'#00c853':'#ef4444';
     const statusLabel=isAtivo?'● Ativo':'○ Offline';
-    const ehMovel=(p.tipo_ponto==='movel'||p.tipo_ponto==='móvel');
-    const nomeEsc=nome.replace(/'/g,"\\'");
-    return `<div class="kpi-card" style="cursor:pointer;position:relative;border:1px solid ${isAtivo?'rgba(0,200,83,.2)':'rgba(239,68,68,.2)'}" onclick="openPontoDetalhe('${p.id}','${nomeEsc}','${p.tipo_ponto||'fixo'}')">
+    return `<div class="kpi-card" style="cursor:pointer;position:relative;border:1px solid ${isAtivo?'rgba(0,200,83,.2)':'rgba(239,68,68,.2)'}" onclick="openPontoDetalhe('${p.id}','${nome.replace(/'/g,"\\'")}','${p.tipo_ponto||'fixo'}')">
       <div style="position:absolute;top:10px;left:10px;width:10px;height:10px;border-radius:50%;${dotStyle};z-index:4" title="${isOnline?'Online agora':'Sem atividade recente'}"></div>
       ${isAdminUser?`<div style="position:absolute;top:7px;right:7px;display:flex;gap:4px;z-index:5">
-        <button title="Editar nome" onclick="event.stopPropagation();window._pontoEditNome('${p.id}','${nomeEsc}',this.closest('.kpi-card'))" style="width:26px;height:26px;border-radius:6px;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.25);color:#00c853;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;padding:0">✏️</button>
+        <button title="Editar nome" onclick="event.stopPropagation();window._pontoEditNome('${p.id}','${nome.replace(/'/g,"\\'")}',this.closest('.kpi-card'))" style="width:26px;height:26px;border-radius:6px;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.25);color:#00c853;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;padding:0">✏️</button>
         <button id="st-btn-${p.id}" title="${isAtivo?'Marcar offline':'Marcar ativo'}" onclick="event.stopPropagation();window._pontoToggleStatus('${p.id}','${status}',this)" style="width:26px;height:26px;border-radius:6px;background:${statusBg};border:1px solid ${statusCor}55;color:${statusCor};cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;padding:0;font-weight:700">${isAtivo?'ON':'OFF'}</button>
       </div>`:''}
       <div class="kpi-header" style="padding-left:22px;margin-bottom:6px">
-        <div class="kpi-icon"><i class="fas fa-${ehMovel?'route':'map-pin'}"></i></div>
+        <div class="kpi-icon"><i class="fas fa-${p.tipo_ponto==='movel'?'route':'map-pin'}"></i></div>
         <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:${statusBg};color:${statusCor}">${statusLabel}</span>
       </div>
       <div style="font-size:14px;font-weight:600;margin-bottom:4px;padding-right:${isAdminUser?'58':'8'}px;line-height:1.3" class="ponto-nome-txt">${nome}</div>
-      <div style="font-size:12px;color:var(--text-muted)">${dataEsp?`<span style="color:#a78bfa;font-weight:600">${cnt}</span> cadastro${cnt!==1?'s':''} em ${dataLabel}`:`${cnt} registro${cnt!==1?'s':''}${cntH>0?' · <span style="color:var(--accent);font-weight:600">+'+cntH+' hoje</span>':''}`}</div>
+      <div style="font-size:12px;color:var(--text-muted)">${cnt} registro${cnt!==1?'s':''}${cntH>0?' · <span style="color:var(--accent);font-weight:600">+'+cntH+' hoje</span>':''}</div>
     </div>`;
   }).join('');
 };
-
-/* ---- wire-up dos filtros (idempotente) ---- */
-function _initPontosFiltros(){
-  document.querySelectorAll('#pontos-chips .pt-chip').forEach(btn => {
-    if(btn._wired) return; btn._wired = true;
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('#pontos-chips .pt-chip').forEach(c=>c.classList.remove('active'));
-      btn.classList.add('active');
-      window._pontosFiltroAtivo = btn.dataset.filter;
-      window._aplicarFiltrosPontos();
-    });
-  });
-  const slMin=document.getElementById('pt-dor-min');
-  const slMax=document.getElementById('pt-dor-max');
-  const handle=()=>{
-    const min=parseInt(slMin.value); const max=parseInt(slMax.value);
-    const lo=Math.min(min,max), hi=Math.max(min,max);
-    window._pontosFiltroDor=[lo,hi];
-    const lbl=document.getElementById('pt-dor-label');
-    if(lbl) lbl.textContent=lo+' – '+hi;
-    window._aplicarFiltrosPontos();
-  };
-  if(slMin && !slMin._wired){ slMin._wired=true; slMin.addEventListener('input',handle); }
-  if(slMax && !slMax._wired){ slMax._wired=true; slMax.addEventListener('input',handle); }
-
-  /* Date picker — quando preenchido, chama RPC; quando vazio, volta pra view */
-  const dt=document.getElementById('pt-data-especifica');
-  const dtClear=document.getElementById('pt-data-clear');
-  if(dt && !dt._wired){
-    dt._wired=true;
-    dt.addEventListener('change', async () => {
-      const val=dt.value;
-      window._pontosDataEspecifica = val || null;
-      if(dtClear) dtClear.style.display = val?'':'none';
-      /* desativa chips temporais visualmente quando data está ativa */
-      document.querySelectorAll('#pontos-chips .pt-chip').forEach(c=>{
-        const isTemp=['hoje','semana'].includes(c.dataset.filter);
-        if(val && isTemp){ c.style.opacity='.4'; c.style.pointerEvents='none'; }
-        else { c.style.opacity=''; c.style.pointerEvents=''; }
-      });
-      await window.updatePontos();
-    });
-  }
-  if(dtClear && !dtClear._wired){
-    dtClear._wired=true;
-    dtClear.addEventListener('click', async () => {
-      const dt=document.getElementById('pt-data-especifica');
-      if(dt) dt.value='';
-      window._pontosDataEspecifica = null;
-      dtClear.style.display='none';
-      document.querySelectorAll('#pontos-chips .pt-chip').forEach(c=>{c.style.opacity='';c.style.pointerEvents='';});
-      await window.updatePontos();
-    });
-  }
-}
-setTimeout(_initPontosFiltros, 800);
-setTimeout(_initPontosFiltros, 2500); /* fallback caso DOM atrase */
 
 window._pontoToggleStatus = async function(id, statusAtual, btn){
   const novoStatus = statusAtual==='ativo'?'offline':'ativo';
@@ -3698,14 +3544,6 @@ window.openPontoDetalhe = async function(profileId,nome,tipo){
     ?'<th>Paciente</th><th>WhatsApp</th><th>Nível de Dor</th><th>Data Consulta</th><th>Registrado em</th>'
     :'<th>Paciente</th><th>WhatsApp</th><th>Status</th><th>Data Entrega</th><th>Registrado em</th>';
   document.getElementById('d-search').value='';
-  /* Default date filter: últimos 30 dias */
-  const hoje=new Date();
-  const ontem30=new Date(Date.now()-30*86400000);
-  const fmt=d=>d.toISOString().slice(0,10);
-  const di=document.getElementById('d-data-de');
-  const df=document.getElementById('d-data-ate');
-  if(di) di.value=fmt(ontem30);
-  if(df) df.value=fmt(hoje);
   el.classList.add('show');
   document.body.style.overflow='hidden';
   /* load data */
@@ -3736,122 +3574,33 @@ function _dpRefreshKPIs(){
   document.getElementById('d-total').textContent=_dpRecs.length;
 }
 
-/* Filtros aplicados (texto + data) — retorna subset de _dpRecs */
-function _dGetFiltered(){
-  let recs=[...(_dpRecs||[])];
-  const q=(document.getElementById('d-search')?.value||'').toLowerCase();
-  if(q) recs=recs.filter(r=>(r.nome||'').toLowerCase().includes(q)||(r.whatsapp||'').includes(q));
-  const from=document.getElementById('d-data-de')?.value||null;
-  const to  =document.getElementById('d-data-ate')?.value||null;
-  if(from) recs=recs.filter(r=>r.criado_em && r.criado_em.slice(0,10) >= from);
-  if(to)   recs=recs.filter(r=>r.criado_em && r.criado_em.slice(0,10) <= to);
-  return recs;
-}
-
-window._dFilterByDate = function(){ _dpRenderTable(); };
-
-/* Renderiza agrupado por data com sticky header + footer com total */
-function _dpRenderTable(_ignored){
-  const recs=_dGetFiltered();
-  const total=(_dpRecs||[]).length;
+function _dpRenderTable(recs){
+  recs=recs||_dpRecs;
   const cnt=document.getElementById('d-count');
-  if(cnt) cnt.textContent=recs.length+' registro'+(recs.length!==1?'s':'');
-  const ft=document.getElementById('d-footer');
-  if(ft) ft.innerHTML = `Exibindo <strong style="color:#a78bfa">${recs.length}</strong> de <strong>${total}</strong> cadastros`;
-  const grp=document.getElementById('d-grouped');
-  if(!grp) return;
-  if(!recs.length){
-    grp.innerHTML='<div style="text-align:center;padding:2.5rem 1rem;color:var(--text-muted);font-size:14px"><i class="fas fa-inbox" style="font-size:32px;opacity:0.4;display:block;margin-bottom:10px"></i>Nenhum registro encontrado com os filtros atuais.</div>';
-    return;
-  }
-  /* Agrupar por data (YYYY-MM-DD do criado_em) */
-  const groups={};
-  recs.forEach(r=>{
-    const k=r.criado_em?r.criado_em.slice(0,10):'sem-data';
-    if(!groups[k]) groups[k]=[];
-    groups[k].push(r);
-  });
-  const keys=Object.keys(groups).sort().reverse();
-  grp.innerHTML=keys.map(k=>{
-    const items=groups[k];
-    const dateLabel=k==='sem-data'?'Sem data registrada':new Date(k+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
-    const rows=items.map(r=>{
-      const hora=r.criado_em?new Date(r.criado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'—';
-      let metric;
-      if(currentProject==='fibro'){
-        const dc=r.nivel_dor<=3?'dor-low':r.nivel_dor<=6?'dor-mid':'dor-high';
-        metric=r.nivel_dor!=null?`<span class="dor-badge ${dc}">Dor ${r.nivel_dor}/10</span>`:'<span style="color:var(--text-muted)">—</span>';
-      } else {
-        const sm={aguardando:'⏳',em_producao:'⚙️',pronto:'✅',entregue:'📦'};
-        metric=`<span style="color:var(--text-secondary);font-size:12px">${sm[r.status_pedido]||''} ${r.status_pedido||'—'}</span>`;
-      }
-      return `<div style="display:grid;grid-template-columns:64px 1fr 150px 200px;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border-glass);align-items:center;font-size:13px">
-        <span style="color:var(--accent);font-weight:700;font-family:monospace">${hora}</span>
-        <span style="font-weight:500;color:var(--text-primary)">${r.nome||'—'}</span>
-        <span style="color:var(--text-secondary);font-size:12px">${r.whatsapp||'—'}</span>
-        <div>${metric}</div>
-      </div>`;
-    }).join('');
-    return `<div style="margin-bottom:14px">
-      <div style="position:sticky;top:0;background:linear-gradient(135deg,rgba(167,139,250,0.18),rgba(167,139,250,0.08));backdrop-filter:blur(10px);border:1px solid rgba(167,139,250,0.3);border-radius:8px;padding:9px 14px;margin-bottom:4px;font-weight:700;color:#cbb6ff;font-size:13px;text-transform:capitalize;z-index:2">
-        <i class="fas fa-calendar-day" style="margin-right:8px;opacity:0.7"></i>${dateLabel}
-        <span style="font-weight:400;color:rgba(203,182,255,0.7);font-size:11px;margin-left:8px">${items.length} cadastro${items.length!==1?'s':''}</span>
-      </div>
-      ${rows}
-    </div>`;
+  if(cnt)cnt.textContent=recs.length+' registro'+(recs.length!==1?'s':'');
+  const tb=document.getElementById('d-tbody');
+  if(!tb)return;
+  if(!recs.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhum registro encontrado.</td></tr>';return;}
+  tb.innerHTML=recs.slice(0,100).map(r=>{
+    let c3,c4;
+    if(currentProject==='fibro'){
+      const dc=r.nivel_dor<=3?'dor-low':r.nivel_dor<=6?'dor-mid':'dor-high';
+      c3=r.nivel_dor!=null?`<span class="dor-badge ${dc}">${r.nivel_dor}/10</span>`:'—';
+      c4=r.data_consulta?new Date(r.data_consulta+'T00:00:00').toLocaleDateString('pt-BR'):'—';
+    } else {
+      const sm={aguardando:'⏳',em_producao:'⚙️',pronto:'✅',entregue:'📦'};
+      c3=(sm[r.status_pedido]||'')+' '+(r.status_pedido||'—');
+      c4=r.data_entrega?new Date(r.data_entrega+'T00:00:00').toLocaleDateString('pt-BR'):'—';
+    }
+    const cAt=r.criado_em?new Date(r.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
+    return `<tr><td style="font-weight:500">${r.nome||'—'}</td><td style="color:var(--text-secondary)">${r.whatsapp||'—'}</td><td>${c3}</td><td>${c4}</td><td style="font-size:11px;color:var(--text-muted)">${cAt}</td></tr>`;
   }).join('');
 }
 
-/* override filtrarDetalhe → usa _dGetFiltered (combina texto + data) */
-window.filtrarDetalhe = function(){ _dpRenderTable(); };
-
-/* Exporta CSV do que está sendo exibido (respeita filtros texto + data) */
-window._dExportCSV = function(){
-  const recs=_dGetFiltered();
-  if(!recs.length){ alert('Nada pra exportar com os filtros atuais.'); return; }
-  let headers, lines;
-  if(currentProject==='fibro'){
-    headers=['Data','Hora','Paciente','WhatsApp','Idade','Nivel_Dor','Data_Consulta','CPF','Observacoes'];
-    lines=recs.map(r=>{
-      const d=r.criado_em?new Date(r.criado_em):null;
-      return [
-        d?d.toLocaleDateString('pt-BR'):'',
-        d?d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'',
-        (r.nome||'').replace(/"/g,'""'),
-        (r.whatsapp||'').replace(/"/g,'""'),
-        r.idade||'',
-        r.nivel_dor!=null?r.nivel_dor:'',
-        r.data_consulta||'',
-        (r.cpf||''),
-        (r.observacoes||'').replace(/"/g,'""').replace(/[\r\n]+/g,' ')
-      ].map(v=>`"${v}"`).join(',');
-    });
-  } else {
-    headers=['Data','Hora','Paciente','WhatsApp','Status','Valor','Grau_OD','Grau_OE','Armacao','Observacoes'];
-    lines=recs.map(r=>{
-      const d=r.criado_em?new Date(r.criado_em):null;
-      return [
-        d?d.toLocaleDateString('pt-BR'):'',
-        d?d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'',
-        (r.nome||'').replace(/"/g,'""'),
-        (r.whatsapp||'').replace(/"/g,'""'),
-        r.status_pedido||'',
-        r.valor_pedido||'',
-        r.grau_od||'',
-        r.grau_oe||'',
-        (r.armacao||''),
-        (r.observacoes||'').replace(/"/g,'""').replace(/[\r\n]+/g,' ')
-      ].map(v=>`"${v}"`).join(',');
-    });
-  }
-  const csv='﻿'+headers.join(',')+'\n'+lines.join('\n');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;
-  a.download=`cadastros_${(_dpNome||'ponto').replace(/[^a-zA-Z0-9]/g,'_')}_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+/* override filtrarDetalhe to use _dpRecs */
+window.filtrarDetalhe = function(){
+  const q=(document.getElementById('d-search')?.value||'').toLowerCase();
+  _dpRenderTable(q?_dpRecs.filter(r=>(r.nome||'').toLowerCase().includes(q)||(r.whatsapp||'').includes(q)):_dpRecs);
 };
 
 /* override fecharDetalhe */
@@ -4101,30 +3850,6 @@ window.switchProject = function(proj, btn) {
 
 
 <style>
-/* ====== CHIPS DE FILTRO da seção Pontos ====== */
-#pontos-chips .pt-chip {
-  background: transparent;
-  border: 1px solid var(--border-glass);
-  color: var(--text-muted);
-  border-radius: 14px;
-  padding: 5px 14px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all .18s ease;
-  letter-spacing: .02em;
-}
-#pontos-chips .pt-chip:hover {
-  border-color: rgba(0,200,83,.45);
-  color: #b9e6cd;
-}
-#pontos-chips .pt-chip.active {
-  background: rgba(0,200,83,.18) !important;
-  border-color: rgba(0,200,83,.5) !important;
-  color: #00e676 !important;
-  box-shadow: 0 0 10px rgba(0,200,83,.18);
-}
-
 /* ====== VERDE VIBRANTE — CARDS DOS PONTOS ====== */
 #pontos-grid .kpi-card {
   background: linear-gradient(135deg, #082218 0%, #0a2a1a 60%, #0d3522 100%) !important;
@@ -7835,29 +7560,20 @@ function _ensureDetailPanel() {
       <div class="pp-kpi"><div class="pp-kpi-val" id="pp-semana">—</div><div class="pp-kpi-label">Esta Semana</div></div>
       <div class="pp-kpi"><div class="pp-kpi-val" id="pp-total">—</div><div class="pp-kpi-label">Total Geral</div></div>
     </div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:14px 0;padding:10px 14px;background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.2);border-radius:10px">
-      <input type="text" id="pp-search" placeholder="🔍 Buscar nome ou WhatsApp" style="flex:1;min-width:200px;background:rgba(0,0,0,0.15);border:1px solid var(--border-glass);border-radius:6px;padding:7px 10px;color:var(--text-primary);font-size:12px;font-family:inherit" oninput="window._ppApplyFilter()">
-      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted)">
-        <i class="fas fa-calendar" style="color:#a78bfa"></i>
-        <span>De:</span>
-        <input type="date" id="pp-data-de" style="background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.3);border-radius:6px;padding:5px 8px;color:#cbb6ff;font-size:11px;font-family:inherit" onchange="window._ppApplyFilter()">
-        <span>Até:</span>
-        <input type="date" id="pp-data-ate" style="background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.3);border-radius:6px;padding:5px 8px;color:#cbb6ff;font-size:11px;font-family:inherit" onchange="window._ppApplyFilter()">
-      </div>
-      <button onclick="window._ppExportCSV()" title="Exportar CSV" style="background:rgba(0,200,83,0.15);border:1px solid rgba(0,200,83,0.4);color:#00e676;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="fas fa-file-csv"></i> Exportar CSV</button>
-    </div>
-    <div id="pp-grouped" style="max-height:65vh;overflow-y:auto"></div>
-    <div id="pp-footer" style="margin-top:12px;padding:10px 14px;background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.2);border-radius:8px;text-align:center;font-size:12px;color:var(--text-muted)">—</div>`;
+    <div class="pp-tbl-wrap">
+      <table class="pp-tbl">
+        <thead id="pp-thead"></thead>
+        <tbody id="pp-tbody"></tbody>
+      </table>
+    </div>`;
   sec.appendChild(div);
 }
 
 window._ppBack = function() {
   const grid = _$('pontos-grid');
-  const filtros = _$('pontos-filters');
   const detail = _$('pp-detail');
-  if (grid)    grid.style.display = '';
-  if (filtros) filtros.style.display = '';
-  if (detail)  detail.style.display = 'none';
+  if (grid) grid.style.display = '';
+  if (detail) detail.style.display = 'none';
   if (_ppSub) { _ppSub.unsubscribe(); _ppSub = null; }
   _ppRecs = []; _ppId = null;
 };
@@ -7871,144 +7587,44 @@ function _ppSetHeaders() {
     `<th>${c}</th>`).join('') + '</tr>';
 }
 
-function _ppGetFiltered() {
-  let recs = [...(_ppRecs || [])];
-  const q = (_$('pp-search')?.value || '').toLowerCase();
-  if (q) recs = recs.filter(r => (r.nome||'').toLowerCase().includes(q) || (r.whatsapp||'').includes(q));
-  const from = _$('pp-data-de')?.value || null;
-  const to   = _$('pp-data-ate')?.value || null;
-  if (from) recs = recs.filter(r => r.criado_em && r.criado_em.slice(0,10) >= from);
-  if (to)   recs = recs.filter(r => r.criado_em && r.criado_em.slice(0,10) <= to);
-  return recs;
-}
-
-window._ppApplyFilter = function(){ _ppRenderRows(false); };
-
 function _ppRenderRows(isNew) {
-  const grp = _$('pp-grouped'); if (!grp) return;
+  const tb = _$('pp-tbody'); if (!tb) return;
   const today = _today();
   const sem   = new Date(Date.now()-7*86400000).toISOString().split('T')[0];
 
-  /* KPIs (sobre TODOS os registros, não respeita filtros) */
+  /* KPIs */
   const todayC = _ppRecs.filter(r=>r.criado_em?.startsWith(today)).length;
   const semC   = _ppRecs.filter(r=>r.criado_em&&r.criado_em>=sem).length;
   const total  = _ppRecs.length;
   const _an = (id,n) => { const el=_$(id);if(!el)return;const dur=400,st=Date.now();(function t(){const p=Math.min((Date.now()-st)/dur,1);el.textContent=Math.round(n*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(t);})(); };
   _an('pp-hoje',todayC); _an('pp-semana',semC); _an('pp-total',total);
 
-  /* Filtra (texto + data) */
-  const recs = _ppGetFiltered();
-
-  /* Footer: X de Y */
-  const ft = _$('pp-footer');
-  if (ft) ft.innerHTML = `Exibindo <strong style="color:#a78bfa">${recs.length}</strong> de <strong>${total}</strong> cadastro${total!==1?'s':''}`;
-
-  if (!total) {
-    grp.innerHTML = `<div class="pp-empty" style="padding:2.5rem 1rem;text-align:center;color:var(--text-muted)"><i class="fas fa-inbox" style="font-size:32px;opacity:0.4;display:block;margin-bottom:10px"></i>Nenhum cadastro registrado neste ponto ainda.<br><span style="font-size:12px;opacity:.6">Novos registros aparecem aqui instantaneamente.</span></div>`;
+  if (!_ppRecs.length) {
+    tb.innerHTML = `<tr><td colspan="6" class="pp-empty">Nenhum cadastro registrado ainda.<br><span style="font-size:12px;opacity:.6">Novos registros aparecem aqui instantaneamente.</span></td></tr>`;
     return;
   }
-  if (!recs.length) {
-    grp.innerHTML = `<div class="pp-empty" style="padding:2.5rem 1rem;text-align:center;color:var(--text-muted)"><i class="fas fa-filter" style="font-size:32px;opacity:0.4;display:block;margin-bottom:10px"></i>Nenhum registro corresponde aos filtros atuais.</div>`;
-    return;
-  }
-
-  /* Agrupa por data (criado_em::date) */
-  const groups = {};
-  recs.forEach(r => {
-    const k = r.criado_em ? r.criado_em.slice(0,10) : 'sem-data';
-    if (!groups[k]) groups[k] = [];
-    groups[k].push(r);
-  });
-  const keys = Object.keys(groups).sort().reverse();
 
   const stL = {aguardando:'⏳ Aguardando',em_producao:'⚙️ Produção',pronto:'✅ Pronto',entregue:'📦 Entregue'};
   const dc  = v => v<=3?'dor-low':v<=6?'dor-mid':'dor-high';
-  const isOculos = _proj() === 'oculos';
 
-  grp.innerHTML = keys.map((k, gIdx) => {
-    const items = groups[k];
-    const dateLabel = k === 'sem-data'
-      ? 'Sem data registrada'
-      : new Date(k+'T12:00:00').toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long', year:'numeric'});
-    const rows = items.map((r,i) => {
-      const hora = r.criado_em ? new Date(r.criado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '—';
-      let metric;
-      if (isOculos) {
-        metric = `<span style="font-size:12px;color:var(--text-secondary)">${stL[r.status_pedido] || r.status_pedido || '—'}</span>`;
-      } else {
-        metric = r.nivel_dor != null
-          ? `<span class="dor-badge ${dc(r.nivel_dor)}">Dor ${r.nivel_dor}/10</span>`
-          : '<span style="color:var(--text-muted)">—</span>';
-      }
-      const isNewRow = isNew && gIdx===0 && i===0;
-      return `<div class="${isNewRow?'pp-new-row':''}" style="display:grid;grid-template-columns:64px 1fr 150px 200px;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border-glass);align-items:center;font-size:13px">
-        <span style="color:var(--accent);font-weight:700;font-family:monospace">${hora}</span>
-        <span style="font-weight:500;color:var(--text-primary)">${r.nome||'—'}${r.idade?` <span style="color:var(--text-muted);font-size:11px;font-weight:400">— ${r.idade}a</span>`:''}</span>
-        <span style="color:var(--text-secondary);font-size:12px">${r.whatsapp||'—'}</span>
-        <div>${metric}</div>
-      </div>`;
-    }).join('');
-    return `<div style="margin-bottom:14px">
-      <div style="position:sticky;top:0;background:linear-gradient(135deg,rgba(167,139,250,0.22),rgba(167,139,250,0.08));backdrop-filter:blur(10px);border:1px solid rgba(167,139,250,0.3);border-radius:8px;padding:9px 14px;margin-bottom:4px;font-weight:700;color:#cbb6ff;font-size:13px;text-transform:capitalize;z-index:2">
-        <i class="fas fa-calendar-day" style="margin-right:8px;opacity:0.7"></i>${dateLabel}
-        <span style="font-weight:400;color:rgba(203,182,255,0.7);font-size:11px;margin-left:8px">${items.length} cadastro${items.length!==1?'s':''}</span>
-      </div>
-      ${rows}
-    </div>`;
+  tb.innerHTML = _ppRecs.slice(0,30).map((r,i) => {
+    let c4, c5;
+    if (_proj() === 'oculos') {
+      c4 = stL[r.status_pedido] || r.status_pedido || '—';
+      c5 = r.data_entrega ? _date(r.data_entrega) : '—';
+    } else {
+      c4 = r.nivel_dor!=null ? `<span class="dor-badge ${dc(r.nivel_dor)}">${r.nivel_dor}/10</span>` : '—';
+      c5 = r.data_consulta ? _date(r.data_consulta) : '—';
+    }
+    return `<tr class="${i===0&&isNew?'pp-new-row':''}">
+      <td style="font-weight:600">${r.nome||'—'}</td>
+      <td>${r.idade||'—'}</td>
+      <td style="color:var(--text-secondary)">${r.whatsapp||'—'}</td>
+      <td>${c4}</td><td>${c5}</td>
+      <td style="font-size:11px;color:var(--text-muted)">${_hora(r.criado_em)}</td>
+    </tr>`;
   }).join('');
 }
-
-window._ppExportCSV = function(){
-  const recs = _ppGetFiltered();
-  if (!recs.length) { alert('Nada pra exportar com os filtros atuais.'); return; }
-  const isOculos = _proj() === 'oculos';
-  let headers, lines;
-  if (isOculos) {
-    headers = ['Data','Hora','Paciente','Idade','WhatsApp','Status','Valor','Data_Entrega','Grau_OD','Grau_OE','Observacoes'];
-    lines = recs.map(r => {
-      const d = r.criado_em?new Date(r.criado_em):null;
-      return [
-        d?d.toLocaleDateString('pt-BR'):'',
-        d?d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'',
-        (r.nome||'').replace(/"/g,'""'),
-        r.idade||'',
-        (r.whatsapp||'').replace(/"/g,'""'),
-        r.status_pedido||'',
-        r.valor_pedido||'',
-        r.data_entrega||'',
-        r.grau_od||'',
-        r.grau_oe||'',
-        (r.observacoes||'').replace(/"/g,'""').replace(/[\r\n]+/g,' ')
-      ].map(v=>`"${v}"`).join(',');
-    });
-  } else {
-    headers = ['Data','Hora','Paciente','Idade','WhatsApp','Nivel_Dor','Data_Consulta','CPF','Observacoes'];
-    lines = recs.map(r => {
-      const d = r.criado_em?new Date(r.criado_em):null;
-      return [
-        d?d.toLocaleDateString('pt-BR'):'',
-        d?d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'',
-        (r.nome||'').replace(/"/g,'""'),
-        r.idade||'',
-        (r.whatsapp||'').replace(/"/g,'""'),
-        r.nivel_dor!=null?r.nivel_dor:'',
-        r.data_consulta||'',
-        (r.cpf||''),
-        (r.observacoes||'').replace(/"/g,'""').replace(/[\r\n]+/g,' ')
-      ].map(v=>`"${v}"`).join(',');
-    });
-  }
-  const csv = '﻿' + headers.join(',') + '\n' + lines.join('\n');
-  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  const tituloEl = _$('pp-title');
-  const safeName = (tituloEl?.textContent || 'ponto').replace(/[^a-zA-Z0-9]/g,'_').slice(0,40);
-  a.download = `cadastros_${safeName}_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-};
 
 /* Override openPontoDetalhe — show/hide dentro de sec-pontos */
 window.openPontoDetalhe = async function(profileId, nome, tipo) {
@@ -8017,33 +7633,27 @@ window.openPontoDetalhe = async function(profileId, nome, tipo) {
 
   /* Título */
   const titleEl = _$('pp-title');
-  if (titleEl) titleEl.textContent = 'Cadastros — ' + nome;
+  if (titleEl) titleEl.textContent = 'Últimos cadastros — ' + nome;
 
-  /* Default date filter: últimos 30 dias (idempotente — só seta se vazio) */
-  const di = _$('pp-data-de'), df = _$('pp-data-ate');
-  const fmt = d => d.toISOString().slice(0,10);
-  if (di && !di.value) di.value = fmt(new Date(Date.now()-30*86400000));
-  if (df && !df.value) df.value = fmt(new Date());
-  const ps = _$('pp-search'); if (ps) ps.value = '';
+  /* Cabeçalhos */
+  _ppSetHeaders();
 
-  /* Esconde grid + filtros, mostra painel */
+  /* Esconde grid, mostra painel */
   const grid = _$('pontos-grid');
-  const filtros = _$('pontos-filters');
   const detail = _$('pp-detail');
-  if (grid)    grid.style.display = 'none';
-  if (filtros) filtros.style.display = 'none';
-  if (detail)  detail.style.display = 'block';
+  if (grid) grid.style.display = 'none';
+  if (detail) detail.style.display = 'block';
 
   /* Loading */
-  const grp = _$('pp-grouped');
-  if (grp) grp.innerHTML = `<div class="pp-empty" style="padding:2rem;text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Carregando cadastros...</div>`;
+  const tb = _$('pp-tbody');
+  if (tb) tb.innerHTML = `<tr><td colspan="6" class="pp-empty">Carregando cadastros...</td></tr>`;
 
-  /* Busca dados — agora limit 500 pra date filter ter mais material */
+  /* Busca dados */
   const { data, error } = await sb.from(_tbl())
     .select('*')
     .eq('cadastrado_por', profileId)
     .order('criado_em', { ascending: false })
-    .limit(500);
+    .limit(100);
 
   if (error) { if(typeof showToast==='function')showToast('Erro: '+error.message,true); return; }
   _ppRecs = data || [];
