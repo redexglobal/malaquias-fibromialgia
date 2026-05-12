@@ -865,6 +865,300 @@ tr:last-child td { border-bottom: none; }
 .star { font-size:28px; color:#ccc; cursor:pointer; transition:color .15s; }
 .star.active { color:#f59e0b; }
 .star:hover { color:#fbbf24; }
+
+/* ===================== FILTER BAR ===================== */
+.filter-bar {
+  position:fixed; top:64px; left:0; right:0; z-index:90;
+  background:var(--bg-secondary); border-bottom:1px solid var(--border-glass);
+  backdrop-filter:blur(14px); padding:0 24px;
+}
+.filter-bar-inner {
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  padding:8px 0; max-width:1600px; margin:0 auto;
+}
+.filter-btn {
+  display:flex; align-items:center; gap:7px;
+  background:var(--input-bg); border:1px solid var(--input-border);
+  border-radius:8px; padding:6px 12px; color:var(--text-secondary);
+  font-size:12px; cursor:pointer; transition:all .2s; white-space:nowrap;
+}
+.filter-btn:hover,.filter-btn.active { border-color:var(--accent); color:var(--accent); background:rgba(0,230,118,0.07); }
+.filter-dropdown-wrap { position:relative; }
+.filter-dropdown {
+  position:absolute; top:calc(100% + 8px); left:0;
+  background:var(--bg-card); border:1px solid var(--border-glass);
+  border-radius:12px; padding:14px; box-shadow:0 16px 48px rgba(0,0,0,0.5);
+  z-index:200; display:none; min-width:260px;
+}
+.filter-dropdown.show { display:block; }
+.date-presets { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+.dp-btn {
+  background:var(--input-bg); border:1px solid var(--input-border);
+  border-radius:6px; padding:4px 10px; font-size:12px;
+  cursor:pointer; color:var(--text-secondary); transition:all .15s;
+}
+.dp-btn:hover,.dp-btn.active { background:rgba(0,230,118,0.1); border-color:var(--accent); color:var(--accent); }
+.date-custom-row {
+  display:flex; align-items:center; gap:8px;
+  padding-top:10px; border-top:1px solid var(--border-glass);
+}
+.date-custom-row input[type=date] {
+  background:var(--input-bg); border:1px solid var(--input-border);
+  border-radius:6px; padding:5px 8px; color:var(--text-primary); font-size:12px; flex:1;
+}
+.date-custom-row span { color:var(--text-muted); font-size:12px; }
+.btn-apply-date {
+  background:var(--accent); color:#000; border:none;
+  border-radius:6px; padding:5px 12px; font-size:12px; cursor:pointer; font-weight:700;
+}
+.pain-filter-wrap {
+  display:flex; align-items:center; gap:8px;
+  background:var(--input-bg); border:1px solid var(--input-border);
+  border-radius:8px; padding:6px 12px;
+}
+.pain-filter-wrap label { font-size:12px; color:var(--text-secondary); white-space:nowrap; }
+.pain-slider { width:72px; accent-color:var(--accent); cursor:pointer; }
+.pain-val { font-size:12px; font-weight:700; color:var(--accent); min-width:14px; text-align:center; }
+.toggle-group { display:flex; gap:3px; background:var(--input-bg); border:1px solid var(--input-border); border-radius:8px; padding:3px; }
+.tgl-btn {
+  background:none; border:none; border-radius:5px;
+  padding:4px 10px; font-size:12px; cursor:pointer;
+  color:var(--text-secondary); transition:all .15s; white-space:nowrap;
+}
+.tgl-btn.active { background:var(--accent); color:#000; font-weight:700; }
+.filter-actions { margin-left:auto; display:flex; align-items:center; gap:8px; }
+.filter-count {
+  background:rgba(0,230,118,0.1); color:var(--accent);
+  border:1px solid rgba(0,230,118,0.25); border-radius:20px;
+  padding:3px 10px; font-size:12px; font-weight:700;
+}
+.filter-clear {
+  background:none; border:1px solid var(--border-glass);
+  border-radius:7px; padding:4px 10px; color:var(--text-muted);
+  font-size:12px; cursor:pointer; transition:all .15s;
+}
+.filter-clear:hover { border-color:var(--danger); color:var(--danger); }
+.active-chips { display:flex; flex-wrap:wrap; gap:5px; padding:0 0 6px; }
+.fchip {
+  display:flex; align-items:center; gap:5px;
+  background:rgba(0,230,118,0.08); border:1px solid rgba(0,230,118,0.2);
+  border-radius:20px; padding:3px 10px;
+  color:var(--accent); font-size:11px; font-weight:500;
+}
+.fchip-x {
+  background:none; border:none; cursor:pointer;
+  color:var(--accent); opacity:.7; font-size:11px; line-height:1; padding:0;
+}
+.fchip-x:hover { opacity:1; }
+
+/* ===================== LIVE BADGE ===================== */
+.live-badge { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-muted); }
+.live-dot { width:7px; height:7px; border-radius:50%; background:var(--accent); animation:live-pulse 2s infinite; }
+@keyframes live-pulse {
+  0%{box-shadow:0 0 0 0 rgba(0,230,118,.6)} 70%{box-shadow:0 0 0 8px rgba(0,230,118,0)} 100%{box-shadow:0 0 0 0 rgba(0,230,118,0)}
+}
+
+/* ===================== KPI ENHANCEMENTS ===================== */
+.kpi-card { cursor:pointer; }
+.kpi-card:hover { transform:translateY(-3px); border-color:rgba(0,230,118,.3)!important; box-shadow:0 12px 40px rgba(0,230,118,.1)!important; }
+.kpi-sparkline-wrap { height:36px; margin-top:8px; position:relative; }
+.kpi-cmp { font-size:11px; margin-top:3px; display:flex; align-items:center; gap:4px; }
+.kpi-cmp.up { color:#4ade80; } .kpi-cmp.down { color:#f87171; } .kpi-cmp.neutral { color:var(--text-muted); }
+
+/* ===================== DRAWERS ===================== */
+.drawer-overlay {
+  position:fixed; inset:0; z-index:300;
+  background:rgba(0,0,0,.65); backdrop-filter:blur(4px);
+  opacity:0; pointer-events:none; transition:opacity .3s;
+}
+.drawer-overlay.open { opacity:1; pointer-events:all; }
+.drawer {
+  position:fixed; top:0; right:0; bottom:0; z-index:301;
+  width:580px; max-width:96vw;
+  background:var(--bg-secondary); border-left:1px solid var(--border-glass);
+  display:flex; flex-direction:column;
+  transform:translateX(110%); transition:transform .32s cubic-bezier(.4,0,.2,1);
+  box-shadow:-20px 0 60px rgba(0,0,0,.5);
+}
+.drawer.open { transform:translateX(0); }
+@media(max-width:600px){
+  .drawer { top:auto; right:0; left:0; bottom:0; width:100%; max-width:100%; max-height:88vh;
+    border-left:none; border-top:1px solid var(--border-glass);
+    border-radius:20px 20px 0 0; transform:translateY(110%); }
+  .drawer.open { transform:translateY(0); }
+}
+.drw-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:18px 24px; border-bottom:1px solid var(--border-glass); flex-shrink:0;
+}
+.drw-header h3 { font-size:16px; font-weight:600; display:flex; align-items:center; gap:10px; }
+.drw-header h3 i { color:var(--accent); }
+.drw-close {
+  background:none; border:none; cursor:pointer;
+  color:var(--text-muted); font-size:18px; padding:4px; line-height:1; transition:color .15s;
+}
+.drw-close:hover { color:var(--text-primary); }
+.drw-search-row { padding:10px 24px; border-bottom:1px solid var(--border-glass); flex-shrink:0; }
+.drw-search {
+  width:100%; background:var(--input-bg); border:1px solid var(--input-border);
+  border-radius:8px; padding:8px 12px; color:var(--text-primary); font-size:13px;
+}
+.drw-search:focus { outline:none; border-color:var(--accent); }
+.drw-body { flex:1; overflow-y:auto; padding:16px 24px; }
+.drw-footer {
+  padding:12px 24px; border-top:1px solid var(--border-glass);
+  display:flex; align-items:center; justify-content:space-between; flex-shrink:0;
+}
+.drw-export {
+  background:rgba(0,230,118,.08); border:1px solid rgba(0,230,118,.2);
+  border-radius:8px; padding:7px 14px; color:var(--accent);
+  font-size:12px; cursor:pointer; transition:all .15s;
+}
+.drw-export:hover { background:rgba(0,230,118,.15); }
+.drw-pg { display:flex; align-items:center; gap:6px; }
+.pg-btn {
+  background:var(--input-bg); border:1px solid var(--input-border);
+  border-radius:6px; padding:4px 10px; font-size:12px;
+  cursor:pointer; color:var(--text-secondary); transition:all .15s;
+}
+.pg-btn:hover,.pg-btn.active { border-color:var(--accent); color:var(--accent); background:rgba(0,230,118,.08); }
+.drw-table { width:100%; border-collapse:collapse; }
+.drw-table th {
+  text-align:left; padding:8px 10px; font-size:11px;
+  color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px;
+  border-bottom:1px solid var(--border-glass); cursor:pointer; user-select:none;
+}
+.drw-table th:hover { color:var(--accent); }
+.drw-table td { padding:10px; font-size:13px; border-bottom:1px solid var(--border-glass); }
+.drw-table tr:hover td { background:var(--hover-bg); }
+.drw-table tr:last-child td { border-bottom:none; }
+.timeline-item {
+  display:flex; gap:14px; align-items:flex-start;
+  padding:12px 0; border-bottom:1px solid var(--border-glass);
+}
+.timeline-item:last-child { border-bottom:none; }
+.tl-time {
+  font-size:11px; color:var(--accent); font-family:monospace;
+  background:rgba(0,230,118,.08); border-radius:6px; padding:2px 7px;
+  white-space:nowrap; flex-shrink:0; margin-top:2px;
+}
+.tl-name { font-size:14px; font-weight:500; }
+.tl-meta { font-size:12px; color:var(--text-muted); margin-top:2px; }
+.hist-row { display:flex; align-items:center; gap:10px; margin-bottom:7px; }
+.hist-lbl { font-size:12px; color:var(--text-secondary); width:24px; text-align:right; flex-shrink:0; }
+.hist-track { flex:1; height:18px; background:var(--input-bg); border-radius:4px; overflow:hidden; }
+.hist-fill { height:100%; border-radius:4px; transition:width .5s; }
+.hist-cnt { font-size:12px; color:var(--text-muted); width:28px; }
+.drw-empty { text-align:center; padding:48px 24px; color:var(--text-muted); }
+.drw-empty i { font-size:36px; display:block; margin-bottom:12px; opacity:.35; }
+.drw-empty p { font-size:14px; }
+.cmp-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:14px 16px; background:var(--input-bg); border-radius:10px; margin-bottom:8px;
+}
+.cmp-period { font-size:12px; color:var(--text-muted); }
+.cmp-val { font-size:22px; font-weight:700; font-family:'Playfair Display',serif; }
+.cmp-delta { font-size:12px; }
+.cmp-delta.up { color:#4ade80; } .cmp-delta.down { color:#f87171; }
+
+/* ===================== COMMAND PALETTE ===================== */
+.cmd-overlay {
+  position:fixed; inset:0; z-index:500;
+  background:rgba(0,0,0,.75); backdrop-filter:blur(6px);
+  display:none; align-items:flex-start; justify-content:center; padding-top:14vh;
+}
+.cmd-overlay.open { display:flex; }
+.cmd-box {
+  width:560px; max-width:92vw; background:var(--bg-card);
+  border:1px solid var(--border-glass); border-radius:16px; overflow:hidden;
+  box-shadow:0 28px 80px rgba(0,0,0,.7);
+  animation:cmdIn .18s ease;
+}
+@keyframes cmdIn { from{transform:scale(.95) translateY(-10px);opacity:0} to{transform:scale(1) translateY(0);opacity:1} }
+.cmd-hd {
+  display:flex; align-items:center; gap:12px;
+  padding:14px 18px; border-bottom:1px solid var(--border-glass);
+}
+.cmd-hd i { color:var(--text-muted); font-size:14px; flex-shrink:0; }
+.cmd-input {
+  flex:1; background:none; border:none; font-size:16px;
+  color:var(--text-primary); outline:none;
+}
+.cmd-input::placeholder { color:var(--text-muted); }
+.cmd-esc {
+  background:var(--input-bg); border:1px solid var(--input-border);
+  border-radius:4px; padding:2px 7px; font-size:11px;
+  color:var(--text-muted); font-family:monospace;
+}
+.cmd-results { max-height:360px; overflow-y:auto; }
+.cmd-grp { padding:8px 14px 3px; font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); font-weight:700; }
+.cmd-item {
+  display:flex; align-items:center; gap:12px;
+  padding:10px 16px; cursor:pointer; transition:background .1s;
+}
+.cmd-item:hover,.cmd-item.sel { background:rgba(0,230,118,.08); }
+.cmd-item i { color:var(--accent); width:15px; text-align:center; flex-shrink:0; }
+.cmd-item-lbl { font-size:14px; flex:1; }
+.cmd-item-sub { font-size:12px; color:var(--text-muted); }
+.cmd-empty { padding:30px; text-align:center; color:var(--text-muted); font-size:14px; }
+.cmd-ft {
+  padding:8px 16px; border-top:1px solid var(--border-glass);
+  display:flex; gap:14px;
+}
+.cmd-hint { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-muted); }
+.cmd-hint kbd { background:var(--input-bg); border:1px solid var(--input-border); border-radius:4px; padding:1px 5px; font-family:monospace; font-size:10px; }
+
+/* ===================== ALERTS ENHANCED ===================== */
+.alert-card { display:flex; align-items:center; gap:12px; padding:12px 16px; }
+.alert-actions { display:flex; gap:6px; margin-left:auto; flex-shrink:0; }
+.alert-act {
+  background:none; border:1px solid var(--border-glass);
+  border-radius:6px; padding:4px 10px; font-size:11px;
+  cursor:pointer; color:var(--text-secondary); transition:all .15s; white-space:nowrap;
+}
+.alert-act:hover { border-color:var(--accent); color:var(--accent); }
+.alert-act.resolve:hover { border-color:#4ade80; color:#4ade80; }
+
+/* ===================== HOTKEY SHEET ===================== */
+.hk-overlay {
+  position:fixed; inset:0; z-index:500;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  display:none; align-items:center; justify-content:center;
+}
+.hk-overlay.open { display:flex; }
+.hk-sheet {
+  background:var(--bg-card); border:1px solid var(--border-glass);
+  border-radius:16px; padding:24px; min-width:300px;
+  box-shadow:0 24px 70px rgba(0,0,0,.6);
+}
+.hk-sheet h3 { font-size:13px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:14px; }
+.hk-row { display:flex; align-items:center; gap:12px; padding:6px 0; font-size:13px; }
+.hk-row kbd {
+  background:var(--input-bg); border:1px solid var(--input-border);
+  border-radius:5px; padding:2px 8px; font-family:monospace;
+  font-size:12px; color:var(--accent); min-width:34px; text-align:center;
+}
+
+/* ===================== TOAST STACK ===================== */
+#toast-stack {
+  position:fixed; bottom:24px; right:24px; z-index:999;
+  display:flex; flex-direction:column-reverse; gap:8px; pointer-events:none;
+}
+.toast-item {
+  display:flex; align-items:center; gap:10px;
+  background:var(--bg-card); border:1px solid var(--border-glass);
+  border-radius:10px; padding:12px 16px;
+  box-shadow:0 8px 28px rgba(0,0,0,.4); font-size:13px;
+  min-width:220px; max-width:360px; pointer-events:all;
+  animation:toastIn .25s ease;
+}
+@keyframes toastIn { from{transform:translateY(16px);opacity:0} to{transform:translateY(0);opacity:1} }
+.toast-item i.ti { font-size:14px; flex-shrink:0; }
+.toast-item.success i.ti { color:#4ade80; } .toast-item.error i.ti { color:#f87171; } .toast-item.info i.ti { color:var(--accent); }
+.toast-item span { flex:1; }
+
+/* admin main offset */
+.main.has-filter { padding-top:120px !important; }
 </style>
 </head>
 <body data-theme="dark">
@@ -913,6 +1207,13 @@ tr:last-child td { border-bottom: none; }
       <div class="logo-text">Dr. Malaquias <span>| Fibromialgia</span></div>
     </div>
     <div class="header-right">
+      <div class="live-badge" id="live-badge" style="display:none">
+        <div class="live-dot"></div>
+        <span id="live-label">ao vivo</span>
+      </div>
+      <button class="filter-btn" onclick="openCmd()" title="Ctrl+K" style="font-size:11px">
+        <i class="fas fa-search"></i> Buscar <kbd style="background:var(--input-bg);border:1px solid var(--input-border);border-radius:3px;padding:0 4px;font-size:10px;font-family:monospace">K</kbd>
+      </button>
       <div class="theme-toggle" onclick="toggleTheme()"></div>
       <div class="user-badge">
         <div class="dot"></div>
@@ -923,6 +1224,59 @@ tr:last-child td { border-bottom: none; }
       </button>
     </div>
   </header>
+
+  <!-- FILTER BAR (admin only) -->
+  <div class="filter-bar" id="filter-bar" style="display:none">
+    <div class="filter-bar-inner">
+      <!-- Date range -->
+      <div class="filter-dropdown-wrap">
+        <button class="filter-btn" id="filter-date-btn" onclick="toggleDropdown('date-dd')">
+          <i class="fas fa-calendar-alt"></i>
+          <span id="filter-date-label">Últimos 30 dias</span>
+          <i class="fas fa-chevron-down" style="font-size:10px"></i>
+        </button>
+        <div class="filter-dropdown" id="date-dd">
+          <div class="date-presets">
+            <button class="dp-btn active" data-preset="30d" onclick="setDatePreset('30d',this)">30 dias</button>
+            <button class="dp-btn" data-preset="today" onclick="setDatePreset('today',this)">Hoje</button>
+            <button class="dp-btn" data-preset="7d" onclick="setDatePreset('7d',this)">7 dias</button>
+            <button class="dp-btn" data-preset="90d" onclick="setDatePreset('90d',this)">90 dias</button>
+            <button class="dp-btn" data-preset="month" onclick="setDatePreset('month',this)">Este mês</button>
+            <button class="dp-btn" data-preset="all" onclick="setDatePreset('all',this)">Todos</button>
+          </div>
+          <div class="date-custom-row">
+            <input type="date" id="filter-from" onchange="applyCustomDate()">
+            <span>até</span>
+            <input type="date" id="filter-to" onchange="applyCustomDate()">
+          </div>
+        </div>
+      </div>
+      <!-- Pain range -->
+      <div class="pain-filter-wrap">
+        <label>Dor:</label>
+        <span class="pain-val" id="pain-min-v">0</span>
+        <input type="range" class="pain-slider" id="pain-min" min="0" max="10" value="0" oninput="updatePainFilter()">
+        <span style="color:var(--text-muted);font-size:11px">–</span>
+        <input type="range" class="pain-slider" id="pain-max" min="0" max="10" value="10" oninput="updatePainFilter()">
+        <span class="pain-val" id="pain-max-v">10</span>
+      </div>
+      <!-- Status filter -->
+      <div class="toggle-group">
+        <button class="tgl-btn active" onclick="setStatus('all',this)">Todos</button>
+        <button class="tgl-btn" onclick="setStatus('alta-dor',this)">Dor Alta (7+)</button>
+        <button class="tgl-btn" onclick="setStatus('hoje',this)">Hoje</button>
+        <button class="tgl-btn" onclick="setStatus('semana',this)">Semana</button>
+      </div>
+      <!-- Actions -->
+      <div class="filter-actions">
+        <span class="filter-count" id="filter-count" style="display:none">0 filtros ativos</span>
+        <button class="filter-clear" id="filter-clear" onclick="clearAllFilters()" style="display:none">
+          <i class="fas fa-times"></i> Limpar tudo
+        </button>
+      </div>
+    </div>
+    <div class="active-chips" id="active-chips" style="padding:0 24px 6px;max-width:1600px;margin:0 auto"></div>
+  </div>
 
   <!-- SIDEBAR -->
   <nav class="sidebar" id="app-sidebar">
@@ -985,36 +1339,42 @@ tr:last-child td { border-bottom: none; }
       <p class="page-subtitle">Resumo geral do sistema — <span id="dash-date"></span></p>
 
       <div class="kpi-grid">
-        <div class="kpi-card">
+        <div class="kpi-card" onclick="openDrawer('total')" title="Clique para detalhar">
           <div class="kpi-header">
             <div class="kpi-icon"><i class="fas fa-users"></i></div>
-            <div class="kpi-trend up"><i class="fas fa-arrow-up"></i> 12%</div>
+            <div class="kpi-trend" id="kpi-total-trend" style="display:none"></div>
           </div>
           <div class="kpi-value" id="kpi-total">0</div>
           <div class="kpi-label">Total de Pacientes</div>
+          <div class="kpi-cmp neutral" id="kpi-total-cmp"></div>
+          <div class="kpi-sparkline-wrap"><canvas id="spark-total"></canvas></div>
         </div>
-        <div class="kpi-card gold">
+        <div class="kpi-card gold" onclick="openDrawer('hoje')" title="Clique para detalhar">
           <div class="kpi-header">
             <div class="kpi-icon"><i class="fas fa-calendar-day"></i></div>
-            <div class="kpi-trend up"><i class="fas fa-arrow-up"></i> 5</div>
           </div>
           <div class="kpi-value" id="kpi-hoje">0</div>
           <div class="kpi-label">Cadastros Hoje</div>
+          <div class="kpi-cmp neutral" id="kpi-hoje-cmp"></div>
+          <div class="kpi-sparkline-wrap"><canvas id="spark-hoje"></canvas></div>
         </div>
-        <div class="kpi-card">
+        <div class="kpi-card" onclick="openDrawer('semana')" title="Clique para detalhar">
           <div class="kpi-header">
             <div class="kpi-icon"><i class="fas fa-calendar-week"></i></div>
-            <div class="kpi-trend up"><i class="fas fa-arrow-up"></i> 8%</div>
           </div>
           <div class="kpi-value" id="kpi-semana">0</div>
           <div class="kpi-label">Cadastros na Semana</div>
+          <div class="kpi-cmp neutral" id="kpi-semana-cmp"></div>
+          <div class="kpi-sparkline-wrap"><canvas id="spark-semana"></canvas></div>
         </div>
-        <div class="kpi-card">
+        <div class="kpi-card" onclick="openDrawer('dor')" title="Clique para detalhar">
           <div class="kpi-header">
             <div class="kpi-icon"><i class="fas fa-heartbeat"></i></div>
           </div>
-          <div class="kpi-value" id="kpi-dor">0</div>
+          <div class="kpi-value" id="kpi-dor">—</div>
           <div class="kpi-label">Média Nível de Dor</div>
+          <div class="kpi-cmp neutral" id="kpi-dor-cmp"></div>
+          <div class="kpi-sparkline-wrap"><canvas id="spark-dor"></canvas></div>
         </div>
       </div>
 
@@ -1033,8 +1393,9 @@ tr:last-child td { border-bottom: none; }
 
       <!-- Alerts for admin -->
       <div id="alerts-section" style="display:none">
-        <h3 style="font-size:16px;font-weight:600;margin-bottom:12px">
-          <i class="fas fa-bell" style="color:var(--warning);margin-right:8px"></i>Alertas
+        <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:10px">
+          <i class="fas fa-bell" style="color:var(--warning)"></i>Alertas
+          <span id="alert-count-badge" style="background:var(--danger);color:#fff;border-radius:50%;width:20px;height:20px;font-size:11px;font-weight:700;display:none;align-items:center;justify-content:center"></span>
         </h3>
         <div id="alerts-list"></div>
       </div>
@@ -1481,8 +1842,95 @@ tr:last-child td { border-bottom: none; }
   </main>
 </div>
 
-<!-- TOAST -->
+<!-- TOAST STACK -->
+<div id="toast-stack"></div>
 <div class="toast" id="toast"></div>
+
+<!-- DRAWER OVERLAY -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+
+<!-- DRAWER: Total Pacientes -->
+<div class="drawer" id="drawer-total">
+  <div class="drw-header">
+    <h3><i class="fas fa-users"></i> Total de Pacientes</h3>
+    <button class="drw-close" onclick="closeDrawer()"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="drw-search-row">
+    <input class="drw-search" type="text" id="drw-total-search" placeholder="Buscar por nome..." oninput="renderDrawerTotal()">
+  </div>
+  <div class="drw-body" id="drw-total-body"></div>
+  <div class="drw-footer">
+    <button class="drw-export" onclick="exportDrawerCSV('total')"><i class="fas fa-download"></i> Exportar CSV</button>
+    <div class="drw-pg" id="drw-total-pg"></div>
+  </div>
+</div>
+
+<!-- DRAWER: Hoje -->
+<div class="drawer" id="drawer-hoje">
+  <div class="drw-header">
+    <h3><i class="fas fa-calendar-day"></i> Cadastros Hoje</h3>
+    <button class="drw-close" onclick="closeDrawer()"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="drw-body" id="drw-hoje-body"></div>
+</div>
+
+<!-- DRAWER: Semana -->
+<div class="drawer" id="drawer-semana">
+  <div class="drw-header">
+    <h3><i class="fas fa-calendar-week"></i> Cadastros na Semana</h3>
+    <button class="drw-close" onclick="closeDrawer()"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="drw-search-row">
+    <input class="drw-search" type="text" id="drw-semana-search" placeholder="Buscar por nome..." oninput="renderDrawerSemana()">
+  </div>
+  <div class="drw-body" id="drw-semana-body"></div>
+  <div class="drw-footer">
+    <button class="drw-export" onclick="exportDrawerCSV('semana')"><i class="fas fa-download"></i> Exportar CSV</button>
+    <div></div>
+  </div>
+</div>
+
+<!-- DRAWER: Dor -->
+<div class="drawer" id="drawer-dor">
+  <div class="drw-header">
+    <h3><i class="fas fa-heartbeat"></i> Análise de Nível de Dor</h3>
+    <button class="drw-close" onclick="closeDrawer()"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="drw-body" id="drw-dor-body"></div>
+</div>
+
+<!-- COMMAND PALETTE -->
+<div class="cmd-overlay" id="cmd-overlay" onclick="closeCmd()">
+  <div class="cmd-box" onclick="event.stopPropagation()">
+    <div class="cmd-hd">
+      <i class="fas fa-search"></i>
+      <input class="cmd-input" id="cmd-input" type="text" placeholder="Buscar paciente, seção ou ação..." autocomplete="off" oninput="updateCmd()" onkeydown="cmdKey(event)">
+      <span class="cmd-esc">Esc</span>
+    </div>
+    <div class="cmd-results" id="cmd-results"></div>
+    <div class="cmd-ft">
+      <div class="cmd-hint"><kbd>↑↓</kbd> navegar</div>
+      <div class="cmd-hint"><kbd>Enter</kbd> selecionar</div>
+      <div class="cmd-hint"><kbd>Esc</kbd> fechar</div>
+    </div>
+  </div>
+</div>
+
+<!-- HOTKEY SHEET -->
+<div class="hk-overlay" id="hk-overlay" onclick="closeHK()">
+  <div class="hk-sheet" onclick="event.stopPropagation()">
+    <h3>Atalhos de Teclado</h3>
+    <div class="hk-row"><kbd>Ctrl+K</kbd><span>Abrir busca</span></div>
+    <div class="hk-row"><kbd>/</kbd><span>Focar busca de pacientes</span></div>
+    <div class="hk-row"><kbd>N</kbd><span>Novo cadastro</span></div>
+    <div class="hk-row"><kbd>F</kbd><span>Mostrar/ocultar filtros</span></div>
+    <div class="hk-row"><kbd>Esc</kbd><span>Fechar painel/busca</span></div>
+    <div class="hk-row"><kbd>?</kbd><span>Esta lista de atalhos</span></div>
+    <div style="margin-top:16px;text-align:right">
+      <button onclick="closeHK()" style="background:var(--accent);color:#000;border:none;border-radius:8px;padding:6px 18px;font-size:13px;font-weight:700;cursor:pointer">Fechar</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ============== CONFIG ==============
@@ -7864,6 +8312,996 @@ window.showSection = function(id, el) {
 };
 
 document.getElementById('pdf-periodo')?.addEventListener('change', atualizarPreviewPDF);
+
+/* ===================================================================
+   INTERACTIVE ADMIN PANEL — by Claude Code
+   Filtros globais · Drawers · Sparklines · Counters · Command Palette
+   Auto-refresh · Atalhos · Alertas acionáveis · Toasts
+=================================================================== */
+
+// ─── GLOBAL FILTER STATE ───────────────────────────────────────────
+const AppFilters = {
+  dateFrom: null,
+  dateTo: null,
+  datePreset: '30d',
+  painMin: 0,
+  painMax: 10,
+  status: 'all',
+
+  init() {
+    const saved = localStorage.getItem('mq_filters');
+    if (saved) { try { Object.assign(this, JSON.parse(saved)); } catch(e){} }
+    const params = new URLSearchParams(location.search);
+    if (params.get('preset')) this.datePreset = params.get('preset');
+    if (params.get('pain_min')) this.painMin = parseInt(params.get('pain_min'));
+    if (params.get('pain_max')) this.painMax = parseInt(params.get('pain_max'));
+    if (params.get('status')) this.status = params.get('status');
+    this.applyPreset(this.datePreset, false);
+  },
+
+  applyPreset(preset, save = true) {
+    this.datePreset = preset;
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    if (preset === 'today') { this.dateFrom = today; this.dateTo = today; }
+    else if (preset === '7d') { this.dateFrom = dateOffset(-7); this.dateTo = today; }
+    else if (preset === '30d') { this.dateFrom = dateOffset(-30); this.dateTo = today; }
+    else if (preset === '90d') { this.dateFrom = dateOffset(-90); this.dateTo = today; }
+    else if (preset === 'month') {
+      this.dateFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      this.dateTo = today;
+    } else if (preset === 'all') { this.dateFrom = null; this.dateTo = null; }
+    if (save) this.save();
+  },
+
+  getFiltered(data) {
+    return data.filter(p => {
+      const d = (p.criado_em || '').split('T')[0];
+      if (this.dateFrom && d < this.dateFrom) return false;
+      if (this.dateTo && d > this.dateTo) return false;
+      const dor = p.nivel_dor ?? 0;
+      if (dor < this.painMin || dor > this.painMax) return false;
+      if (this.status === 'alta-dor' && dor < 7) return false;
+      if (this.status === 'hoje' && d !== new Date().toISOString().split('T')[0]) return false;
+      if (this.status === 'semana' && d < dateOffset(-7)) return false;
+      return true;
+    });
+  },
+
+  activeCount() {
+    let n = 0;
+    if (this.datePreset !== '30d' && this.datePreset !== 'all') n++;
+    if (this.painMin > 0 || this.painMax < 10) n++;
+    if (this.status !== 'all') n++;
+    return n;
+  },
+
+  save() {
+    localStorage.setItem('mq_filters', JSON.stringify({
+      dateFrom: this.dateFrom, dateTo: this.dateTo,
+      datePreset: this.datePreset,
+      painMin: this.painMin, painMax: this.painMax,
+      status: this.status,
+    }));
+    const params = new URLSearchParams();
+    params.set('preset', this.datePreset);
+    if (this.painMin > 0) params.set('pain_min', this.painMin);
+    if (this.painMax < 10) params.set('pain_max', this.painMax);
+    if (this.status !== 'all') params.set('status', this.status);
+    history.replaceState(null, '', '?' + params.toString());
+  },
+};
+
+function dateOffset(days) {
+  return new Date(Date.now() + days * 86400000).toISOString().split('T')[0];
+}
+
+// ─── FILTER UI ─────────────────────────────────────────────────────
+let _filterDebounce = null;
+
+function toggleDropdown(id) {
+  document.querySelectorAll('.filter-dropdown').forEach(d => {
+    if (d.id !== id) d.classList.remove('show');
+  });
+  document.getElementById(id)?.classList.toggle('show');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.filter-dropdown-wrap') && !e.target.closest('.filter-dropdown')) {
+    document.querySelectorAll('.filter-dropdown').forEach(d => d.classList.remove('show'));
+  }
+});
+
+function setDatePreset(preset, btn) {
+  AppFilters.applyPreset(preset);
+  document.querySelectorAll('.dp-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const labels = { today:'Hoje', '7d':'Últimos 7 dias', '30d':'Últimos 30 dias', '90d':'Últimos 90 dias', month:'Este mês', all:'Todos' };
+  const el = document.getElementById('filter-date-label');
+  if (el) el.textContent = labels[preset] || preset;
+  document.getElementById('date-dd')?.classList.remove('show');
+  scheduleFilterApply();
+}
+
+function applyCustomDate() {
+  const from = document.getElementById('filter-from')?.value;
+  const to = document.getElementById('filter-to')?.value;
+  if (!from && !to) return;
+  AppFilters.dateFrom = from || null;
+  AppFilters.dateTo = to || null;
+  AppFilters.datePreset = 'custom';
+  document.querySelectorAll('.dp-btn').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById('filter-date-label');
+  if (el) el.textContent = (from ? from.split('-').reverse().join('/') : '∞') + ' – ' + (to ? to.split('-').reverse().join('/') : '∞');
+  AppFilters.save();
+  scheduleFilterApply();
+}
+
+function updatePainFilter() {
+  let min = parseInt(document.getElementById('pain-min')?.value ?? 0);
+  let max = parseInt(document.getElementById('pain-max')?.value ?? 10);
+  if (min > max) { const t = min; min = max; max = t; }
+  AppFilters.painMin = min; AppFilters.painMax = max;
+  const minV = document.getElementById('pain-min-v');
+  const maxV = document.getElementById('pain-max-v');
+  if (minV) minV.textContent = min;
+  if (maxV) maxV.textContent = max;
+  AppFilters.save();
+  scheduleFilterApply();
+}
+
+function setStatus(s, btn) {
+  AppFilters.status = s;
+  document.querySelectorAll('.tgl-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  AppFilters.save();
+  scheduleFilterApply();
+}
+
+function scheduleFilterApply() {
+  clearTimeout(_filterDebounce);
+  _filterDebounce = setTimeout(applyFilters, 280);
+}
+
+function applyFilters() {
+  updateKPIs();
+  updateCharts();
+  renderFilterChips();
+  renderFilterBadge();
+  showToastInfo('Filtros atualizados — ' + AppFilters.getFiltered(allPacientes).length + ' pacientes');
+}
+
+function renderFilterBadge() {
+  const n = AppFilters.activeCount();
+  const countEl = document.getElementById('filter-count');
+  const clearEl = document.getElementById('filter-clear');
+  if (countEl) { countEl.style.display = n ? 'inline-flex' : 'none'; countEl.textContent = n + (n===1?' filtro ativo':' filtros ativos'); }
+  if (clearEl) clearEl.style.display = n ? 'inline-flex' : 'none';
+}
+
+function renderFilterChips() {
+  const el = document.getElementById('active-chips');
+  if (!el) return;
+  const chips = [];
+  const labels = { today:'Hoje', '7d':'7 dias', '30d':'30 dias', '90d':'90 dias', month:'Este mês' };
+  if (AppFilters.datePreset !== '30d' && AppFilters.datePreset !== 'all') {
+    const l = labels[AppFilters.datePreset] || AppFilters.datePreset;
+    chips.push(`<span class="fchip">${l}<button class="fchip-x" onclick="setDatePreset('30d', document.querySelector('.dp-btn[data-preset=\\'30d\\']'))">✕</button></span>`);
+  }
+  if (AppFilters.painMin > 0 || AppFilters.painMax < 10) {
+    chips.push(`<span class="fchip">Dor ${AppFilters.painMin}–${AppFilters.painMax}<button class="fchip-x" onclick="resetPain()">✕</button></span>`);
+  }
+  if (AppFilters.status !== 'all') {
+    const sl = {hoje:'Hoje',semana:'Esta semana','alta-dor':'Dor Alta'};
+    chips.push(`<span class="fchip">${sl[AppFilters.status]||AppFilters.status}<button class="fchip-x" onclick="setStatus('all',document.querySelector('.tgl-btn'))">✕</button></span>`);
+  }
+  el.innerHTML = chips.join('');
+}
+
+function resetPain() {
+  AppFilters.painMin = 0; AppFilters.painMax = 10;
+  const minI = document.getElementById('pain-min'); const maxI = document.getElementById('pain-max');
+  if (minI) minI.value = 0; if (maxI) maxI.value = 10;
+  document.getElementById('pain-min-v').textContent = '0';
+  document.getElementById('pain-max-v').textContent = '10';
+  AppFilters.save(); scheduleFilterApply();
+}
+
+function clearAllFilters() {
+  setDatePreset('30d', document.querySelector('.dp-btn[data-preset="30d"]'));
+  resetPain();
+  setStatus('all', document.querySelector('.tgl-btn'));
+}
+
+function showFilterBar() {
+  const bar = document.getElementById('filter-bar');
+  const main = document.querySelector('.main');
+  if (bar && currentProfile?.papel === 'admin') {
+    bar.style.display = 'block';
+    if (main) main.classList.add('has-filter');
+    document.getElementById('live-badge').style.display = 'flex';
+  }
+}
+
+// ─── SYNC FILTER UI FROM STATE ──────────────────────────────────────
+function syncFilterUI() {
+  const minI = document.getElementById('pain-min'); const maxI = document.getElementById('pain-max');
+  if (minI) minI.value = AppFilters.painMin;
+  if (maxI) maxI.value = AppFilters.painMax;
+  document.getElementById('pain-min-v').textContent = AppFilters.painMin;
+  document.getElementById('pain-max-v').textContent = AppFilters.painMax;
+  document.querySelectorAll('.dp-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.preset === AppFilters.datePreset);
+  });
+  const labels = { today:'Hoje', '7d':'Últimos 7 dias', '30d':'Últimos 30 dias', '90d':'Últimos 90 dias', month:'Este mês', all:'Todos', custom:'Personalizado' };
+  const el = document.getElementById('filter-date-label');
+  if (el) el.textContent = labels[AppFilters.datePreset] || AppFilters.datePreset;
+  document.querySelectorAll('.tgl-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.trim().toLowerCase().replace(/\s.*/,'') === AppFilters.status ||
+      (AppFilters.status === 'all' && b.textContent.trim() === 'Todos') ||
+      (AppFilters.status === 'alta-dor' && b.textContent.includes('Alta')) ||
+      (AppFilters.status === 'hoje' && b.textContent.trim() === 'Hoje') ||
+      (AppFilters.status === 'semana' && b.textContent.trim() === 'Semana'));
+  });
+  renderFilterChips();
+  renderFilterBadge();
+}
+
+// ─── OVERWRITE updateKPIs WITH FILTERS + SPARKLINES + COUNTERS ─────
+const _origUpdateKPIs = window.updateKPIs;
+window.updateKPIs = function() {
+  const today = new Date().toISOString().split('T')[0];
+  const weekAgo = dateOffset(-7);
+  const filtered = AppFilters.getFiltered(allPacientes);
+  const todayPac = allPacientes.filter(p => p.criado_em?.startsWith(today));
+  const weekPac  = allPacientes.filter(p => (p.criado_em||'').split('T')[0] >= weekAgo);
+
+  // Previous period comparison
+  const periodLen = AppFilters.dateFrom && AppFilters.dateTo
+    ? Math.max(1, (new Date(AppFilters.dateTo) - new Date(AppFilters.dateFrom)) / 86400000)
+    : 30;
+  const prevTo   = AppFilters.dateFrom ? dateOffsetFrom(AppFilters.dateFrom, -1) : dateOffset(-31);
+  const prevFrom = dateOffsetFrom(prevTo, -Math.round(periodLen));
+  const prevPac  = allPacientes.filter(p => {
+    const d = (p.criado_em||'').split('T')[0];
+    return d >= prevFrom && d <= prevTo;
+  });
+
+  animateCount('kpi-total', filtered.length);
+  animateCount('kpi-hoje', todayPac.length);
+  animateCount('kpi-semana', weekPac.length);
+
+  const dors = filtered.filter(p => p.nivel_dor != null).map(p => p.nivel_dor);
+  const media = dors.length ? (dors.reduce((a,b)=>a+b,0)/dors.length).toFixed(1) : '—';
+  document.getElementById('kpi-dor').textContent = media;
+
+  // Comparison badges
+  setCmp('kpi-total-cmp', filtered.length, prevPac.length, 'vs período anterior');
+  setCmp('kpi-semana-cmp', weekPac.length, allPacientes.filter(p=>{
+    const d=(p.criado_em||'').split('T')[0]; return d >= dateOffset(-14) && d < weekAgo;
+  }).length, 'vs semana passada');
+
+  const prevDors = prevPac.filter(p=>p.nivel_dor!=null).map(p=>p.nivel_dor);
+  const prevMedia = prevDors.length ? (prevDors.reduce((a,b)=>a+b,0)/prevDors.length) : null;
+  const cmpEl = document.getElementById('kpi-dor-cmp');
+  if (cmpEl && prevMedia !== null && dors.length) {
+    const diff = (parseFloat(media) - prevMedia).toFixed(1);
+    const up = parseFloat(diff) > 0;
+    cmpEl.className = 'kpi-cmp ' + (up ? 'down' : 'up');
+    cmpEl.innerHTML = `<i class="fas fa-arrow-${up?'up':'down'}"></i> ${Math.abs(diff)} vs período anterior`;
+  }
+
+  // Sparklines
+  buildSparkline('spark-total', allPacientes, 7, 'total');
+  buildSparkline('spark-hoje', allPacientes, 7, 'hoje');
+  buildSparkline('spark-semana', allPacientes, 7, 'semana');
+  buildSparklineDor('spark-dor', allPacientes, 7);
+};
+
+function dateOffsetFrom(base, days) {
+  return new Date(new Date(base).getTime() + days * 86400000).toISOString().split('T')[0];
+}
+
+function setCmp(elId, curr, prev, label) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (!prev) { el.textContent = ''; return; }
+  const pct = Math.round(((curr - prev) / prev) * 100);
+  const up = pct >= 0;
+  el.className = 'kpi-cmp ' + (up ? 'up' : 'down');
+  el.innerHTML = `<i class="fas fa-arrow-${up?'up':'down'}"></i> ${Math.abs(pct)}% ${label}`;
+}
+
+function animateCount(elId, target) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const start = parseInt(el.textContent) || 0;
+  if (start === target) return;
+  const dur = 500; const startTime = performance.now();
+  function step(now) {
+    const p = Math.min((now - startTime) / dur, 1);
+    const val = Math.round(start + (target - start) * easeOut(p));
+    el.textContent = val;
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+let _sparks = {};
+function buildSparkline(canvasId, data, days, type) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const c = getChartColors();
+  const pts = [];
+  const today = new Date().toISOString().split('T')[0];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = dateOffset(-i);
+    const count = data.filter(p => p.criado_em?.startsWith(d)).length;
+    pts.push(count);
+  }
+  if (_sparks[canvasId]) { _sparks[canvasId].destroy(); }
+  _sparks[canvasId] = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: pts.map((_,i)=>i),
+      datasets: [{ data: pts, borderColor: c.accent, borderWidth: 1.5, fill: true,
+        backgroundColor: 'rgba(74,222,128,0.1)', pointRadius: 0, tension: 0.4 }]
+    },
+    options: {
+      responsive: false, animation: false,
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      scales: { x: { display: false }, y: { display: false } },
+    }
+  });
+}
+function buildSparklineDor(canvasId, data, days) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const c = getChartColors();
+  const pts = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = dateOffset(-i);
+    const dors = data.filter(p => p.criado_em?.startsWith(d) && p.nivel_dor != null).map(p => p.nivel_dor);
+    pts.push(dors.length ? +(dors.reduce((a,b)=>a+b,0)/dors.length).toFixed(1) : null);
+  }
+  if (_sparks[canvasId]) { _sparks[canvasId].destroy(); }
+  _sparks[canvasId] = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: pts.map((_,i)=>i),
+      datasets: [{ data: pts, borderColor: '#f87171', borderWidth: 1.5, fill: false, pointRadius: 0, tension: 0.4, spanGaps: true }]
+    },
+    options: {
+      responsive: false, animation: false,
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      scales: { x: { display: false }, y: { display: false } },
+    }
+  });
+}
+
+// ─── OVERWRITE updateCharts WITH CLICK + RICH TOOLTIP ──────────────
+const _origUpdateCharts = window.updateCharts;
+window.updateCharts = function() {
+  const c = getChartColors();
+  Chart.defaults.color = c.text;
+
+  const filtered = AppFilters.getFiltered(allPacientes);
+
+  // Weekly line chart with click-to-filter
+  const last7 = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = dateOffset(-i);
+    const label = new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' });
+    const pacs = filtered.filter(p => p.criado_em?.startsWith(d));
+    last7.push({ label, count: pacs.length, date: d, pacs });
+  }
+
+  if (charts.weekly) charts.weekly.destroy();
+  const ctx1 = document.getElementById('chart-weekly');
+  if (ctx1) {
+    charts.weekly = new Chart(ctx1, {
+      type: 'line',
+      data: {
+        labels: last7.map(d => d.label),
+        datasets: [{
+          label: 'Cadastros', data: last7.map(d => d.count),
+          borderColor: c.accent, backgroundColor: c.accentBg,
+          fill: true, tension: 0.4, pointRadius: 5,
+          pointBackgroundColor: c.accent, pointHoverRadius: 8,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: { duration: 350 },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title(ctx) { return last7[ctx[0].dataIndex]?.date || ctx[0].label; },
+              label(ctx) {
+                const day = last7[ctx.dataIndex];
+                const names = day.pacs.slice(0,5).map(p=>p.nome).join(', ');
+                return [`${day.count} cadastro(s)`, names ? `Pacientes: ${names}` : ''].filter(Boolean);
+              }
+            }
+          }
+        },
+        onClick(e, els) {
+          if (!els.length) return;
+          const day = last7[els[0].index];
+          AppFilters.dateFrom = day.date; AppFilters.dateTo = day.date;
+          AppFilters.datePreset = 'custom';
+          const el = document.getElementById('filter-date-label');
+          if (el) el.textContent = day.label;
+          AppFilters.save(); applyFilters();
+        },
+        scales: {
+          y: { beginAtZero: true, grid: { color: c.grid }, ticks: { stepSize: 1 } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // Doughnut with 3 clinical categories + click-to-filter
+  const leve    = filtered.filter(p => p.nivel_dor != null && p.nivel_dor <= 3).length;
+  const moderada= filtered.filter(p => p.nivel_dor != null && p.nivel_dor >= 4 && p.nivel_dor <= 6).length;
+  const severa  = filtered.filter(p => p.nivel_dor != null && p.nivel_dor >= 7).length;
+  const totalDor= leve + moderada + severa;
+  const mediaDor= filtered.filter(p=>p.nivel_dor!=null).length
+    ? (filtered.filter(p=>p.nivel_dor!=null).reduce((a,p)=>a+p.nivel_dor,0) / filtered.filter(p=>p.nivel_dor!=null).length).toFixed(1)
+    : '—';
+
+  if (charts.dor) charts.dor.destroy();
+  const ctx2 = document.getElementById('chart-dor');
+  if (ctx2) {
+    charts.dor = new Chart(ctx2, {
+      type: 'doughnut',
+      data: {
+        labels: ['🟢 Leve (0–3)', '🟡 Moderada (4–6)', '🔴 Severa (7–10)'],
+        datasets: [{
+          data: [leve, moderada, severa],
+          backgroundColor: ['rgba(74,222,128,.7)', 'rgba(251,191,36,.7)', 'rgba(239,68,68,.7)'],
+          borderColor: ['#4ade80','#fbbf24','#ef4444'],
+          borderWidth: 2, hoverOffset: 10,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        cutout: '62%',
+        animation: { duration: 350 },
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 12, padding: 12, font: { size: 12 } } },
+          tooltip: {
+            callbacks: {
+              label(ctx) {
+                const pct = totalDor ? ((ctx.raw / totalDor) * 100).toFixed(0) : 0;
+                return `${ctx.raw} pacientes (${pct}%)`;
+              }
+            }
+          }
+        },
+        onClick(e, els) {
+          if (!els.length) return;
+          const idx = els[0].index;
+          const ranges = [[0,3],[4,6],[7,10]];
+          AppFilters.painMin = ranges[idx][0]; AppFilters.painMax = ranges[idx][1];
+          const minI = document.getElementById('pain-min'); const maxI = document.getElementById('pain-max');
+          if (minI) minI.value = AppFilters.painMin;
+          if (maxI) maxI.value = AppFilters.painMax;
+          document.getElementById('pain-min-v').textContent = AppFilters.painMin;
+          document.getElementById('pain-max-v').textContent = AppFilters.painMax;
+          AppFilters.save(); applyFilters();
+        }
+      },
+      plugins: [{
+        id: 'center-text',
+        afterDraw(chart) {
+          const { ctx, chartArea: { left, top, width, height } } = chart;
+          ctx.save();
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          const cx = left + width/2; const cy = top + height/2;
+          ctx.font = 'bold 26px Playfair Display, serif';
+          ctx.fillStyle = document.body.dataset.theme === 'dark' ? '#e8fef2' : '#1e293b';
+          ctx.fillText(mediaDor, cx, cy - 8);
+          ctx.font = '11px DM Sans, sans-serif';
+          ctx.fillStyle = '#7dd4a8';
+          ctx.fillText('média dor', cx, cy + 14);
+          ctx.restore();
+        }
+      }]
+    });
+  }
+
+  if (currentProfile?.papel === 'admin') updateAnalyticsCharts(c);
+};
+
+// ─── OVERWRITE updateAlerts WITH REAL DATA + ACTIONS ───────────────
+const _origUpdateAlerts = window.updateAlerts;
+window.updateAlerts = function() {
+  const list = document.getElementById('alerts-list');
+  if (!list) return;
+  const section = document.getElementById('alerts-section');
+
+  const today = new Date().toISOString().split('T')[0];
+  const snoozed = JSON.parse(localStorage.getItem('mq_snooze') || '{}');
+
+  const alerts = [];
+  // Pontos sem cadastro há 2+ dias
+  const pontoMap = {};
+  allPacientes.forEach(p => {
+    if (!pontoMap[p.cadastrado_por] || p.criado_em > pontoMap[p.cadastrado_por]) {
+      pontoMap[p.cadastrado_por] = p.criado_em;
+    }
+  });
+  Object.entries(pontoMap).forEach(([id, last]) => {
+    const diffDays = Math.floor((Date.now() - new Date(last)) / 86400000);
+    const snoozeKey = 'ponto_' + id;
+    if (diffDays >= 2 && (!snoozed[snoozeKey] || snoozed[snoozeKey] < today)) {
+      alerts.push({
+        id: snoozeKey,
+        severity: diffDays >= 5 ? 'high' : 'mid',
+        icon: diffDays >= 5 ? 'fa-exclamation-circle' : 'fa-exclamation-triangle',
+        text: `Ponto ${id.substring(0,8)} sem cadastro há ${diffDays} dia${diffDays>1?'s':''}`,
+        time: `há ${diffDays} dias`,
+      });
+    }
+  });
+
+  // Pacientes com dor alta (>= 8) cadastrados hoje
+  const altaDorHoje = allPacientes.filter(p => p.criado_em?.startsWith(today) && p.nivel_dor >= 8);
+  altaDorHoje.forEach(p => {
+    const sk = 'altador_' + p.id;
+    if (!snoozed[sk] || snoozed[sk] < today) {
+      alerts.push({ id: sk, severity: 'high', icon: 'fa-heartbeat',
+        text: `${p.nome} com nível de dor ${p.nivel_dor}/10 hoje`, time: 'hoje' });
+    }
+  });
+
+  // No alerts fallback
+  if (!alerts.length) {
+    if (section) section.style.display = 'none';
+    return;
+  }
+  if (section) section.style.display = 'block';
+
+  const badge = document.getElementById('alert-count-badge');
+  if (badge) { badge.textContent = alerts.length; badge.style.display = 'inline-flex'; }
+
+  const colors = { high: '#f87171', mid: '#f59e0b', low: '#4ade80' };
+  list.innerHTML = alerts.map(a => `
+    <div class="alert-card" id="alrt-${a.id}">
+      <i class="fas ${a.icon}" style="color:${colors[a.severity]};font-size:16px;flex-shrink:0"></i>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500">${a.text}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${a.time}</div>
+      </div>
+      <div class="alert-actions">
+        <button class="alert-act resolve" onclick="resolveAlert('${a.id}')">✓ Resolver</button>
+        <button class="alert-act snooze" onclick="snoozeAlert('${a.id}')">⏱ 24h</button>
+      </div>
+    </div>
+  `).join('');
+};
+
+function resolveAlert(id) {
+  document.getElementById('alrt-' + id)?.remove();
+  showToastOk('Alerta resolvido');
+}
+function snoozeAlert(id) {
+  const snoozed = JSON.parse(localStorage.getItem('mq_snooze') || '{}');
+  snoozed[id] = dateOffset(1);
+  localStorage.setItem('mq_snooze', JSON.stringify(snoozed));
+  document.getElementById('alrt-' + id)?.remove();
+  showToastInfo('Alerta adiado por 24h');
+}
+
+// ─── DRAWERS ────────────────────────────────────────────────────────
+let _currentDrawer = null;
+let _drwPage = 1;
+const DRW_PER_PAGE = 20;
+
+function openDrawer(type) {
+  closeDrawer(false);
+  _currentDrawer = type;
+  _drwPage = 1;
+  document.getElementById('drawer-overlay').classList.add('open');
+  const drawer = document.getElementById('drawer-' + type);
+  if (!drawer) return;
+  drawer.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  if (type === 'total') renderDrawerTotal();
+  else if (type === 'hoje') renderDrawerHoje();
+  else if (type === 'semana') renderDrawerSemana();
+  else if (type === 'dor') renderDrawerDor();
+  const url = new URL(location.href);
+  url.searchParams.set('drawer', type);
+  history.replaceState(null, '', url.toString());
+}
+
+function closeDrawer(clearUrl = true) {
+  document.getElementById('drawer-overlay')?.classList.remove('open');
+  document.querySelectorAll('.drawer').forEach(d => d.classList.remove('open'));
+  document.body.style.overflow = '';
+  _currentDrawer = null;
+  if (clearUrl) {
+    const url = new URL(location.href);
+    url.searchParams.delete('drawer');
+    history.replaceState(null, '', url.toString());
+  }
+}
+
+function renderDrawerTotal() {
+  const body = document.getElementById('drw-total-body');
+  if (!body) return;
+  const search = (document.getElementById('drw-total-search')?.value || '').toLowerCase();
+  let data = AppFilters.getFiltered(allPacientes);
+  if (search) data = data.filter(p => (p.nome||'').toLowerCase().includes(search));
+  const total = data.length;
+  const pages = Math.max(1, Math.ceil(total / DRW_PER_PAGE));
+  if (_drwPage > pages) _drwPage = pages;
+  const slice = data.slice((_drwPage-1)*DRW_PER_PAGE, _drwPage*DRW_PER_PAGE);
+
+  if (!data.length) {
+    body.innerHTML = `<div class="drw-empty"><i class="fas fa-user-slash"></i><p>Nenhum paciente encontrado</p></div>`;
+  } else {
+    body.innerHTML = `<table class="drw-table">
+      <thead><tr><th>Nome</th><th>Dor</th><th>Data</th><th>Avaliação</th></tr></thead>
+      <tbody>${slice.map(p => {
+        const dorColor = !p.nivel_dor ? '#888' : p.nivel_dor <= 3 ? '#4ade80' : p.nivel_dor <= 6 ? '#fbbf24' : '#f87171';
+        const data = p.data_consulta ? new Date(p.data_consulta + 'T00:00').toLocaleDateString('pt-BR') : '—';
+        const stars = Array.from({length:5},(_,i)=>`<span style="color:${i<(p.avaliacao||0)?'#f59e0b':'#555'}">★</span>`).join('');
+        return `<tr>
+          <td><div style="font-weight:500">${p.nome||'—'}</div><div style="font-size:11px;color:var(--text-muted)">${p.whatsapp||''}</div></td>
+          <td><span style="color:${dorColor};font-weight:700">${p.nivel_dor??'—'}</span></td>
+          <td style="font-size:12px">${data}</td>
+          <td style="font-size:12px">${stars}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+  }
+
+  // Pagination
+  const pg = document.getElementById('drw-total-pg');
+  if (pg) {
+    pg.innerHTML = `<span style="font-size:12px;color:var(--text-muted)">${total} registros</span>
+      ${_drwPage>1 ? `<button class="pg-btn" onclick="_drwPage--;renderDrawerTotal()">‹</button>` : ''}
+      <span class="pg-btn active">${_drwPage}/${pages}</span>
+      ${_drwPage<pages ? `<button class="pg-btn" onclick="_drwPage++;renderDrawerTotal()">›</button>` : ''}`;
+  }
+}
+
+function renderDrawerHoje() {
+  const body = document.getElementById('drw-hoje-body');
+  if (!body) return;
+  const today = new Date().toISOString().split('T')[0];
+  const data = allPacientes.filter(p => p.criado_em?.startsWith(today))
+    .sort((a,b) => new Date(a.criado_em) - new Date(b.criado_em));
+
+  if (!data.length) {
+    body.innerHTML = `<div class="drw-empty"><i class="fas fa-calendar-times"></i><p>Nenhum cadastro hoje</p><button onclick="showSection('novo',document.querySelector('[data-section=novo]'))" style="margin-top:14px;background:var(--accent);color:#000;border:none;border-radius:8px;padding:8px 18px;font-size:13px;cursor:pointer;font-weight:700">+ Novo Cadastro</button></div>`;
+    return;
+  }
+  body.innerHTML = `<div class="drawer-timeline">${data.map(p => {
+    const hora = new Date(p.criado_em).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+    const dorColor = p.nivel_dor <= 3 ? '#4ade80' : p.nivel_dor <= 6 ? '#fbbf24' : '#f87171';
+    return `<div class="timeline-item">
+      <div class="tl-time">${hora}</div>
+      <div>
+        <div class="tl-name">${p.nome||'—'}</div>
+        <div class="tl-meta">Dor: <span style="color:${dorColor};font-weight:700">${p.nivel_dor??'—'}</span>${p.idade ? ` · ${p.idade} anos` : ''}</div>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function renderDrawerSemana() {
+  const body = document.getElementById('drw-semana-body');
+  if (!body) return;
+  const weekAgo = dateOffset(-7);
+  const search = (document.getElementById('drw-semana-search')?.value || '').toLowerCase();
+  let data = allPacientes.filter(p => (p.criado_em||'').split('T')[0] >= weekAgo);
+  if (search) data = data.filter(p => (p.nome||'').toLowerCase().includes(search));
+
+  // Sparkline mini for week breakdown
+  const dayBreakdown = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = dateOffset(-i);
+    const label = new Date(d+'T12:00').toLocaleDateString('pt-BR', { weekday:'short', day:'numeric' });
+    dayBreakdown.push({ label, count: allPacientes.filter(p=>p.criado_em?.startsWith(d)).length });
+  }
+  const maxDay = Math.max(1, ...dayBreakdown.map(d=>d.count));
+
+  if (!data.length) {
+    body.innerHTML = `<div class="drw-empty"><i class="fas fa-calendar-week"></i><p>Nenhum cadastro nesta semana</p></div>`;
+    return;
+  }
+
+  body.innerHTML = `
+    <div style="margin-bottom:16px">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Cadastros por dia</div>
+      ${dayBreakdown.map(d => `
+        <div class="hist-row">
+          <div class="hist-lbl" style="width:60px;text-align:left">${d.label}</div>
+          <div class="hist-track">
+            <div class="hist-fill" style="width:${(d.count/maxDay*100).toFixed(0)}%;background:var(--accent)"></div>
+          </div>
+          <div class="hist-cnt">${d.count}</div>
+        </div>`).join('')}
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">${data.length} paciente${data.length!==1?'s':''}</div>
+    <table class="drw-table">
+      <thead><tr><th>Nome</th><th>Dor</th><th>Data cadastro</th></tr></thead>
+      <tbody>${data.map(p => {
+        const dc = p.criado_em ? new Date(p.criado_em).toLocaleDateString('pt-BR') : '—';
+        const dorColor = !p.nivel_dor ? '#888' : p.nivel_dor <= 3 ? '#4ade80' : p.nivel_dor <= 6 ? '#fbbf24' : '#f87171';
+        return `<tr>
+          <td><div style="font-weight:500">${p.nome||'—'}</div></td>
+          <td><span style="color:${dorColor};font-weight:700">${p.nivel_dor??'—'}</span></td>
+          <td style="font-size:12px">${dc}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
+
+function renderDrawerDor() {
+  const body = document.getElementById('drw-dor-body');
+  if (!body) return;
+  const filtered = AppFilters.getFiltered(allPacientes);
+  const dorDist = Array(11).fill(0);
+  filtered.forEach(p => { if (p.nivel_dor != null) dorDist[p.nivel_dor]++; });
+  const maxD = Math.max(1, ...dorDist);
+  const dors = filtered.filter(p=>p.nivel_dor!=null).map(p=>p.nivel_dor);
+  const mediaAtual = dors.length ? (dors.reduce((a,b)=>a+b,0)/dors.length).toFixed(1) : '—';
+
+  const prevFrom = AppFilters.dateFrom ? dateOffsetFrom(AppFilters.dateFrom, -30) : dateOffset(-60);
+  const prevTo   = AppFilters.dateFrom ? dateOffsetFrom(AppFilters.dateFrom, -1) : dateOffset(-31);
+  const prevPac = allPacientes.filter(p => { const d=(p.criado_em||'').split('T')[0]; return d>=prevFrom&&d<=prevTo; });
+  const prevDors = prevPac.filter(p=>p.nivel_dor!=null).map(p=>p.nivel_dor);
+  const prevMedia = prevDors.length ? (prevDors.reduce((a,b)=>a+b,0)/prevDors.length).toFixed(1) : '—';
+
+  const acimaDaMedia = parseFloat(mediaAtual)
+    ? filtered.filter(p => p.nivel_dor != null && p.nivel_dor > parseFloat(mediaAtual))
+        .sort((a,b)=>b.nivel_dor-a.nivel_dor).slice(0,10)
+    : [];
+
+  const colors = ['#4ade80','#6ee7a0','#86efac','#a7f3d0','#fcd34d','#fbbf24','#f59e0b','#fb923c','#f87171','#ef4444','#dc2626'];
+
+  body.innerHTML = `
+    <div style="margin-bottom:20px">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Histograma</div>
+      ${dorDist.map((cnt,lvl)=>`
+        <div class="hist-row">
+          <div class="hist-lbl">${lvl}</div>
+          <div class="hist-track"><div class="hist-fill" style="width:${(cnt/maxD*100).toFixed(0)}%;background:${colors[lvl]}"></div></div>
+          <div class="hist-cnt">${cnt}</div>
+        </div>`).join('')}
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:20px">
+      <div class="cmp-row" style="flex:1">
+        <div class="cmp-period">Período atual</div>
+        <div class="cmp-val">${mediaAtual}</div>
+        <div class="cmp-delta" style="color:var(--text-muted)">média</div>
+      </div>
+      <div class="cmp-row" style="flex:1">
+        <div class="cmp-period">Período anterior</div>
+        <div class="cmp-val">${prevMedia}</div>
+        <div class="cmp-delta ${prevMedia!=='—'&&parseFloat(mediaAtual)>parseFloat(prevMedia)?'down':'up'}">
+          ${prevMedia!=='—'&&parseFloat(mediaAtual)!==parseFloat(prevMedia)?((parseFloat(mediaAtual)-parseFloat(prevMedia))>0?'↑':'↓')+''+Math.abs((parseFloat(mediaAtual)-parseFloat(prevMedia)).toFixed(1)):'—'}
+        </div>
+      </div>
+    </div>
+    ${acimaDaMedia.length ? `
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Acima da média (${acimaDaMedia.length})</div>
+      ${acimaDaMedia.map(p=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-glass)">
+          <span style="font-size:13px">${p.nome||'—'}</span>
+          <span style="color:#f87171;font-weight:700;font-size:14px">${p.nivel_dor}/10</span>
+        </div>`).join('')}` : ''}`;
+}
+
+function exportDrawerCSV(type) {
+  let data = [];
+  if (type === 'total') data = AppFilters.getFiltered(allPacientes);
+  else if (type === 'semana') data = allPacientes.filter(p => (p.criado_em||'').split('T')[0] >= dateOffset(-7));
+  if (!data.length) { showToastErr('Sem dados para exportar'); return; }
+  const headers = 'Nome,Idade,WhatsApp,Nível Dor,Data Consulta\n';
+  const rows = data.map(p => `"${p.nome||''}",${p.idade||''},${p.whatsapp||''},${p.nivel_dor??''},${p.data_consulta||''}`).join('\n');
+  const blob = new Blob([headers+rows], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `pacientes_${type}_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  showToastOk('CSV exportado!');
+}
+
+// ─── COMMAND PALETTE ────────────────────────────────────────────────
+let _cmdSel = 0;
+
+function openCmd() {
+  document.getElementById('cmd-overlay').classList.add('open');
+  document.getElementById('cmd-input').value = '';
+  document.getElementById('cmd-input').focus();
+  updateCmd();
+}
+function closeCmd() {
+  document.getElementById('cmd-overlay')?.classList.remove('open');
+}
+function cmdKey(e) {
+  const items = document.querySelectorAll('.cmd-item');
+  if (e.key === 'ArrowDown') { _cmdSel = Math.min(_cmdSel+1, items.length-1); highlightCmd(items); e.preventDefault(); }
+  else if (e.key === 'ArrowUp') { _cmdSel = Math.max(_cmdSel-1, 0); highlightCmd(items); e.preventDefault(); }
+  else if (e.key === 'Enter') { items[_cmdSel]?.click(); }
+}
+function highlightCmd(items) {
+  items.forEach((item,i) => item.classList.toggle('sel', i === _cmdSel));
+  items[_cmdSel]?.scrollIntoView({ block: 'nearest' });
+}
+function updateCmd() {
+  const q = (document.getElementById('cmd-input')?.value || '').toLowerCase();
+  const res = document.getElementById('cmd-results');
+  if (!res) return;
+  _cmdSel = 0;
+  let html = '';
+
+  // Section navigation
+  const sections = [
+    { icon:'fa-chart-line', label:'Dashboard', id:'dashboard' },
+    { icon:'fa-users', label:'Cadastros', id:'cadastros' },
+    { icon:'fa-plus-circle', label:'Novo Cadastro', id:'novo' },
+    { icon:'fa-chart-bar', label:'Analytics', id:'analytics', admin:true },
+    { icon:'fa-file-alt', label:'Relatórios', id:'relatorios', admin:true },
+    { icon:'fa-map-marker-alt', label:'Pontos', id:'pontos', admin:true },
+  ].filter(s => !s.admin || currentProfile?.papel === 'admin')
+   .filter(s => !q || s.label.toLowerCase().includes(q));
+
+  if (sections.length) {
+    html += `<div class="cmd-grp">Seções</div>`;
+    html += sections.map((s,i) => `
+      <div class="cmd-item${i===0&&!q?' sel':''}" onclick="closeCmd();showSection('${s.id}',document.querySelector('[data-section=${s.id}]'))">
+        <i class="fas ${s.icon}"></i>
+        <span class="cmd-item-lbl">${s.label}</span>
+      </div>`).join('');
+  }
+
+  // Patient search
+  if (q.length >= 2) {
+    const matches = allPacientes.filter(p => (p.nome||'').toLowerCase().includes(q)).slice(0,6);
+    if (matches.length) {
+      html += `<div class="cmd-grp">Pacientes</div>`;
+      html += matches.map(p => {
+        const dc = p.criado_em ? new Date(p.criado_em).toLocaleDateString('pt-BR') : '';
+        return `<div class="cmd-item" onclick="closeCmd();showSection('cadastros',document.querySelector('[data-section=cadastros]'));document.getElementById('search-paciente').value='${(p.nome||'').replace(/'/g,"\\'")}';filterTable()">
+          <i class="fas fa-user"></i>
+          <span class="cmd-item-lbl">${p.nome||'—'}</span>
+          <span class="cmd-item-sub">dor ${p.nivel_dor??'—'} · ${dc}</span>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // Quick actions
+  const actions = [
+    { icon:'fa-download', label:'Exportar CSV', sub:'Exportar todos os dados', fn:'exportCSV()' },
+    { icon:'fa-filter', label:'Limpar filtros', sub:'Resetar todos os filtros', fn:'clearAllFilters()' },
+    { icon:'fa-keyboard', label:'Ver atalhos (?)', sub:'Mostrar lista de atalhos', fn:'openHK()' },
+  ].filter(a => !q || a.label.toLowerCase().includes(q));
+
+  if (actions.length) {
+    html += `<div class="cmd-grp">Ações</div>`;
+    html += actions.map(a => `
+      <div class="cmd-item" onclick="closeCmd();${a.fn}">
+        <i class="fas ${a.icon}"></i>
+        <span class="cmd-item-lbl">${a.label}</span>
+        <span class="cmd-item-sub">${a.sub}</span>
+      </div>`).join('');
+  }
+
+  if (!html) html = `<div class="cmd-empty">Nenhum resultado para "${q}"</div>`;
+  res.innerHTML = html;
+  highlightCmd(document.querySelectorAll('.cmd-item'));
+}
+
+// ─── HOTKEY SHEET ───────────────────────────────────────────────────
+function openHK() { document.getElementById('hk-overlay')?.classList.add('open'); }
+function closeHK() { document.getElementById('hk-overlay')?.classList.remove('open'); }
+
+// ─── KEYBOARD SHORTCUTS ─────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  const tag = (e.target.tagName || '').toLowerCase();
+  const typing = ['input','textarea','select'].includes(tag);
+
+  if (e.key === 'Escape') {
+    if (document.getElementById('cmd-overlay')?.classList.contains('open')) { closeCmd(); return; }
+    if (document.getElementById('hk-overlay')?.classList.contains('open')) { closeHK(); return; }
+    if (_currentDrawer) { closeDrawer(); return; }
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openCmd(); return; }
+  if (typing) return;
+  if (e.key === '?') { openHK(); return; }
+  if (e.key === 'n' || e.key === 'N') {
+    const navEl = document.querySelector('[data-section="novo"]');
+    if (navEl) { showSection('novo', navEl); }
+    return;
+  }
+  if (e.key === 'f' || e.key === 'F') {
+    const bar = document.getElementById('filter-bar');
+    if (bar) bar.style.display = bar.style.display === 'none' ? 'block' : 'none';
+    return;
+  }
+  if (e.key === '/') {
+    e.preventDefault();
+    const si = document.getElementById('search-paciente');
+    if (si) { showSection('cadastros', document.querySelector('[data-section="cadastros"]')); si.focus(); }
+    return;
+  }
+});
+
+// Restore drawer from URL on load
+function restoreDrawerFromURL() {
+  const params = new URLSearchParams(location.search);
+  const drawer = params.get('drawer');
+  if (drawer && ['total','hoje','semana','dor'].includes(drawer)) {
+    setTimeout(() => openDrawer(drawer), 400);
+  }
+}
+
+// ─── TOAST SYSTEM ───────────────────────────────────────────────────
+function showToastOk(msg) { stackToast(msg, 'success', 'fa-check-circle'); }
+function showToastErr(msg) { stackToast(msg, 'error', 'fa-times-circle'); }
+function showToastInfo(msg) { stackToast(msg, 'info', 'fa-info-circle'); }
+
+function stackToast(msg, type, icon) {
+  const stack = document.getElementById('toast-stack');
+  if (!stack) return;
+  const el = document.createElement('div');
+  el.className = `toast-item ${type}`;
+  el.innerHTML = `<i class="fas ${icon} ti"></i><span>${msg}</span>`;
+  stack.appendChild(el);
+  setTimeout(() => {
+    el.style.opacity = '0'; el.style.transform = 'translateY(8px)';
+    el.style.transition = 'all .3s'; setTimeout(() => el.remove(), 300);
+  }, 3200);
+}
+
+// Override showToast to also use stack
+const _origShowToast = window.showToast;
+window.showToast = function(msg, isError) {
+  if (isError) showToastErr(msg);
+  else showToastOk(msg);
+};
+
+// ─── AUTO-REFRESH ────────────────────────────────────────────────────
+let _refreshInterval = null;
+let _lastRefresh = Date.now();
+
+function startAutoRefresh() {
+  _refreshInterval = setInterval(async () => {
+    await loadData();
+    _lastRefresh = Date.now();
+    updateLiveBadge();
+  }, 60000);
+  updateLiveBadge();
+}
+
+function updateLiveBadge() {
+  const el = document.getElementById('live-label');
+  if (!el) return;
+  const secs = Math.round((Date.now() - _lastRefresh) / 1000);
+  el.textContent = secs < 10 ? 'ao vivo' : `atualizado há ${secs}s`;
+}
+setInterval(updateLiveBadge, 10000);
+
+// ─── HOOK INTO enterApp ──────────────────────────────────────────────
+const _origEnterApp = window.enterApp;
+window.enterApp = async function() {
+  if (typeof _origEnterApp === 'function') await _origEnterApp();
+  AppFilters.init();
+  syncFilterUI();
+  showFilterBar();
+  startAutoRefresh();
+  restoreDrawerFromURL();
+};
 </script>
 
 </body>
