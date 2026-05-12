@@ -4202,6 +4202,10 @@ function _buildStg1() {
           <label class="form-label">Idade</label>
           <input type="number" class="form-input" id="s1-idade" placeholder="Ex: 35" min="1" max="120">
         </div>
+        <div class="form-group">
+          <label class="form-label">CPF</label>
+          <input type="text" class="form-input" id="s1-cpf" placeholder="000.000.000-00" maxlength="14" oninput="_maskCPF(this)">
+        </div>
       </div>
       <div class="stg-actions">
         <button class="btn-stg-next" onclick="_stgGo(2)">Próximo →</button>
@@ -4341,6 +4345,10 @@ function _buildStg4Fibro() {
       <div class="stg-resumo" id="stg4-resumo"></div>
       <div class="stg-section-title">Conclusão</div>
       <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Precauções Clínicas</label>
+        <textarea class="form-input" id="s4-precaucoes" rows="3" placeholder="Alergias, contraindicações, medicamentos em uso, condições especiais que o Dr. precisa saber..."></textarea>
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
         <label class="form-label">Observações finais</label>
         <textarea class="form-input" id="s4-obs" rows="3" placeholder="Anotações, encaminhamentos, conduta..."></textarea>
       </div>
@@ -4374,6 +4382,10 @@ function _buildStg4Oculos() {
           <label class="form-label">Data de entrega prevista</label>
           <input type="date" class="form-input" id="s4-entrega">
         </div>
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Precauções Clínicas</label>
+        <textarea class="form-input" id="s4-precaucoes" rows="3" placeholder="Alergias, contraindicações, medicamentos em uso, condições especiais que o Dr. precisa saber..."></textarea>
       </div>
       <div class="form-group" style="margin-bottom:18px">
         <label class="form-label">Observações</label>
@@ -4458,6 +4470,7 @@ function _stgCollect(s) {
   const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
   if(s===1){
     _dat.nome=document.getElementById('s1-nome')?.value.trim()||'';
+    _dat.cpf=document.getElementById('s1-cpf')?.value.trim()||null;
     _dat.whatsapp=document.getElementById('s1-whats')?.value.trim()||null;
     _dat.idade=parseInt(document.getElementById('s1-idade')?.value)||null;
   } else if(s===2){
@@ -4495,6 +4508,7 @@ function _stgResumo() {
   if(!el)return;
   const rows=[];
   if(_dat.nome)rows.push(['Paciente',_dat.nome]);
+  if(_dat.cpf)rows.push(['CPF',_dat.cpf]);
   if(_dat.whatsapp)rows.push(['WhatsApp',_dat.whatsapp]);
   if(_dat.idade)rows.push(['Idade',_dat.idade+' anos']);
   if(proj==='oculos'){
@@ -4531,8 +4545,10 @@ window._stgSave = async function() {
 
   const payload={
     nome:_dat.nome,
+    cpf:_dat.cpf||null,
     whatsapp:_dat.whatsapp||null,
     idade:_dat.idade||null,
+    precaucoes_clinicas:document.getElementById('s4-precaucoes')?.value.trim()||null,
     observacoes:document.getElementById('s4-obs')?.value.trim()||null,
     cadastrado_por:typeof currentUser!=='undefined'?currentUser.id:null,
   };
@@ -4564,8 +4580,8 @@ window._stgSave = async function() {
 
   /* Remove campos com coluna potencialmente faltando — tenta inserir, se falhar remove e tenta sem */
   const newCols = proj==='fibro'
-    ? ['tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
-    : ['adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
+    ? ['cpf','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
+    : ['cpf','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
 
   let {error} = await sb.from(table).insert(payload);
 
@@ -4598,6 +4614,16 @@ window._dorColor = function(v) {
   if(el){el.textContent=v;el.style.color=cols[v]||'#4ade80';}
   const sl=document.getElementById('s3-dor');
   if(sl)sl.style.background=`linear-gradient(to right,${cols[v]||'#4ade80'} ${v*10}%,rgba(0,200,83,.2) ${v*10}%)`;
+};
+
+/* ---- Máscara CPF ---- */
+window._maskCPF = function(el) {
+  let v = el.value.replace(/\D/g,'');
+  if(v.length > 11) v = v.slice(0,11);
+  v = v.replace(/(\d{3})(\d)/,'$1.$2');
+  v = v.replace(/(\d{3})\.(\d{3})(\d)/,'$1.$2.$3');
+  v = v.replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/,'$1.$2.$3-$4');
+  el.value = v;
 };
 
 /* ---- Toast helper ---- */
