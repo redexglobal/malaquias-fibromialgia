@@ -9330,5 +9330,161 @@ window.enterApp = async function() {
 };
 </script>
 
+<script>
+/* ============================
+   ADMIN — CADASTRADOR + FICHA COMPLETA DO PACIENTE
+   ============================ */
+(function(){
+'use strict';
+
+window._profilesMap = window._profilesMap || {};
+
+async function _loadProfilesMap() {
+  if(currentProfile?.papel !== 'admin') return;
+  if(Object.keys(window._profilesMap).length > 0) return;
+  const {data} = await sb.from('profiles').select('id,nome,nome_ponto,numero_ponto').catch(()=>({data:null}));
+  if(data) data.forEach(pr => { window._profilesMap[pr.id] = pr; });
+}
+
+function _nomeCadastrador(userId) {
+  const pr = window._profilesMap?.[userId];
+  if(!pr) return userId ? '(carregando...)' : '—';
+  return pr.nome_ponto || pr.nome || '—';
+}
+
+/* --- Override updateTable para admins --- */
+const _prevUT = window.updateTable;
+window.updateTable = function() {
+  if(currentProfile?.papel !== 'admin') {
+    if(typeof _prevUT==='function') _prevUT();
+    return;
+  }
+  const body = document.getElementById('table-body');
+  if(!body) return;
+  const search = document.getElementById('search-paciente')?.value.toLowerCase()||'';
+  const filtered = (window.allPacientes||[]).filter(p => !search || p.nome?.toLowerCase().includes(search));
+  const cnt = document.getElementById('table-count');
+  if(cnt) cnt.textContent = filtered.length + ' registros';
+
+  body.innerHTML = filtered.slice(0,50).map(p => {
+    const dorClass = (p.nivel_dor||0)<=3?'dor-low':(p.nivel_dor||0)<=6?'dor-mid':'dor-high';
+    const data = p.data_consulta ? new Date(p.data_consulta+'T00:00:00').toLocaleDateString('pt-BR') : '—';
+    const avalNum = parseInt(p.avaliacao)||0;
+    const stars = avalNum>0
+      ? Array.from({length:5},(_,i)=>`<span style="color:${i<avalNum?'#f59e0b':'#4a5568'};font-size:14px">★</span>`).join('')
+      : '<span style="color:var(--text-muted);font-size:12px">—</span>';
+    const nomeCad = _nomeCadastrador(p.cadastrado_por);
+    return `<tr style="cursor:pointer" onclick="_abrirFichaPaciente('${p.id}')" title="Clique para ver ficha completa">
+      <td style="font-weight:500;color:var(--text-primary)">${p.nome||'—'}</td>
+      <td>${p.idade||'—'}</td>
+      <td>${p.whatsapp||'—'}</td>
+      <td><span class="dor-badge ${dorClass}">${p.nivel_dor||'—'}</span></td>
+      <td>${data}</td>
+      <td style="font-size:12px;color:var(--accent);font-weight:600">${nomeCad}</td>
+      <td style="white-space:nowrap">${stars}</td>
+    </tr>`;
+  }).join('');
+};
+
+/* --- Override loadData para carregar profiles antes de renderizar --- */
+const _prevLD = window.loadData;
+window.loadData = async function() {
+  await _loadProfilesMap();
+  if(typeof _prevLD==='function') await _prevLD();
+};
+
+/* --- Ficha completa do paciente (modal) --- */
+window._abrirFichaPaciente = function(pid) {
+  const p = (window.allPacientes||[]).find(x=>x.id===pid);
+  if(!p) return;
+  const proj = typeof currentProject!=='undefined'?currentProject:'fibro';
+
+  function row(label, val) {
+    if(val===null||val===undefined||val==='') return '';
+    return `<div style="display:flex;gap:8px;padding:10px 0;border-bottom:1px solid rgba(0,200,83,0.08)">
+      <span style="color:var(--text-muted,#94a3b8);font-size:12px;min-width:155px;flex-shrink:0">${label}</span>
+      <span style="color:var(--text-primary,#f1f5f9);font-size:13px;font-weight:500;word-break:break-word">${val}</span>
+    </div>`;
+  }
+  function sec(t) {
+    return `<div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent,#00e676);font-weight:700;margin:18px 0 2px">${t}</div>`;
+  }
+
+  const dataCad   = p.criado_em ? new Date(p.criado_em).toLocaleString('pt-BR') : '—';
+  const nomeCad   = _nomeCadastrador(p.cadastrado_por);
+  const fmtDate   = v => v ? new Date(v+'T00:00:00').toLocaleDateString('pt-BR') : null;
+
+  let corpo = sec('Identificação');
+  corpo += row('Nome completo', p.nome);
+  corpo += row('CPF', p.cpf);
+  corpo += row('Idade', p.idade ? p.idade+' anos' : null);
+  corpo += row('WhatsApp', p.whatsapp);
+
+  if(proj==='fibro') {
+    corpo += sec('Quadro de Sintomas');
+    corpo += row('Sintomas principais', p.sintomas);
+    corpo += row('Tempo dos sintomas', p.tempo_sintomas);
+    corpo += row('Medicações em uso', p.medicacoes);
+    corpo += sec('Avaliação de Dor');
+    corpo += row('Nível de dor', p.nivel_dor!=null ? p.nivel_dor+'/10' : null);
+    corpo += row('Pontos de dor no corpo', p.pontos_dor);
+    corpo += row('Data da consulta', fmtDate(p.data_consulta));
+    corpo += row('Próximo retorno', fmtDate(p.proximo_retorno));
+  } else {
+    corpo += sec('Receita Médica');
+    corpo += row('Grau OD (olho direito)', p.grau_od);
+    corpo += row('Grau OE (olho esquerdo)', p.grau_oe);
+    corpo += row('Adição', p.adicao);
+    corpo += row('Médico', p.nome_medico);
+    corpo += sec('Produto');
+    corpo += row('Armação', p.armacao);
+    corpo += row('Tipo de lente', p.tipo_lente);
+    corpo += row('Tratamentos', p.tratamentos_lente);
+    corpo += row('Valor do pedido', p.valor_pedido ? 'R$ '+parseFloat(p.valor_pedido).toFixed(2) : null);
+    corpo += sec('Status do Pedido');
+    corpo += row('Status', p.status_pedido);
+    corpo += row('Data de entrega prevista', fmtDate(p.data_entrega));
+  }
+
+  corpo += sec('Precauções Clínicas');
+  corpo += row('Precauções clínicas', p.precaucoes_clinicas || '(não informado)');
+  corpo += row('Observações finais', p.observacoes || '(não informado)');
+
+  corpo += sec('Informações de Registro');
+  corpo += row('Cadastrado por', nomeCad);
+  corpo += row('Data do cadastro', dataCad);
+
+  let bg = document.getElementById('_pdm-bg');
+  if(!bg) {
+    bg = document.createElement('div');
+    bg.id = '_pdm-bg';
+    bg.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+    bg.onclick = function(e){ if(e.target===bg) bg.style.display='none'; };
+    document.body.appendChild(bg);
+  }
+  bg.style.display = 'flex';
+  bg.innerHTML = `
+    <div style="background:var(--bg-card,#0a2416);border:1px solid rgba(0,200,83,0.3);border-radius:16px;padding:24px;max-width:540px;width:100%;max-height:88vh;overflow-y:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+      <button onclick="document.getElementById('_pdm-bg').style.display='none'"
+        style="position:absolute;top:14px;right:14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:50%;width:32px;height:32px;color:var(--text-muted,#94a3b8);font-size:16px;cursor:pointer">✕</button>
+      <div style="font-size:17px;font-weight:700;color:var(--text-primary,#f1f5f9);margin-bottom:2px;padding-right:40px">${p.nome||'Paciente'}</div>
+      <div style="font-size:11px;color:var(--accent,#00e676);margin-bottom:14px">Ficha completa · ${proj==='fibro'?'Fibromialgia':'Óculos'}</div>
+      ${corpo}
+    </div>`;
+};
+
+/* Init */
+function _init() {
+  if(typeof currentProfile==='undefined'||!currentProfile) return false;
+  if(currentProfile.papel==='admin') {
+    _loadProfilesMap().then(() => { if(typeof updateTable==='function') updateTable(); });
+  }
+  return true;
+}
+if(!_init()){ const _t=setInterval(()=>{if(_init())clearInterval(_t);},500); setTimeout(()=>clearInterval(_t),30000); }
+
+})();
+</script>
+
 </body>
 </html>
