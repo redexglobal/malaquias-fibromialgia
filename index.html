@@ -1179,7 +1179,7 @@ tr:last-child td { border-bottom: none; }
     <p class="login-subtitle">Sistema <span>Fibromialgia</span></p>
     <div class="form-group">
       <label class="form-label">Email</label>
-      <input type="email" class="form-input" id="login-email" placeholder="seu.email@malaquias.com" autocomplete="email">
+      <input type="email" class="form-input" id="login-email" placeholder="seu.email@malaquias.com" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="email" style="text-transform:lowercase" oninput="this.value=this.value.toLowerCase()">
     </div>
     <div class="form-group">
       <label class="form-label">Senha</label>
@@ -1958,8 +1958,20 @@ function toggleTheme() {
 })();
 
 // ============== AUTH ==============
+function _translateAuthError(msg) {
+  if (!msg) return 'Erro desconhecido. Tente de novo.';
+  const map = {
+    'Invalid login credentials': 'Email ou senha incorretos',
+    'Email not confirmed': 'Email ainda não confirmado',
+    'User not found': 'Usuário não encontrado',
+    'Too many requests': 'Muitas tentativas. Aguarde 1 minuto.',
+  };
+  return map[msg] || ('Erro: ' + msg);
+}
+
 async function doLogin() {
-  const email = document.getElementById('login-email').value.trim();
+  const rawEmail = document.getElementById('login-email').value;
+  const email = rawEmail.trim().toLowerCase();
   const pass = document.getElementById('login-password').value;
   const errEl = document.getElementById('login-error');
   const btn = document.getElementById('btn-login');
@@ -1968,10 +1980,19 @@ async function doLogin() {
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entrando...';
   btn.disabled = true;
 
+  console.log('[LOGIN DEBUG]', {
+    rawEmail,
+    email,
+    emailLength: email.length,
+    passwordLength: pass.length,
+    supabaseUrl: typeof SUPABASE_URL !== 'undefined' ? SUPABASE_URL : '(inline)'
+  });
+
   const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
 
   if (error) {
-    errEl.textContent = 'Email ou senha incorretos';
+    console.error('[LOGIN ERROR]', error);
+    errEl.textContent = _translateAuthError(error.message);
     errEl.style.display = 'block';
     btn.innerHTML = '<i class="fas fa-arrow-right"></i> Entrar';
     btn.disabled = false;
