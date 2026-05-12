@@ -4207,6 +4207,22 @@ function _buildStg1() {
           <input type="text" class="form-input" id="s1-cpf" placeholder="000.000.000-00" maxlength="14" oninput="_maskCPF(this)">
         </div>
       </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Nome da Mãe</label>
+          <input type="text" class="form-input" id="s1-mae" placeholder="Nome completo da mãe" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nome do Pai</label>
+          <input type="text" class="form-input" id="s1-pai" placeholder="Nome completo do pai" autocomplete="off">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Seção Eleitoral</label>
+          <input type="text" class="form-input" id="s1-secao" placeholder="Ex: 0123 / Zona 001">
+        </div>
+      </div>
       <div class="stg-actions">
         <button class="btn-stg-next" onclick="_stgGo(2)">Próximo →</button>
       </div>
@@ -4473,6 +4489,9 @@ function _stgCollect(s) {
     _dat.cpf=document.getElementById('s1-cpf')?.value.trim()||null;
     _dat.whatsapp=document.getElementById('s1-whats')?.value.trim()||null;
     _dat.idade=parseInt(document.getElementById('s1-idade')?.value)||null;
+    _dat.nome_mae=document.getElementById('s1-mae')?.value.trim()||null;
+    _dat.nome_pai=document.getElementById('s1-pai')?.value.trim()||null;
+    _dat.secao_eleitoral=document.getElementById('s1-secao')?.value.trim()||null;
   } else if(s===2){
     if(proj==='oculos'){
       _dat.grau_od=document.getElementById('s2-od')?.value.trim()||null;
@@ -4546,6 +4565,9 @@ window._stgSave = async function() {
   const payload={
     nome:_dat.nome,
     cpf:_dat.cpf||null,
+    nome_mae:_dat.nome_mae||null,
+    nome_pai:_dat.nome_pai||null,
+    secao_eleitoral:_dat.secao_eleitoral||null,
     whatsapp:_dat.whatsapp||null,
     idade:_dat.idade||null,
     precaucoes_clinicas:document.getElementById('s4-precaucoes')?.value.trim()||null,
@@ -4580,8 +4602,8 @@ window._stgSave = async function() {
 
   /* Remove campos com coluna potencialmente faltando — tenta inserir, se falhar remove e tenta sem */
   const newCols = proj==='fibro'
-    ? ['cpf','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
-    : ['cpf','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
+    ? ['cpf','nome_mae','nome_pai','secao_eleitoral','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
+    : ['cpf','nome_mae','nome_pai','secao_eleitoral','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
 
   let {error} = await sb.from(table).insert(payload);
 
@@ -9419,6 +9441,9 @@ window._abrirFichaPaciente = function(pid) {
   corpo += row('CPF', p.cpf);
   corpo += row('Idade', p.idade ? p.idade+' anos' : null);
   corpo += row('WhatsApp', p.whatsapp);
+  corpo += row('Nome da mãe', p.nome_mae);
+  corpo += row('Nome do pai', p.nome_pai);
+  corpo += row('Seção eleitoral', p.secao_eleitoral);
 
   if(proj==='fibro') {
     corpo += sec('Quadro de Sintomas');
