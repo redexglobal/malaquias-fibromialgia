@@ -7698,6 +7698,31 @@ if (!_upgradeInit()) {
 .pp-new-row { animation: ppFlash .8s ease; }
 @keyframes ppFlash { from{background:rgba(0,200,83,.18);} to{background:transparent;} }
 .pp-empty { text-align: center; padding: 2.5rem; color: var(--text-muted); font-size: 13px; }
+.pp-empty i { font-size: 32px; opacity: 0.4; display: block; margin-bottom: 10px; }
+
+/* Toolbar do modal — busca + datas + CSV */
+.pp-toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 14px 20px; border-bottom: 1px solid var(--border-glass); background: rgba(0,0,0,.1); }
+.pp-toolbar #pp-search { flex: 1; min-width: 200px; background: rgba(0,0,0,.2); border: 1px solid var(--border-glass); border-radius: 6px; padding: 7px 10px; color: var(--text-primary); font-size: 12px; font-family: inherit; }
+.pp-toolbar .pp-date-group { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); }
+.pp-toolbar input[type=date] { background: transparent; border: 1px solid var(--border-glass); color: var(--text-primary); padding: 5px 8px; border-radius: 6px; font-size: 11px; color-scheme: dark; font-family: inherit; }
+.pp-csv-btn { background: rgba(16,185,129,.15); border: 1px solid rgba(16,185,129,.4); color: #10b981; border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; font-family: inherit; }
+.pp-csv-btn:hover { background: rgba(16,185,129,.25); }
+
+/* Grouped list */
+.pp-grouped { max-height: 65vh; overflow-y: auto; padding: 14px 20px; }
+.pp-group { margin-bottom: 14px; }
+.pp-group-header { position: sticky; top: 0; background: linear-gradient(135deg, rgba(16,185,129,.22), rgba(16,185,129,.08)); backdrop-filter: blur(10px); border: 1px solid rgba(16,185,129,.3); border-radius: 8px; padding: 9px 14px; margin-bottom: 4px; font-weight: 700; color: #6ee7b7; font-size: 13px; text-transform: capitalize; z-index: 2; }
+.pp-group-header i { margin-right: 8px; opacity: .7; }
+.pp-group-count { font-weight: 400; color: rgba(110,231,183,.7); font-size: 11px; margin-left: 10px; }
+.pp-row { display: grid; grid-template-columns: 64px 1fr 150px 220px; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border-glass); align-items: center; font-size: 13px; }
+.pp-hora { color: var(--accent); font-weight: 700; font-family: monospace; }
+.pp-nome { font-weight: 500; color: var(--text-primary); }
+.pp-idade { color: var(--text-muted); font-size: 11px; font-weight: 400; }
+.pp-wpp { color: var(--text-secondary); font-size: 12px; }
+.pp-metric { font-size: 12px; color: var(--text-secondary); }
+
+/* Footer com contador */
+.pp-footer { margin: 12px 20px 16px; padding: 10px 14px; background: rgba(16,185,129,.06); border: 1px solid rgba(16,185,129,.2); border-radius: 8px; text-align: center; font-size: 12px; color: var(--text-muted); }
 </style>
 
 <script>
@@ -7721,130 +7746,256 @@ let _ppSub = null, _ppId = null, _ppRecs = [];
    A) DETALHE DO PONTO (show/hide dentro de sec-pontos)
    ================================================== */
 function _ensureDetailPanel() {
-  const sec = _$('sec-pontos');
-  if (!sec || _$('pp-detail')) return;
+  try {
+    const sec = _$('sec-pontos');
+    if (!sec || _$('pp-detail')) return;
 
-  const div = document.createElement('div');
-  div.id = 'pp-detail';
-  div.innerHTML = `
-    <div class="pp-detail-header">
-      <button class="pp-back-btn" onclick="_ppBack()">← Voltar</button>
-      <h2 id="pp-title">—</h2>
-      <span class="pp-live-dot">Tempo real</span>
-    </div>
-    <div class="pp-kpis">
-      <div class="pp-kpi"><div class="pp-kpi-val" id="pp-hoje">—</div><div class="pp-kpi-label">Hoje</div></div>
-      <div class="pp-kpi"><div class="pp-kpi-val" id="pp-semana">—</div><div class="pp-kpi-label">Esta Semana</div></div>
-      <div class="pp-kpi"><div class="pp-kpi-val" id="pp-total">—</div><div class="pp-kpi-label">Total Geral</div></div>
-    </div>
-    <div class="pp-tbl-wrap">
-      <table class="pp-tbl">
-        <thead id="pp-thead"></thead>
-        <tbody id="pp-tbody"></tbody>
-      </table>
-    </div>`;
-  sec.appendChild(div);
+    const div = document.createElement('div');
+    div.id = 'pp-detail';
+    div.innerHTML = `
+      <div class="pp-detail-header">
+        <button class="pp-back-btn" onclick="_ppBack()">← Voltar</button>
+        <h2 id="pp-title">—</h2>
+        <span class="pp-live-dot">Tempo real</span>
+      </div>
+      <div class="pp-kpis">
+        <div class="pp-kpi"><div class="pp-kpi-val" id="pp-hoje">—</div><div class="pp-kpi-label">Hoje</div></div>
+        <div class="pp-kpi"><div class="pp-kpi-val" id="pp-semana">—</div><div class="pp-kpi-label">Esta Semana</div></div>
+        <div class="pp-kpi"><div class="pp-kpi-val" id="pp-total">—</div><div class="pp-kpi-label">Total Geral</div></div>
+      </div>
+      <div class="pp-toolbar">
+        <input type="text" id="pp-search" placeholder="🔍 Buscar nome ou WhatsApp" oninput="window._ppApplyFilter()">
+        <div class="pp-date-group">
+          <span>De:</span>
+          <input type="date" id="pp-data-de" onchange="window._ppApplyFilter()">
+          <span>Até:</span>
+          <input type="date" id="pp-data-ate" onchange="window._ppApplyFilter()">
+        </div>
+        <button class="pp-csv-btn" onclick="window._ppExportCSV()" title="Exportar CSV dos cadastros visíveis"><i class="fas fa-file-csv"></i> Exportar CSV</button>
+      </div>
+      <div id="pp-grouped" class="pp-grouped"></div>
+      <!-- elementos legados mantidos pra compat (vazios) -->
+      <table class="pp-tbl" style="display:none"><thead id="pp-thead"></thead><tbody id="pp-tbody"></tbody></table>
+      <div id="pp-footer" class="pp-footer">—</div>`;
+    sec.appendChild(div);
+  } catch(e) { console.error('[PP ENSURE]', e); }
 }
 
 window._ppBack = function() {
-  const grid = _$('pontos-grid');
-  const detail = _$('pp-detail');
-  if (grid) grid.style.display = '';
-  if (detail) detail.style.display = 'none';
-  if (_ppSub) { _ppSub.unsubscribe(); _ppSub = null; }
-  _ppRecs = []; _ppId = null;
+  try {
+    const grid = _$('pontos-grid');
+    const filtros = _$('pontos-filtros');
+    const detail = _$('pp-detail');
+    if (grid)    grid.style.display = '';
+    if (filtros) filtros.style.display = '';
+    if (detail)  detail.style.display = 'none';
+    if (_ppSub) { _ppSub.unsubscribe(); _ppSub = null; }
+    _ppRecs = []; _ppId = null;
+  } catch(e) { console.error('[PP BACK]', e); }
 };
 
-function _ppSetHeaders() {
-  const th = _$('pp-thead'); if (!th) return;
-  const cols = _proj() === 'oculos'
-    ? ['Paciente','Idade','WhatsApp','Status','Data Entrega','Registrado']
-    : ['Paciente','Idade','WhatsApp','Dor','Data Consulta','Registrado'];
-  th.innerHTML = '<tr>' + cols.map(c =>
-    `<th>${c}</th>`).join('') + '</tr>';
+/* stub mantido pra retrocompat — não faz nada (não há mais thead) */
+function _ppSetHeaders() {}
+
+function _ppGetFiltered() {
+  try {
+    let r = [...(_ppRecs || [])];
+    const q = (_$('pp-search')?.value || '').toLowerCase();
+    if (q) r = r.filter(x => (x.nome||'').toLowerCase().includes(q) || (x.whatsapp||'').includes(q));
+    const from = _$('pp-data-de')?.value || null;
+    const to   = _$('pp-data-ate')?.value || null;
+    if (from) r = r.filter(x => x.criado_em && x.criado_em.slice(0,10) >= from);
+    if (to)   r = r.filter(x => x.criado_em && x.criado_em.slice(0,10) <= to);
+    return r;
+  } catch(e) { console.error('[PP FILTER]', e); return _ppRecs || []; }
 }
+
+window._ppApplyFilter = function(){ _ppRenderRows(false); };
 
 function _ppRenderRows(isNew) {
-  const tb = _$('pp-tbody'); if (!tb) return;
-  const today = _today();
-  const sem   = new Date(Date.now()-7*86400000).toISOString().split('T')[0];
+  try {
+    const grp = _$('pp-grouped'); if (!grp) return;
+    const today = _today();
+    const sem   = new Date(Date.now()-7*86400000).toISOString().split('T')[0];
 
-  /* KPIs */
-  const todayC = _ppRecs.filter(r=>r.criado_em?.startsWith(today)).length;
-  const semC   = _ppRecs.filter(r=>r.criado_em&&r.criado_em>=sem).length;
-  const total  = _ppRecs.length;
-  const _an = (id,n) => { const el=_$(id);if(!el)return;const dur=400,st=Date.now();(function t(){const p=Math.min((Date.now()-st)/dur,1);el.textContent=Math.round(n*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(t);})(); };
-  _an('pp-hoje',todayC); _an('pp-semana',semC); _an('pp-total',total);
+    /* KPIs (sobre TODOS os registros, não respeita filtros) */
+    const todayC = _ppRecs.filter(r=>r.criado_em?.startsWith(today)).length;
+    const semC   = _ppRecs.filter(r=>r.criado_em&&r.criado_em>=sem).length;
+    const total  = _ppRecs.length;
+    const _an = (id,n) => { const el=_$(id);if(!el)return;const dur=400,st=Date.now();(function t(){const p=Math.min((Date.now()-st)/dur,1);el.textContent=Math.round(n*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(t);})(); };
+    _an('pp-hoje',todayC); _an('pp-semana',semC); _an('pp-total',total);
 
-  if (!_ppRecs.length) {
-    tb.innerHTML = `<tr><td colspan="6" class="pp-empty">Nenhum cadastro registrado ainda.<br><span style="font-size:12px;opacity:.6">Novos registros aparecem aqui instantaneamente.</span></td></tr>`;
-    return;
-  }
+    /* Aplica filtros (texto + data) */
+    const recs = _ppGetFiltered();
+    const ft = _$('pp-footer');
+    const limitAviso = total >= 500 ? ' <span style="color:#f59e0b">⚠ limite 500 — ajuste o filtro de data</span>' : '';
+    if (ft) ft.innerHTML = `Exibindo <strong style="color:#10b981">${recs.length}</strong> de <strong>${total}</strong> cadastro${total!==1?'s':''}${limitAviso}`;
 
-  const stL = {aguardando:'⏳ Aguardando',em_producao:'⚙️ Produção',pronto:'✅ Pronto',entregue:'📦 Entregue'};
-  const dc  = v => v<=3?'dor-low':v<=6?'dor-mid':'dor-high';
-
-  tb.innerHTML = _ppRecs.slice(0,30).map((r,i) => {
-    let c4, c5;
-    if (_proj() === 'oculos') {
-      c4 = stL[r.status_pedido] || r.status_pedido || '—';
-      c5 = r.data_entrega ? _date(r.data_entrega) : '—';
-    } else {
-      c4 = r.nivel_dor!=null ? `<span class="dor-badge ${dc(r.nivel_dor)}">${r.nivel_dor}/10</span>` : '—';
-      c5 = r.data_consulta ? _date(r.data_consulta) : '—';
+    if (!total) {
+      grp.innerHTML = `<div class="pp-empty"><i class="fas fa-inbox"></i> Nenhum cadastro registrado neste ponto ainda.<br><span style="font-size:12px;opacity:.6">Novos registros aparecem aqui instantaneamente.</span></div>`;
+      return;
     }
-    return `<tr class="${i===0&&isNew?'pp-new-row':''}">
-      <td style="font-weight:600">${r.nome||'—'}</td>
-      <td>${r.idade||'—'}</td>
-      <td style="color:var(--text-secondary)">${r.whatsapp||'—'}</td>
-      <td>${c4}</td><td>${c5}</td>
-      <td style="font-size:11px;color:var(--text-muted)">${_hora(r.criado_em)}</td>
-    </tr>`;
-  }).join('');
+    if (!recs.length) {
+      grp.innerHTML = `<div class="pp-empty"><i class="fas fa-filter"></i> Nenhum registro corresponde aos filtros atuais.</div>`;
+      return;
+    }
+
+    /* Agrupa por data (criado_em::date), ordem decrescente */
+    const groups = {};
+    recs.forEach(r => {
+      const k = r.criado_em ? r.criado_em.slice(0,10) : 'sem-data';
+      if (!groups[k]) groups[k] = [];
+      groups[k].push(r);
+    });
+    const keys = Object.keys(groups).sort().reverse();
+
+    const stL = {aguardando:'⏳ Aguardando',em_producao:'⚙️ Produção',pronto:'✅ Pronto',entregue:'📦 Entregue'};
+    const dc  = v => v<=3?'dor-low':v<=6?'dor-mid':'dor-high';
+    const isOculos = _proj() === 'oculos';
+
+    grp.innerHTML = keys.map((k, gIdx) => {
+      const items = groups[k];
+      const dateLabel = k === 'sem-data'
+        ? 'Sem data registrada'
+        : new Date(k+'T12:00:00').toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long', year:'numeric'});
+      const rows = items.map((r,i) => {
+        const hora = r.criado_em ? new Date(r.criado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '—';
+        let metric;
+        if (isOculos) {
+          const valor = r.valor_pedido ? ` · <strong style="color:#10b981">R$ ${(parseFloat(r.valor_pedido)||0).toFixed(2)}</strong>` : '';
+          metric = `<span class="pp-metric">${stL[r.status_pedido] || r.status_pedido || '—'}${valor}</span>`;
+        } else {
+          metric = r.nivel_dor != null
+            ? `<span class="dor-badge ${dc(r.nivel_dor)}">Dor ${r.nivel_dor}/10</span>`
+            : '<span class="pp-metric">—</span>';
+        }
+        const isNewRow = isNew && gIdx===0 && i===0;
+        return `<div class="pp-row ${isNewRow?'pp-new-row':''}">
+          <span class="pp-hora">${hora}</span>
+          <span class="pp-nome">${r.nome||'—'}${r.idade?` <span class="pp-idade">— ${r.idade}a</span>`:''}</span>
+          <span class="pp-wpp">${r.whatsapp||'—'}</span>
+          <div class="pp-met">${metric}</div>
+        </div>`;
+      }).join('');
+      return `<div class="pp-group">
+        <div class="pp-group-header"><i class="fas fa-calendar-day"></i> ${dateLabel}<span class="pp-group-count">${items.length} cadastro${items.length!==1?'s':''}</span></div>
+        ${rows}
+      </div>`;
+    }).join('');
+  } catch(e) { console.error('[PP RENDER]', e); }
 }
+
+window._ppExportCSV = function() {
+  try {
+    const recs = _ppGetFiltered();
+    if (!recs.length) { alert('Nada pra exportar com os filtros atuais.'); return; }
+    const isOculos = _proj() === 'oculos';
+    let headers, lines;
+    if (isOculos) {
+      headers = ['Data','Hora','Paciente','Idade','WhatsApp','Status','Valor','Data_Entrega','Grau_OD','Grau_OE','Armacao','Observacoes'];
+      lines = recs.map(r => {
+        const d = r.criado_em ? new Date(r.criado_em) : null;
+        return [
+          d?d.toLocaleDateString('pt-BR'):'',
+          d?d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'',
+          (r.nome||'').replace(/"/g,'""'),
+          r.idade||'',
+          (r.whatsapp||'').replace(/"/g,'""'),
+          r.status_pedido||'',
+          r.valor_pedido||'',
+          r.data_entrega||'',
+          r.grau_od||'',
+          r.grau_oe||'',
+          (r.armacao||'').replace(/"/g,'""'),
+          (r.observacoes||'').replace(/"/g,'""').replace(/[\r\n]+/g,' ')
+        ].map(v => `"${v}"`).join(',');
+      });
+    } else {
+      headers = ['Data','Hora','Paciente','Idade','WhatsApp','Nivel_Dor','Data_Consulta','CPF','Observacoes'];
+      lines = recs.map(r => {
+        const d = r.criado_em ? new Date(r.criado_em) : null;
+        return [
+          d?d.toLocaleDateString('pt-BR'):'',
+          d?d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'',
+          (r.nome||'').replace(/"/g,'""'),
+          r.idade||'',
+          (r.whatsapp||'').replace(/"/g,'""'),
+          r.nivel_dor!=null?r.nivel_dor:'',
+          r.data_consulta||'',
+          r.cpf||'',
+          (r.observacoes||'').replace(/"/g,'""').replace(/[\r\n]+/g,' ')
+        ].map(v => `"${v}"`).join(',');
+      });
+    }
+    const csv = '﻿' + headers.join(',') + '\n' + lines.join('\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const tituloEl = _$('pp-title');
+    const safeName = (tituloEl?.textContent || 'ponto').replace(/[^a-zA-Z0-9]/g,'_').slice(0,40);
+    const from = _$('pp-data-de')?.value || 'inicio';
+    const to   = _$('pp-data-ate')?.value || 'hoje';
+    a.download = `cadastros_${safeName}_${from}_a_${to}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) { console.error('[PP CSV]', e); alert('Erro ao exportar CSV — ver console.'); }
+};
 
 /* Override openPontoDetalhe — show/hide dentro de sec-pontos */
 window.openPontoDetalhe = async function(profileId, nome, tipo) {
-  _ensureDetailPanel();
-  _ppId = profileId;
+  try {
+    _ensureDetailPanel();
+    _ppId = profileId;
 
-  /* Título */
-  const titleEl = _$('pp-title');
-  if (titleEl) titleEl.textContent = 'Últimos cadastros — ' + nome;
+    const titleEl = _$('pp-title');
+    if (titleEl) titleEl.textContent = 'Cadastros — ' + nome;
 
-  /* Cabeçalhos */
-  _ppSetHeaders();
+    /* Default date filter: últimos 30 dias (idempotente — só seta se vazio) */
+    const di = _$('pp-data-de'), df = _$('pp-data-ate');
+    const fmt = d => d.toISOString().slice(0,10);
+    if (di && !di.value) di.value = fmt(new Date(Date.now()-30*86400000));
+    if (df && !df.value) df.value = fmt(new Date());
+    const ps = _$('pp-search'); if (ps) ps.value = '';
 
-  /* Esconde grid, mostra painel */
-  const grid = _$('pontos-grid');
-  const detail = _$('pp-detail');
-  if (grid) grid.style.display = 'none';
-  if (detail) detail.style.display = 'block';
+    /* Esconde grid + filtros, mostra painel */
+    const grid = _$('pontos-grid');
+    const filtros = _$('pontos-filtros');
+    const detail = _$('pp-detail');
+    if (grid)    grid.style.display = 'none';
+    if (filtros) filtros.style.display = 'none';
+    if (detail)  detail.style.display = 'block';
 
-  /* Loading */
-  const tb = _$('pp-tbody');
-  if (tb) tb.innerHTML = `<tr><td colspan="6" class="pp-empty">Carregando cadastros...</td></tr>`;
+    /* Loading */
+    const grp = _$('pp-grouped');
+    if (grp) grp.innerHTML = `<div class="pp-empty"><i class="fas fa-spinner fa-spin"></i> Carregando cadastros...</div>`;
 
-  /* Busca dados */
-  const { data, error } = await sb.from(_tbl())
-    .select('*')
-    .eq('cadastrado_por', profileId)
-    .order('criado_em', { ascending: false })
-    .limit(100);
+    /* Busca dados — limit 500 pra date filter ter material */
+    const { data, error } = await sb.from(_tbl())
+      .select('*')
+      .eq('cadastrado_por', profileId)
+      .order('criado_em', { ascending: false })
+      .limit(500);
 
-  if (error) { if(typeof showToast==='function')showToast('Erro: '+error.message,true); return; }
-  _ppRecs = data || [];
-  _ppRenderRows(false);
+    if (error) {
+      console.error('[OPEN PONTO ERROR]', error);
+      if(typeof showToast==='function') showToast('Erro: '+error.message, true);
+      if (grp) grp.innerHTML = `<div class="pp-empty">Erro ao carregar cadastros: ${error.message}</div>`;
+      return;
+    }
+    _ppRecs = data || [];
+    _ppRenderRows(false);
 
-  /* Realtime */
-  if (_ppSub) { _ppSub.unsubscribe(); _ppSub = null; }
-  const tbl = _tbl();
-  _ppSub = sb.channel('pp_'+tbl+'_'+profileId)
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:tbl,filter:'cadastrado_por=eq.'+profileId}, pl => {
-      _ppRecs.unshift(pl.new);
-      _ppRenderRows(true);
-      if (typeof showToast==='function') showToast('Novo cadastro em '+nome+'!');
-    }).subscribe();
+    /* Realtime */
+    if (_ppSub) { _ppSub.unsubscribe(); _ppSub = null; }
+    const tbl = _tbl();
+    _ppSub = sb.channel('pp_'+tbl+'_'+profileId)
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:tbl,filter:'cadastrado_por=eq.'+profileId}, pl => {
+        _ppRecs.unshift(pl.new);
+        _ppRenderRows(true);
+        if (typeof showToast==='function') showToast('Novo cadastro em '+nome+'!');
+      }).subscribe();
+  } catch(e) { console.error('[OPEN PONTO UNCAUGHT]', e); }
 };
 
 /* ==================================================
