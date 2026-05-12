@@ -1,16 +1,16 @@
 -- =====================================================================
--- login_rls_backup.sql
--- Snapshot completo da configuração de banco do sistema Dr. Malaquias.
--- Roda este arquivo inteiro pra restaurar:
---   1. Função _get_papel (anti-recursão RLS)
---   2. Policies de profiles (login OK)
---   3. Policies de pacientes_fibro / pacientes_oculos
---   4. Views v_pontos_fibro / v_pontos_oculos
---   5. RPCs get_pontos_por_data_fibro / oculos
---   6. ativo=true nos colaboradores e papel=admin nos 4 admins
+-- snapshot_2026-05-13.sql
+-- Snapshot pré-uso em produção do banco do sistema Dr. Malaquias.
+-- Data: 2026-05-13
+-- Hora: registrado via NOW() na execução
+-- Tag estável correspondente: stable-pontos-v1-2026-05-13
 --
--- 100% idempotente. Última atualização: 2026-05-13.
+-- Conteúdo: idêntico ao login_rls_backup.sql desta data, mais um
+-- INSERT em historico_natalia pra marcar o ponto temporal.
+-- 100% idempotente.
 -- =====================================================================
+
+-- ============= INÍCIO DO SNAPSHOT (cópia de login_rls_backup.sql) =====
 
 -- 1) Função SECURITY DEFINER pra checar papel sem disparar recursão de RLS
 CREATE OR REPLACE FUNCTION public._get_papel(uid uuid)
@@ -23,7 +23,7 @@ AS $$
 $$;
 GRANT EXECUTE ON FUNCTION public._get_papel(uuid) TO authenticated;
 
--- 2) Policies de profiles — limpa e recria sem recursão
+-- 2) Policies de profiles
 DO $$
 DECLARE pol RECORD;
 BEGIN
@@ -51,17 +51,15 @@ WITH CHECK (id = auth.uid() OR public._get_papel(auth.uid()) = 'admin');
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- 3) Garante 4 admins com papel='admin' e ativo=true
+-- 3) Admins com papel='admin' e ativo=true
 UPDATE public.profiles
 SET papel = 'admin', ativo = true
 WHERE email IN (
-  'natalia@malaquias.com',
-  'antonio@malaquias.com',
-  'drmalaquias@malaquias.com',
-  'marcelo@malaquias.com'
+  'natalia@malaquias.com', 'antonio@malaquias.com',
+  'drmalaquias@malaquias.com', 'marcelo@malaquias.com'
 );
 
--- 4) Garante colaboradores com ativo=true
+-- 4) Colaboradores ativo=true
 UPDATE public.profiles
 SET ativo = true
 WHERE papel = 'colaborador' AND (ativo IS NULL OR ativo = false);
@@ -90,7 +88,7 @@ CREATE POLICY "pacientes_fibro_update_own" ON public.pacientes_fibro
 FOR UPDATE TO authenticated
 USING (cadastrado_por = auth.uid()) WITH CHECK (cadastrado_por = auth.uid());
 
--- 6) Policies pacientes_oculos (mesmo padrão)
+-- 6) Policies pacientes_oculos
 ALTER TABLE public.pacientes_oculos ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "pacientes_oculos_select" ON public.pacientes_oculos;
 DROP POLICY IF EXISTS "pacientes_oculos_insert" ON public.pacientes_oculos;
@@ -114,17 +112,17 @@ CREATE POLICY "pacientes_oculos_update_own" ON public.pacientes_oculos
 FOR UPDATE TO authenticated
 USING (cadastrado_por = auth.uid()) WITH CHECK (cadastrado_por = auth.uid());
 
--- 7) View v_pontos_fibro — KPIs agregados
+-- 7) View v_pontos_fibro
 CREATE OR REPLACE VIEW public.v_pontos_fibro AS
 SELECT
   p.id, p.nome, p.nome_ponto, p.numero_ponto, p.tipo_ponto, p.status, p.online_at,
   (p.online_at IS NOT NULL AND p.online_at > NOW() - INTERVAL '5 minutes') AS online,
-  COALESCE(COUNT(pf.id), 0)                                                            AS total_cadastros,
-  COALESCE(COUNT(CASE WHEN pf.criado_em::date = CURRENT_DATE THEN 1 END), 0)           AS cadastros_hoje,
-  COALESCE(COUNT(CASE WHEN pf.criado_em > NOW() - INTERVAL '7 days' THEN 1 END), 0)    AS cadastros_semana,
-  COALESCE(COUNT(CASE WHEN pf.nivel_dor >= 7 THEN 1 END), 0)                           AS cadastros_dor_alta,
-  ROUND(AVG(pf.nivel_dor)::numeric, 1)                                                  AS media_dor,
-  MAX(pf.criado_em)                                                                     AS ultimo_cadastro
+  COALESCE(COUNT(pf.id), 0) AS total_cadastros,
+  COALESCE(COUNT(CASE WHEN pf.criado_em::date = CURRENT_DATE THEN 1 END), 0) AS cadastros_hoje,
+  COALESCE(COUNT(CASE WHEN pf.criado_em > NOW() - INTERVAL '7 days' THEN 1 END), 0) AS cadastros_semana,
+  COALESCE(COUNT(CASE WHEN pf.nivel_dor >= 7 THEN 1 END), 0) AS cadastros_dor_alta,
+  ROUND(AVG(pf.nivel_dor)::numeric, 1) AS media_dor,
+  MAX(pf.criado_em) AS ultimo_cadastro
 FROM public.profiles p
 LEFT JOIN public.pacientes_fibro pf ON pf.cadastrado_por = p.id
 WHERE p.papel = 'colaborador' AND p.projeto = 'fibromialgia' AND p.ativo = true
@@ -136,12 +134,12 @@ CREATE OR REPLACE VIEW public.v_pontos_oculos AS
 SELECT
   p.id, p.nome, p.nome_ponto, p.numero_ponto, p.tipo_ponto, p.status, p.online_at,
   (p.online_at IS NOT NULL AND p.online_at > NOW() - INTERVAL '5 minutes') AS online,
-  COALESCE(COUNT(po.id), 0)                                                            AS total_cadastros,
-  COALESCE(COUNT(CASE WHEN po.criado_em::date = CURRENT_DATE THEN 1 END), 0)           AS cadastros_hoje,
-  COALESCE(COUNT(CASE WHEN po.criado_em > NOW() - INTERVAL '7 days' THEN 1 END), 0)    AS cadastros_semana,
-  ROUND(AVG(po.avaliacao)::numeric, 1)                                                  AS media_avaliacao,
-  COALESCE(SUM(po.valor_pedido), 0)                                                    AS valor_total,
-  MAX(po.criado_em)                                                                     AS ultimo_cadastro
+  COALESCE(COUNT(po.id), 0) AS total_cadastros,
+  COALESCE(COUNT(CASE WHEN po.criado_em::date = CURRENT_DATE THEN 1 END), 0) AS cadastros_hoje,
+  COALESCE(COUNT(CASE WHEN po.criado_em > NOW() - INTERVAL '7 days' THEN 1 END), 0) AS cadastros_semana,
+  ROUND(AVG(po.avaliacao)::numeric, 1) AS media_avaliacao,
+  COALESCE(SUM(po.valor_pedido), 0) AS valor_total,
+  MAX(po.criado_em) AS ultimo_cadastro
 FROM public.profiles p
 LEFT JOIN public.pacientes_oculos po ON po.cadastrado_por = p.id
 WHERE p.papel = 'colaborador' AND p.projeto = 'oculos' AND p.ativo = true
@@ -151,7 +149,7 @@ ORDER BY CASE p.tipo_ponto WHEN 'fixo' THEN 1 WHEN 'móvel' THEN 2 WHEN 'movel' 
 GRANT SELECT ON public.v_pontos_fibro TO authenticated;
 GRANT SELECT ON public.v_pontos_oculos TO authenticated;
 
--- 9) RPC get_pontos_por_data_fibro
+-- 9) RPC fibro por data
 CREATE OR REPLACE FUNCTION public.get_pontos_por_data_fibro(p_data date)
 RETURNS TABLE(
   id uuid, nome text, nome_ponto text, numero_ponto int, tipo_ponto text, status text,
@@ -171,7 +169,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
 $$;
 GRANT EXECUTE ON FUNCTION public.get_pontos_por_data_fibro(date) TO authenticated;
 
--- 10) RPC get_pontos_por_data_oculos
+-- 10) RPC óculos por data
 CREATE OR REPLACE FUNCTION public.get_pontos_por_data_oculos(p_data date)
 RETURNS TABLE(
   id uuid, nome text, nome_ponto text, numero_ponto int, tipo_ponto text, status text,
@@ -191,8 +189,17 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
 $$;
 GRANT EXECUTE ON FUNCTION public.get_pontos_por_data_oculos(date) TO authenticated;
 
--- 11) Validação — deve retornar 25 + 25 + 25 + 25
+-- ============= FIM DO SNAPSHOT ========================================
+
+-- 11) Marca o snapshot na tabela historico_natalia (audit trail leve)
+INSERT INTO public.historico_natalia (nome, positivos, negativos, neutros, atualizado_em)
+VALUES ('__SNAPSHOT__ 2026-05-13', 0, 0, 0, NOW())
+ON CONFLICT (nome) DO UPDATE SET atualizado_em = NOW();
+
+-- 12) Validação final
 SELECT 'v_pontos_fibro' AS o, COUNT(*) FROM public.v_pontos_fibro
 UNION ALL SELECT 'v_pontos_oculos', COUNT(*) FROM public.v_pontos_oculos
 UNION ALL SELECT 'rpc_fibro_hoje', COUNT(*) FROM public.get_pontos_por_data_fibro(CURRENT_DATE)
-UNION ALL SELECT 'rpc_oculos_hoje', COUNT(*) FROM public.get_pontos_por_data_oculos(CURRENT_DATE);
+UNION ALL SELECT 'rpc_oculos_hoje', COUNT(*) FROM public.get_pontos_por_data_oculos(CURRENT_DATE)
+UNION ALL SELECT 'admins', COUNT(*) FROM public.profiles WHERE papel = 'admin'
+UNION ALL SELECT 'colaboradores_ativos', COUNT(*) FROM public.profiles WHERE papel = 'colaborador' AND ativo = true;
