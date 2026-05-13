@@ -9868,6 +9868,28 @@ function _injectSec() {
       </div>
     </div>
     <p style="font-size:12px;color:var(--text-muted);margin-bottom:20px">Dados históricos consolidados — edite os números, os gráficos atualizam em tempo real. Filtre por cidade ou projeto para imprimir. Somente Natália.</p>
+    <style>
+      .natalia-totais{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:0 0 20px}
+      .ntot-card{padding:16px;border-radius:10px;border:1px solid var(--border-glass);background:var(--bg-card)}
+      .ntot-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:6px}
+      .ntot-value{font-size:28px;font-weight:700;font-family:'Crimson Pro',Georgia,serif}
+      .ntot-pos .ntot-value{color:#10b981}
+      .ntot-neu .ntot-value{color:#eab308}
+      .ntot-neg .ntot-value{color:#ef4444}
+      .ntot-tot .ntot-value{color:var(--text-primary)}
+      .ntot-pct .ntot-value{color:#a78bfa}
+      @media(max-width:768px){.natalia-totais{grid-template-columns:repeat(2,1fr)}}
+      .natalia-input{background:transparent;border:1px solid var(--border-glass);color:var(--text-primary);padding:4px 8px;border-radius:6px;width:80px;text-align:center;font-size:13px;font-weight:700;font-family:inherit}
+      .natalia-input:focus{outline:none;border-color:#10b981;box-shadow:0 0 0 2px rgba(16,185,129,.2)}
+      .natalia-input.dirty{border-color:#eab308!important;background:rgba(234,179,8,.08)!important}
+    </style>
+    <div class="natalia-totais" id="natalia-totais">
+      <div class="ntot-card ntot-pos"><div class="ntot-label">Positivos</div><div class="ntot-value" id="ntot-pos">—</div></div>
+      <div class="ntot-card ntot-neu"><div class="ntot-label">Neutros</div><div class="ntot-value" id="ntot-neu">—</div></div>
+      <div class="ntot-card ntot-neg"><div class="ntot-label">Negativos</div><div class="ntot-value" id="ntot-neg">—</div></div>
+      <div class="ntot-card ntot-tot"><div class="ntot-label">Total Atendimentos</div><div class="ntot-value" id="ntot-tot">—</div></div>
+      <div class="ntot-card ntot-pct"><div class="ntot-label">% Positivo Geral</div><div class="ntot-value" id="ntot-pct">—</div></div>
+    </div>
     <div id="_rn-hist-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:24px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
       <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:20px">
@@ -10054,6 +10076,7 @@ const _DL_PLUGIN={id:'_dlhist',afterDatasetsDraw(chart){const{ctx}=chart;chart.d
 function _rnHistGetData(){
   const rows=document.querySelectorAll('#_rn-hist-tbody tr[data-nome]');
   return Array.from(rows).map(tr=>({
+    id: tr.dataset.id ? parseInt(tr.dataset.id) : null,
     nome:tr.dataset.nome,
     pos:parseInt(tr.querySelector('[data-col="pos"]')?.value)||0,
     neg:parseInt(tr.querySelector('[data-col="neg"]')?.value)||0,
@@ -10089,6 +10112,16 @@ function _rnHistKpiUpdate(data){
   }
 }
 
+/* PARTE D — handler com debounce 200ms + flag .dirty */
+let _rnHistDebounce = null;
+window._rnHistInput = function(inp){
+  try {
+    if (inp && inp.classList) inp.classList.add('dirty');
+    clearTimeout(_rnHistDebounce);
+    _rnHistDebounce = setTimeout(() => window._rnHistUpdate(), 200);
+  } catch (e) { console.error('[NATALIA INPUT]', e); }
+};
+
 window._rnHistUpdate=function(){
   document.querySelectorAll('#_rn-hist-tbody tr[data-nome]').forEach(tr=>{
     const pos=parseInt(tr.querySelector('[data-col="pos"]')?.value)||0;
@@ -10105,6 +10138,8 @@ window._rnHistUpdate=function(){
   const filtered=_rnHistGetFiltered();
   _rnHistKpiUpdate(filtered);
   _rnHistChartsFrom(filtered);
+  /* Atualiza card de totais novo (PARTE C) */
+  renderNataliaCardTotais(_rnHistGetData());
 };
 
 window._rnHistFilterApply=function(){
@@ -10143,7 +10178,23 @@ function _rnHistChartsFrom(data){
   ]},options:{...baseOpts,plugins:{legend:{display:true,position:'top',labels:{color:'#94a3b8',font:{size:10},boxWidth:12}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.raw.toLocaleString('pt-BR')+' (pct: '+(pcts[c.dataIndex]||0)+'% positivo)'}}}}});}
 }
 
+function renderNataliaCardTotais(rows){
+  const tP = rows.reduce((s,r)=>s+(r.pos||0),0);
+  const tN = rows.reduce((s,r)=>s+(r.neg||0),0);
+  const tNe = rows.reduce((s,r)=>s+(r.neu||0),0);
+  const tot = tP+tN+tNe;
+  const pct = tot>0 ? Math.round((tP/tot)*1000)/10 : 0;
+  const $ = id => document.getElementById(id);
+  if($('ntot-pos')) $('ntot-pos').textContent = tP.toLocaleString('pt-BR');
+  if($('ntot-neg')) $('ntot-neg').textContent = tN.toLocaleString('pt-BR');
+  if($('ntot-neu')) $('ntot-neu').textContent = tNe.toLocaleString('pt-BR');
+  if($('ntot-tot')) $('ntot-tot').textContent = tot.toLocaleString('pt-BR');
+  if($('ntot-pct')) $('ntot-pct').textContent = pct.toLocaleString('pt-BR')+'%';
+}
+
 function _rnHistPanel(hist){
+  /* Card de totais (novo bloco — PARTE C) */
+  renderNataliaCardTotais(hist);
   const el=document.getElementById('_rn-hist-kpis'); if(!el)return;
   const tP=hist.reduce((a,b)=>a+b.pos,0);
   const tN=hist.reduce((a,b)=>a+b.neg,0);
@@ -10158,12 +10209,14 @@ function _rnHistPanel(hist){
     kpi('_rn-hk-neu','Neutros',tNe.toLocaleString('pt-BR'),'#f59e0b','')+
     kpi('_rn-hk-pct','% Geral Positivo',pctGeral+'%','#4ade80','Percentual geral');
   const tb=document.getElementById('_rn-hist-tbody'); if(!tb)return;
-  const inp=(col,val,cor)=>`<input type="number" min="0" value="${val}" data-col="${col}" style="width:70px;text-align:center;background:${cor}22;border:1px solid ${cor}55;border-radius:6px;padding:4px;color:${cor};font-size:13px;font-weight:700" oninput="window._rnHistUpdate()">`;
+  /* PARTE D — inputs com classe .natalia-input, data-col + dispatch via _rnHistInput pra marcar dirty */
+  const inp=(col,val,cor)=>`<input type="number" min="0" value="${val}" data-col="${col}" class="natalia-input" style="background:${cor}22;border-color:${cor}55;color:${cor}" oninput="window._rnHistInput(this)">`;
   tb.innerHTML=hist.map(h=>{
     const tot2=h.pos+h.neg+h.neu;
     const pct=tot2?(h.pos/tot2*100).toFixed(1):'0.0';
     const cor=parseFloat(pct)>=70?'#4ade80':parseFloat(pct)>=40?'#f59e0b':'#ef4444';
-    return `<tr style="border-bottom:1px solid rgba(167,139,250,0.07)" data-nome="${h.nome}">
+    const idAttr = h.id != null ? ` data-id="${h.id}"` : '';
+    return `<tr style="border-bottom:1px solid rgba(167,139,250,0.07)" data-nome="${h.nome}"${idAttr}>
       <td style="padding:10px 12px;font-size:13px;font-weight:600;color:var(--text-primary)">${h.nome}</td>
       <td style="text-align:center;padding:8px">${inp('pos',h.pos,'#4ade80')}</td>
       <td style="text-align:center;padding:8px">${inp('neg',h.neg,'#ef4444')}</td>
@@ -10184,26 +10237,93 @@ function _rnHistPanel(hist){
 }
 
 async function _rnHistLoad(){
-  const{data}=await sb.from('historico_natalia').select('nome,positivos,negativos,neutros').order('id').catch(()=>({data:null}));
-  const hist=(data&&data.length)
-    ?data.map(r=>({nome:r.nome,pos:r.positivos||0,neg:r.negativos||0,neu:r.neutros||0}))
-    :_RN_HIST;
-  _rnHistPanel(hist);
+  try {
+    const { data, error } = await sb
+      .from('historico_natalia')
+      .select('id,nome,positivos,negativos,neutros,atualizado_em')
+      .order('id');
+    if (error) {
+      console.error('[NATALIA HIST] query failed:', error);
+      const tb = document.getElementById('_rn-hist-tbody');
+      if (tb) tb.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:#fca5a5"><i class="fas fa-exclamation-triangle" style="font-size:24px;display:block;margin-bottom:8px;opacity:.6"></i>Erro ao carregar histórico: ${error.message}<br><span style="font-size:11px;opacity:.7">Verifique permissões RLS de historico_natalia no Supabase.</span></td></tr>`;
+      return;
+    }
+    const hist = (data && data.length)
+      ? data.map(r => ({ id: r.id, nome: r.nome, pos: r.positivos||0, neg: r.negativos||0, neu: r.neutros||0, atualizado_em: r.atualizado_em }))
+      : _RN_HIST.map(h => ({ ...h, id: null }));  /* fallback sem id — UPDATE não vai funcionar nesses */
+    if (!data || !data.length) console.warn('[NATALIA HIST] tabela vazia, usando fallback hardcoded sem id');
+    _rnHistPanel(hist);
+  } catch (e) {
+    console.error('[NATALIA HIST] uncaught:', e);
+  }
 }
 
-window._rnHistSave=async function(){
-  const st=document.getElementById('_rn-hist-save-status');
-  if(st){st.textContent='Salvando...';st.style.color='#a78bfa';}
-  const data=_rnHistGetData();
-  let erros=0;
-  for(const h of data){
-    const{error}=await sb.from('historico_natalia').upsert({nome:h.nome,positivos:h.pos,negativos:h.neg,neutros:h.neu,atualizado_em:new Date().toISOString()},{onConflict:'nome'}).catch(e=>({error:e}));
-    if(error){console.error(error);erros++;}
-  }
-  if(st){
-    st.textContent=erros?'⚠️ Erro ao salvar':'✅ Salvo!';
-    st.style.color=erros?'#ef4444':'#4ade80';
-    setTimeout(()=>{if(st)st.textContent='';},4000);
+/* PARTE D — Salvar via UPDATE por ID, agrupando inputs .dirty por linha */
+window._rnHistSave = async function(){
+  const st = document.getElementById('_rn-hist-save-status');
+  const setStatus = (txt, cor) => { if(st){ st.textContent = txt; st.style.color = cor; } };
+
+  try {
+    const dirtyInputs = Array.from(document.querySelectorAll('#_rn-hist-tbody .natalia-input.dirty'));
+    if (!dirtyInputs.length) {
+      if (typeof showToast === 'function') showToast('Nenhuma alteração para salvar', false);
+      setStatus('Sem alterações', 'var(--text-muted)');
+      setTimeout(() => setStatus('', ''), 3000);
+      return;
+    }
+
+    /* Agrupa inputs por linha (data-id) */
+    const updates = new Map();  /* id → {positivos, negativos, neutros, _inputs[]} */
+    for (const inp of dirtyInputs) {
+      const tr = inp.closest('tr');
+      if (!tr || !tr.dataset.id) {
+        console.warn('[NATALIA SAVE] input dirty sem data-id (linha do fallback):', tr?.dataset?.nome);
+        continue;
+      }
+      const id = parseInt(tr.dataset.id);
+      if (!updates.has(id)) {
+        const pos = parseInt(tr.querySelector('[data-col="pos"]')?.value) || 0;
+        const neg = parseInt(tr.querySelector('[data-col="neg"]')?.value) || 0;
+        const neu = parseInt(tr.querySelector('[data-col="neu"]')?.value) || 0;
+        updates.set(id, { positivos: pos, negativos: neg, neutros: neu, _inputs: [] });
+      }
+      updates.get(id)._inputs.push(inp);
+    }
+
+    if (!updates.size) {
+      if (typeof showToast === 'function') showToast('Linhas alteradas não têm ID (fallback). Salvamento exige dados reais no banco.', true);
+      setStatus('⚠️ Sem ID válido', '#ef4444');
+      return;
+    }
+
+    setStatus('Salvando '+updates.size+' registro(s)...', '#a78bfa');
+    let salvos = 0;
+    const nowIso = new Date().toISOString();
+
+    for (const [id, payload] of updates) {
+      const inputs = payload._inputs; delete payload._inputs;
+      const { error } = await sb
+        .from('historico_natalia')
+        .update({ ...payload, atualizado_em: nowIso })
+        .eq('id', id);
+      if (error) {
+        console.error('[NATALIA SAVE] falhou id='+id+':', error);
+        if (typeof showToast === 'function') showToast('Erro ao salvar registro #'+id+': '+error.message, true);
+        setStatus('⚠️ Erro no #'+id, '#ef4444');
+        return;  /* para no primeiro erro, mantém .dirty nos não salvos */
+      }
+      /* Sucesso → remove .dirty desses inputs */
+      inputs.forEach(i => i.classList.remove('dirty'));
+      salvos++;
+    }
+
+    setStatus('✅ '+salvos+' salvo(s)', '#10b981');
+    if (typeof showToast === 'function') showToast(salvos+' registro(s) salvo(s) com sucesso!', false);
+    setTimeout(() => setStatus('', ''), 4000);
+  } catch (e) {
+    console.error('[NATALIA SAVE] uncaught:', e);
+    setStatus('⚠️ Erro inesperado', '#ef4444');
+    if (typeof showToast === 'function') showToast('Erro inesperado ao salvar: '+e.message, true);
   }
 };
 
