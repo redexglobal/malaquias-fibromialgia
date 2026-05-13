@@ -1364,7 +1364,7 @@ tr:last-child td { border-bottom: none; }
         <i class="fas fa-chart-line"></i> Dashboard
       </div>
       <div class="nav-item" data-section="cadastros" onclick="showSection('cadastros', this)">
-        <i class="fas fa-users"></i> Cadastros
+        <i class="fas fa-users"></i> Cadastrados
       </div>
       <div class="nav-item" data-section="novo" onclick="showSection('novo', this)">
         <i class="fas fa-plus-circle"></i> Novo Cadastro
@@ -1469,9 +1469,9 @@ tr:last-child td { border-bottom: none; }
       </div>
     </div>
 
-    <!-- ===== CADASTROS LIST ===== -->
+    <!-- ===== CADASTRADOS LIST ===== -->
     <div class="section" id="sec-cadastros">
-      <h1 class="page-title">Cadastros</h1>
+      <h1 class="page-title">Cadastrados</h1>
       <p class="page-subtitle">Pacientes registrados no sistema</p>
 
       <div class="table-card">
@@ -2200,7 +2200,7 @@ function updateTable() {
   const filtered = allPacientes.filter(p => !search || p.nome?.toLowerCase().includes(search));
   document.getElementById('table-count').textContent = filtered.length + ' registros';
 
-  body.innerHTML = filtered.slice(0, 50).map(p => {
+  body.innerHTML = filtered.slice(0, 500).map(p => {
     const dorClass = p.nivel_dor <= 3 ? 'dor-low' : p.nivel_dor <= 6 ? 'dor-mid' : 'dor-high';
     const data = p.data_consulta ? new Date(p.data_consulta).toLocaleDateString('pt-BR') : '—';
     const avalNum = parseInt(p.avaliacao) || 0;
@@ -10473,6 +10473,15 @@ window._rnHistPrint=function(){
 const _prevSSrn=window.showSection;
 window.showSection=function(id,el){
   if(typeof _prevSSrn==='function') _prevSSrn(id,el);
+  /* Trigger Cadastrados (admin pode trocar de aba e voltar — refresh garantido) */
+  if (id === 'cadastros' || id === 'sec-cadastros') {
+    setTimeout(() => {
+      try {
+        console.log('[CADASTRADOS FORCE] disparando updateTable. cnt=', (window.allPacientes||[]).length);
+        if (typeof updateTable === 'function') updateTable();
+      } catch (e) { console.error('[CADASTRADOS FORCE ERROR]', e); }
+    }, 50);
+  }
   if (id === _RN_SEC || id === 'relatorio-nat' || id === 'sec-relatorio-nat' || id === 'relatorio-natalia') {
     setTimeout(() => {
       try {
@@ -10530,7 +10539,7 @@ window.updateTable = function() {
   const cnt = document.getElementById('table-count');
   if(cnt) cnt.textContent = filtered.length + ' registros';
 
-  body.innerHTML = filtered.slice(0,50).map(p => {
+  body.innerHTML = filtered.slice(0,500).map(p => {
     const dorClass = (p.nivel_dor||0)<=3?'dor-low':(p.nivel_dor||0)<=6?'dor-mid':'dor-high';
     const data = p.data_consulta ? new Date(p.data_consulta+'T00:00:00').toLocaleDateString('pt-BR') : '—';
     const avalNum = parseInt(p.avaliacao)||0;
