@@ -10178,21 +10178,40 @@ function _rnHistChartsFrom(data){
   ]},options:{...baseOpts,plugins:{legend:{display:true,position:'top',labels:{color:'#94a3b8',font:{size:10},boxWidth:12}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.raw.toLocaleString('pt-BR')+' (pct: '+(pcts[c.dataIndex]||0)+'% positivo)'}}}}});}
 }
 
-function renderNataliaCardTotais(rows){
-  const tP = rows.reduce((s,r)=>s+(r.pos||0),0);
-  const tN = rows.reduce((s,r)=>s+(r.neg||0),0);
-  const tNe = rows.reduce((s,r)=>s+(r.neu||0),0);
-  const tot = tP+tN+tNe;
-  const pct = tot>0 ? Math.round((tP/tot)*1000)/10 : 0;
-  const $ = id => document.getElementById(id);
-  if($('ntot-pos')) $('ntot-pos').textContent = tP.toLocaleString('pt-BR');
-  if($('ntot-neg')) $('ntot-neg').textContent = tN.toLocaleString('pt-BR');
-  if($('ntot-neu')) $('ntot-neu').textContent = tNe.toLocaleString('pt-BR');
-  if($('ntot-tot')) $('ntot-tot').textContent = tot.toLocaleString('pt-BR');
-  if($('ntot-pct')) $('ntot-pct').textContent = pct.toLocaleString('pt-BR')+'%';
+function renderNataliaCardTotais(rows) {
+  try {
+    console.log('[RN TOTAIS] calculando para', rows?.length, 'rows');
+    if (!Array.isArray(rows) || !rows.length) {
+      console.warn('[RN TOTAIS] rows vazia, abortando');
+      return;
+    }
+    /* Aceita tanto {positivos,negativos,neutros} (raw DB) quanto {pos,neg,neu} (normalizado) */
+    const sumPos = rows.reduce((s,r) => s + (r.positivos || r.pos || 0), 0);
+    const sumNeg = rows.reduce((s,r) => s + (r.negativos || r.neg || 0), 0);
+    const sumNeu = rows.reduce((s,r) => s + (r.neutros   || r.neu || 0), 0);
+    const sumTot = sumPos + sumNeg + sumNeu;
+    const pct = sumTot > 0 ? Math.round((sumPos/sumTot)*100*10)/10 : 0;
+
+    const elPos = document.getElementById('ntot-pos');
+    const elNeg = document.getElementById('ntot-neg');
+    const elNeu = document.getElementById('ntot-neu');
+    const elTot = document.getElementById('ntot-tot');
+    const elPct = document.getElementById('ntot-pct');
+
+    if (elPos) elPos.textContent = sumPos.toLocaleString('pt-BR');
+    if (elNeg) elNeg.textContent = sumNeg.toLocaleString('pt-BR');
+    if (elNeu) elNeu.textContent = sumNeu.toLocaleString('pt-BR');
+    if (elTot) elTot.textContent = sumTot.toLocaleString('pt-BR');
+    if (elPct) elPct.textContent = pct.toLocaleString('pt-BR') + '%';
+
+    console.log('[RN TOTAIS] OK. pos=', sumPos, 'neg=', sumNeg, 'tot=', sumTot);
+  } catch (e) {
+    console.error('[RN TOTAIS ERROR]', e);
+  }
 }
 
 function _rnHistPanel(hist){
+  console.log('[RN PANEL] renderizando', hist?.length, 'linhas');
   /* Card de totais (novo bloco — PARTE C) */
   renderNataliaCardTotais(hist);
   const el=document.getElementById('_rn-hist-kpis'); if(!el)return;
@@ -10238,10 +10257,12 @@ function _rnHistPanel(hist){
 
 async function _rnHistLoad(){
   try {
+    console.log('[RN HIST] iniciando query historico_natalia');
     const { data, error } = await sb
       .from('historico_natalia')
       .select('id,nome,positivos,negativos,neutros,atualizado_em')
       .order('id');
+    console.log('[RN HIST] resposta:', { error: error?.message || null, count: data?.length || 0, sample: data?.[0] });
     if (error) {
       console.error('[NATALIA HIST] query failed:', error);
       const tb = document.getElementById('_rn-hist-tbody');
@@ -10376,7 +10397,15 @@ window._rnHistPrint=function(){
 const _prevSSrn=window.showSection;
 window.showSection=function(id,el){
   if(typeof _prevSSrn==='function') _prevSSrn(id,el);
-  if(id===_RN_SEC) setTimeout(()=>_rnRender(),80);
+  if (id === _RN_SEC || id === 'relatorio-nat' || id === 'sec-relatorio-nat' || id === 'relatorio-natalia') {
+    setTimeout(() => {
+      try {
+        console.log('[RN FORCE] disparando renders. id=', id);
+        if (typeof _rnRender === 'function') { _rnRender(); console.log('[RN FORCE] _rnRender disparado'); }
+        if (typeof _rnHistLoad === 'function') { _rnHistLoad(); console.log('[RN FORCE] _rnHistLoad disparado'); }
+      } catch (e) { console.error('[RN FORCE ERROR]', e); }
+    }, 120);
+  }
 };
 
 function _rnInit(){
