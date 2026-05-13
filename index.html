@@ -2,8 +2,8 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dr. Malaquias — Sistema Fibromialgia</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Malaquias — Sistema Fibromialgia</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
@@ -1160,8 +1160,76 @@ tr:last-child td { border-bottom: none; }
 /* admin main offset */
 .main.has-filter { padding-top:120px !important; }
 </style>
+<style>
+/* ====== RESPONSIVIDADE GLOBAL (mobile/tablet) — AJUSTE 3+4 ====== */
+@media (max-width: 1024px) {
+  .sidebar, #app-sidebar { width: 200px; font-size: 13px; }
+  .pontos-grid, #pontos-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)) !important; }
+  .natalia-totais { grid-template-columns: repeat(3, 1fr) !important; }
+}
+
+@media (max-width: 768px) {
+  body { font-size: 14px; }
+  .sidebar, #app-sidebar {
+    position: fixed; left: -260px; top: 0;
+    transition: left .25s ease;
+    z-index: 1000; height: 100vh; width: 260px;
+    background: var(--bg-secondary, #0a2416);
+    overflow-y: auto;
+    box-shadow: 2px 0 16px rgba(0,0,0,.5);
+  }
+  .sidebar.open, #app-sidebar.open { left: 0; }
+  .main, .main-content, #main-content { margin-left: 0 !important; padding: 12px !important; }
+
+  .pontos-grid, #pontos-grid { grid-template-columns: 1fr !important; gap: 12px; }
+  .natalia-totais { grid-template-columns: repeat(2, 1fr) !important; gap: 8px; }
+  .ntot-value { font-size: 20px !important; }
+
+  table { font-size: 12px; }
+  #_rn-hist-tbody, .natalia-table { white-space: nowrap; }
+  .d-tbl-wrap, .pp-grouped { overflow-x: auto; }
+
+  .ponto-card, .kpi-card, .card { padding: 12px !important; }
+  .natalia-input { width: 60px !important; font-size: 11px !important; }
+
+  .topbar h1, header h1, .page-title { font-size: 18px !important; }
+  .logo-text { font-size: 14px !important; }
+
+  .pontos-filtros { flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
+  .pf-chips, .pf-data { flex-wrap: wrap; justify-content: center; }
+
+  canvas, .chart-container { max-height: 280px !important; }
+}
+
+@media (max-width: 480px) {
+  .natalia-totais { grid-template-columns: 1fr !important; }
+  .ntot-value { font-size: 24px !important; }
+  .topbar, header, #app-header { padding: 8px 12px !important; }
+}
+
+/* Botão hambúrguer flutuante (mobile only) */
+.btn-menu-mobile {
+  display: none;
+  position: fixed; top: 10px; left: 10px; z-index: 1100;
+  background: rgba(7,26,15,0.92);
+  border: 1px solid var(--border-glass, rgba(255,255,255,.15));
+  color: var(--text-primary, #fff);
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 12px rgba(0,0,0,.4);
+}
+@media (max-width: 768px) {
+  .btn-menu-mobile { display: inline-block; }
+  body.menu-open .btn-menu-mobile { left: 270px; }
+}
+</style>
 </head>
 <body data-theme="dark">
+<button class="btn-menu-mobile" id="btn-menu-mobile" aria-label="Menu" onclick="(function(){var s=document.querySelector('.sidebar, #app-sidebar');if(s){s.classList.toggle('open');document.body.classList.toggle('menu-open',s.classList.contains('open'));}})()">☰</button>
 
 <div class="bg-mesh"></div>
 <div class="floating-orb orb-1"></div>
@@ -1175,7 +1243,7 @@ tr:last-child td { border-bottom: none; }
   </div>
   <div class="login-container">
     <div class="login-logo">M</div>
-    <h1 class="login-title">Dr. Malaquias</h1>
+    <h1 class="login-title">Malaquias</h1>
     <p class="login-subtitle">Sistema <span>Fibromialgia</span></p>
     <div class="form-group">
       <label class="form-label">Email</label>
@@ -1204,7 +1272,7 @@ tr:last-child td { border-bottom: none; }
   <header class="header" id="app-header">
     <div class="logo">
       <div class="logo-icon">M</div>
-      <div class="logo-text">Dr. Malaquias <span>| Fibromialgia</span></div>
+      <div class="logo-text">Malaquias <span>| Fibromialgia</span></div>
     </div>
     <div class="header-right">
       <div class="live-badge" id="live-badge" style="display:none">
@@ -5543,7 +5611,7 @@ window._loadUltimosCadastros=_loadUltimosCadastros;
 <div class="pres-overlay" id="pres-overlay">
   <div class="pres-header">
     <div style="display:flex;align-items:center;gap:8px">
-      <span class="pres-title" id="pres-title">Dr. Malaquias</span>
+      <span class="pres-title" id="pres-title">Malaquias</span>
       <span class="pres-proj" id="pres-proj">Fibromialgia</span>
     </div>
     <button class="pres-close" onclick="_presClose()">✕</button>
@@ -9972,7 +10040,8 @@ function _rnCharts(){
   let tP=0,tN=0,tNe=0;
   Object.values(_rnFb).forEach(f=>{tP+=f.pos;tN+=f.neg;tNe+=f.neu;});
   const ctxB=document.getElementById('_rn-chart-bar');
-  if(ctxB){if(_rnBar)_rnBar.destroy();_rnBar=new Chart(ctxB,{type:'bar',data:{labels,datasets:[{label:'Atendimentos',data:vals,backgroundColor:'rgba(0,200,83,0.65)',borderColor:'#00e676',borderWidth:1,borderRadius:5}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9},color:'#94a3b8',maxRotation:45},grid:{display:false}},y:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.05)'},beginAtZero:true}}}});}
+  const _isMobW = window.innerWidth <= 768;
+  if(ctxB){if(_rnBar)_rnBar.destroy();_rnBar=new Chart(ctxB,{type:'bar',data:{labels,datasets:[{label:'Atendimentos',data:vals,backgroundColor:'rgba(0,200,83,0.65)',borderColor:'#00e676',borderWidth:1,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:_isMobW?10:13},color:'#cbd5e1',maxRotation:_isMobW?90:45,minRotation:_isMobW?90:45,autoSkip:false},grid:{display:false}},y:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.05)'},beginAtZero:true}}}});}
   const ctxP=document.getElementById('_rn-chart-pizza');
   if(ctxP){if(_rnPizza)_rnPizza.destroy();_rnPizza=new Chart(ctxP,{type:'doughnut',data:{labels:['Positivos','Negativos','Neutros'],datasets:[{data:[tP,tN,tNe],backgroundColor:['rgba(74,222,128,0.85)','rgba(239,68,68,0.85)','rgba(245,158,11,0.85)'],borderColor:['#4ade80','#ef4444','#f59e0b'],borderWidth:2}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:11}}}}}});}
 }
@@ -10168,7 +10237,8 @@ function _rnHistChartsFrom(data){
       ctx.fillText(p.toFixed(1)+'%',bar.x,bar.y-3);ctx.restore();
     });
   }};
-  const baseOpts={responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:8},color:'#94a3b8',maxRotation:45},grid:{display:false}},y:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.05)'},beginAtZero:true}}};
+  const _isMobile = window.innerWidth <= 768;
+  const baseOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:_isMobile?10:13},color:'#cbd5e1',maxRotation:_isMobile?90:45,minRotation:_isMobile?90:45,autoSkip:false},grid:{display:false}},y:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.05)'},beginAtZero:true}}};
   const ctxB=document.getElementById('_rn-hist-bar');
   if(ctxB){if(_rnHistBar)_rnHistBar.destroy();_rnHistBar=new Chart(ctxB,{type:'bar',plugins:[_DL_PLUGIN],data:{labels,datasets:[{label:'Atendimentos',data:tots,backgroundColor:'rgba(167,139,250,0.7)',borderColor:'#a78bfa',borderWidth:1,borderRadius:4}]},options:{...baseOpts,plugins:{...baseOpts.plugins,tooltip:{callbacks:{label:c=>c.raw.toLocaleString('pt-BR')+' atendimentos'}}}}});}
   const ctxP=document.getElementById('_rn-hist-pct');
