@@ -2045,6 +2045,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentUser = null;
 let currentProfile = null;
 let allPacientes = [];
+window.allPacientes = allPacientes; /* sync inicial: ambos os símbolos apontam pra mesma referência */
 
 // ============== THEME ==============
 function toggleTheme() {
@@ -3407,12 +3408,17 @@ function advFilteredUpdateCharts(){
   else if(_advCurrentPeriod==='7d')cutoff=new Date(now-7*86400000);
   else if(_advCurrentPeriod==='30d')cutoff=new Date(now-30*86400000);
   else if(_advCurrentPeriod==='90d')cutoff=new Date(now-90*86400000);
-  const backup=window.allPacientes;
-  if(cutoff){
-    window.allPacientes=(allPacientes||[]).filter(p=>p.criado_em&&new Date(p.criado_em)>=cutoff);
+  /* mutate-in-place pra preservar referência compartilhada com let allPacientes */
+  if (!Array.isArray(window.allPacientes)) window.allPacientes = [];
+  const backup = window.allPacientes.slice();
+  if (cutoff) {
+    const filtered = backup.filter(p => p.criado_em && new Date(p.criado_em) >= cutoff);
+    window.allPacientes.length = 0;
+    for (const p of filtered) window.allPacientes.push(p);
   }
   try{if(typeof window._origUpdateCharts==='function')window._origUpdateCharts();}catch(e){try{updateCharts();}catch(e2){}}
-  window.allPacientes=backup;
+  window.allPacientes.length = 0;
+  for (const p of backup) window.allPacientes.push(p);
 }
 
 /* ---- PRESENTATION MODE ---- */
@@ -3555,7 +3561,10 @@ window.loadData = async function(){
   }
   const {data,error} = await query;
   if(error){console.error('loadData:',error);return;}
-  window.allPacientes = data||[];
+  /* mutate-in-place pra preservar sync entre let allPacientes e window.allPacientes */
+  if (!Array.isArray(window.allPacientes)) window.allPacientes = [];
+  window.allPacientes.length = 0;
+  for (const p of (data || [])) window.allPacientes.push(p);
   if(typeof updateKPIs==='function') updateKPIs();
   updateTable();
   if(typeof updateCharts==='function') try{updateCharts();}catch(e){}
@@ -7550,7 +7559,10 @@ window._emDelete = async function() {
 async function _emDoDelete(id) {
   const {error} = await sb.from(_tbl()).delete().eq('id',id);
   if (error) { _toast('Erro ao excluir: '+error.message, true); return; }
-  window.allPacientes = (window.allPacientes||[]).filter(p=>p.id!==id);
+  /* mutate-in-place pra preservar sync */
+  if (!Array.isArray(window.allPacientes)) window.allPacientes = [];
+  const idx = window.allPacientes.findIndex(p=>p.id===id);
+  if (idx >= 0) window.allPacientes.splice(idx, 1);
   _toast('Cadastro excluído.');
   _renderFilteredTable();
 }
