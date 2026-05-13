@@ -12,8 +12,8 @@
 --    3. Quando confirmar, mantém COMMIT e roda no SQL Editor
 --
 -- O QUE DELETA:
---    - pacientes_fibro  com cpf LIKE '999.%' OU [DEMO] nas observações
---    - pacientes_oculos com cpf LIKE '999.%' OU [DEMO] nas observações
+--    - pacientes_fibro  com cpf LIKE '999.%' OU [DEMO]/[TESTE] nas observações
+--    - pacientes_oculos com cpf LIKE '999.%' OU [DEMO]/[TESTE] nas observações
 --    - mensagens_pontos com [DEMO] na mensagem  (skip se tabela não existir)
 --    - feedback_semanal com [DEMO] nas observações  (skip se tabela não existir)
 --    - historico_natalia em atualizado_em = '2026-05-13 23:00:00' (marcador demo)
@@ -33,12 +33,14 @@ BEGIN;
 -- 1) pacientes_fibro
 DELETE FROM public.pacientes_fibro
 WHERE cpf LIKE '999.%'
-   OR observacoes LIKE '%[DEMO]%';
+   OR observacoes LIKE '%[DEMO]%'
+   OR observacoes LIKE '%[TESTE]%';
 
 -- 2) pacientes_oculos
 DELETE FROM public.pacientes_oculos
 WHERE cpf LIKE '999.%'
-   OR observacoes LIKE '%[DEMO]%';
+   OR observacoes LIKE '%[DEMO]%'
+   OR observacoes LIKE '%[TESTE]%';
 
 -- 3) mensagens_pontos (skip silencioso se tabela não existir)
 DO $$
