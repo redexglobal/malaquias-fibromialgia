@@ -1448,14 +1448,26 @@ tr:last-child td { border-bottom: none; }
 
       <div class="chart-grid">
         <div class="chart-card">
-          <div class="chart-title">Cadastros nos Últimos 7 Dias</div>
+          <div class="chart-title">Cadastros nos Últimos 30 Dias</div>
           <div class="chart-subtitle">Evolução diária de novos cadastros</div>
           <div class="chart-container"><canvas id="chart-weekly"></canvas></div>
         </div>
         <div class="chart-card">
-          <div class="chart-title">Distribuição Nível de Dor</div>
-          <div class="chart-subtitle">Classificação dos pacientes por intensidade</div>
+          <div class="chart-title">Distribuição por Nível de Dor</div>
+          <div class="chart-subtitle">Leve (0–3) · Moderada (4–6) · Severa (7–10)</div>
           <div class="chart-container"><canvas id="chart-dor"></canvas></div>
+        </div>
+      </div>
+      <div class="chart-grid" style="margin-top:18px">
+        <div class="chart-card">
+          <div class="chart-title">Top 10 Pontos com mais Cadastros</div>
+          <div class="chart-subtitle">Ranking acumulado (view v_pontos_*)</div>
+          <div class="chart-container" style="height:360px"><canvas id="chart-top-pontos"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Cadastros por Hora do Dia</div>
+          <div class="chart-subtitle">Distribuição horária — últimos 30 dias</div>
+          <div class="chart-container" style="height:360px"><canvas id="chart-hourly"></canvas></div>
         </div>
       </div>
 
@@ -2244,20 +2256,16 @@ function getChartColors() {
 
 function updateCharts() {
   const c = getChartColors();
-  const defaults = {
-    color: c.text,
-    borderColor: c.grid,
-  };
   Chart.defaults.color = c.text;
 
-  // Weekly line chart
-  const last7 = [];
-  for (let i = 6; i >= 0; i--) {
+  /* G1 — Cadastros últimos 30 dias (line) */
+  const last30 = [];
+  for (let i = 29; i >= 0; i--) {
     const d = new Date(Date.now() - i*86400000);
     const key = d.toISOString().split('T')[0];
-    const label = d.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' });
+    const label = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
     const count = allPacientes.filter(p => p.criado_em?.startsWith(key)).length;
-    last7.push({ label, count });
+    last30.push({ label, count });
   }
 
   if (charts.weekly) charts.weekly.destroy();
@@ -2266,15 +2274,15 @@ function updateCharts() {
     charts.weekly = new Chart(ctx1, {
       type: 'line',
       data: {
-        labels: last7.map(d => d.label),
+        labels: last30.map(d => d.label),
         datasets: [{
           label: 'Cadastros',
-          data: last7.map(d => d.count),
+          data: last30.map(d => d.count),
           borderColor: c.accent,
           backgroundColor: c.accentBg,
           fill: true,
           tension: 0.4,
-          pointRadius: 4,
+          pointRadius: 2,
           pointBackgroundColor: c.accent,
         }]
       },
@@ -2283,15 +2291,20 @@ function updateCharts() {
         plugins: { legend: { display: false } },
         scales: {
           y: { beginAtZero: true, grid: { color: c.grid }, ticks: { stepSize: 1 } },
-          x: { grid: { display: false } }
+          x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 0, autoSkip: true, maxTicksLimit: 15 } }
         }
       }
     });
   }
 
-  // Dor distribution
-  const dorDist = Array(11).fill(0);
-  allPacientes.forEach(p => { if (p.nivel_dor != null) dorDist[p.nivel_dor]++; });
+  /* G2 — Distribuição em 3 faixas (Leve/Moderada/Severa) */
+  let leve=0, moderada=0, severa=0;
+  allPacientes.forEach(p => {
+    if (p.nivel_dor == null) return;
+    if (p.nivel_dor <= 3) leve++;
+    else if (p.nivel_dor <= 6) moderada++;
+    else severa++;
+  });
 
   if (charts.dor) charts.dor.destroy();
   const ctx2 = document.getElementById('chart-dor');
@@ -2299,29 +2312,105 @@ function updateCharts() {
     charts.dor = new Chart(ctx2, {
       type: 'doughnut',
       data: {
-        labels: ['0','1','2','3','4','5','6','7','8','9','10'],
+        labels: ['Leve (0–3)','Moderada (4–6)','Severa (7–10)'],
         datasets: [{
-          data: dorDist,
-          backgroundColor: [
-            '#4ade80','#6ee7a0','#86efac','#a7f3d0',
-            '#fcd34d','#fbbf24','#f59e0b',
-            '#fb923c','#f87171','#ef4444','#dc2626'
-          ],
+          data: [leve, moderada, severa],
+          backgroundColor: ['#10b981','#eab308','#ef4444'],
           borderWidth: 0,
         }]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'right', labels: { boxWidth: 12, padding: 8, font: { size: 11 } } } },
+        plugins: { legend: { position: 'right', labels: { boxWidth: 12, padding: 10, font: { size: 12 } } } },
         cutout: '60%',
       }
     });
   }
 
-  // Analytics charts (admin only)
+  /* G3 + G4 — novos charts via funções dedicadas */
+  if (typeof updateTopPontosChart === 'function') updateTopPontosChart(c);
+  if (typeof updateHourlyChart === 'function') updateHourlyChart(c);
+
+  /* Analytics charts (admin only) */
   if (currentProfile?.papel === 'admin') {
     updateAnalyticsCharts(c);
   }
+}
+
+/* G3 — Top 10 Pontos com mais cadastros (barras horizontais) */
+async function updateTopPontosChart(c) {
+  try {
+    c = c || getChartColors();
+    const ctx = document.getElementById('chart-top-pontos');
+    if (!ctx) return;
+    const view = (typeof currentProject !== 'undefined' && currentProject === 'oculos') ? 'v_pontos_oculos' : 'v_pontos_fibro';
+    const { data, error } = await sb.from(view).select('nome_ponto,total_cadastros,numero_ponto').order('total_cadastros', { ascending: false }).limit(10);
+    if (error) { console.error('[DASHBOARD G3]', error); return; }
+    const rows = data || [];
+    if (charts.topPontos) charts.topPontos.destroy();
+    charts.topPontos = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: rows.map(r => r.nome_ponto || ('Ponto '+r.numero_ponto)),
+        datasets: [{
+          label: 'Cadastros',
+          data: rows.map(r => r.total_cadastros || 0),
+          backgroundColor: 'rgba(16,185,129,0.7)',
+          borderColor: '#10b981',
+          borderWidth: 1,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.raw + ' cadastros' } } },
+        scales: {
+          x: { beginAtZero: true, grid: { color: c.grid }, ticks: { stepSize: 1, font: { size: 11 } } },
+          y: { grid: { display: false }, ticks: { font: { size: 12 } } }
+        }
+      }
+    });
+  } catch (e) { console.error('[DASHBOARD G3 EXCEPTION]', e); }
+}
+
+/* G4 — Cadastros por hora do dia (barras verticais) */
+async function updateHourlyChart(c) {
+  try {
+    c = c || getChartColors();
+    const ctx = document.getElementById('chart-hourly');
+    if (!ctx) return;
+    const tabela = (typeof currentProject !== 'undefined' && currentProject === 'oculos') ? 'pacientes_oculos' : 'pacientes_fibro';
+    const trinta = new Date(Date.now() - 30*86400000).toISOString();
+    const { data, error } = await sb.from(tabela).select('criado_em').gte('criado_em', trinta);
+    if (error) { console.error('[DASHBOARD G4]', error); return; }
+    const porHora = Array(24).fill(0);
+    (data || []).forEach(r => { if (r.criado_em) porHora[new Date(r.criado_em).getHours()]++; });
+    const labels = Array.from({length:24}, (_,i) => String(i).padStart(2,'0')+'h');
+    if (charts.hourly) charts.hourly.destroy();
+    charts.hourly = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Cadastros',
+          data: porHora,
+          backgroundColor: 'rgba(167,139,250,0.65)',
+          borderColor: '#a78bfa',
+          borderWidth: 1,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.raw + ' cadastros' } } },
+        scales: {
+          y: { beginAtZero: true, grid: { color: c.grid }, ticks: { stepSize: 1 } },
+          x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+        }
+      }
+    });
+  } catch (e) { console.error('[DASHBOARD G4 EXCEPTION]', e); }
 }
 
 function updateAnalyticsCharts(c) {
@@ -10473,6 +10562,16 @@ window._rnHistPrint=function(){
 const _prevSSrn=window.showSection;
 window.showSection=function(id,el){
   if(typeof _prevSSrn==='function') _prevSSrn(id,el);
+  /* Trigger Dashboard — refaz KPIs + charts ao voltar pra aba */
+  if (id === 'dashboard' || id === 'sec-dashboard') {
+    setTimeout(() => {
+      try {
+        console.log('[DASHBOARD FORCE] disparando updateKPIs + updateCharts');
+        if (typeof updateKPIs === 'function') updateKPIs();
+        if (typeof updateCharts === 'function') updateCharts();
+      } catch (e) { console.error('[DASHBOARD FORCE ERROR]', e); }
+    }, 100);
+  }
   /* Trigger Cadastrados (admin pode trocar de aba e voltar — refresh garantido) */
   if (id === 'cadastros' || id === 'sec-cadastros') {
     setTimeout(() => {
