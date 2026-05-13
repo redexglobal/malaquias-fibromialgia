@@ -9959,14 +9959,19 @@ function _injectSec() {
       <div class="ntot-card ntot-pct"><div class="ntot-label">% Positivo Geral</div><div class="ntot-value" id="ntot-pct">—</div></div>
     </div>
     <div id="_rn-hist-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:24px"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+    <style>
+      .rn-chart-wrap { position: relative; height: 360px; width: 100%; }
+      .rn-chart-wrap > canvas { display: block; width: 100% !important; height: 100% !important; }
+      @media (max-width: 768px) { .rn-chart-wrap { height: 280px; } }
+    </style>
+    <div style="display:grid;grid-template-columns:1fr;gap:24px;margin-bottom:24px">
       <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:20px">
         <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:12px"><i class="fas fa-chart-bar" style="color:#a78bfa;margin-right:6px"></i>Atendimentos por Local</div>
-        <canvas id="_rn-hist-bar"></canvas>
+        <div class="rn-chart-wrap"><canvas id="_rn-hist-bar"></canvas></div>
       </div>
       <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:20px">
         <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:12px"><i class="fas fa-percentage" style="color:#a78bfa;margin-right:6px"></i>Feedbacks por Local (%)</div>
-        <canvas id="_rn-hist-pct"></canvas>
+        <div class="rn-chart-wrap"><canvas id="_rn-hist-pct"></canvas></div>
       </div>
     </div>
     <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:20px">
@@ -10238,7 +10243,8 @@ function _rnHistChartsFrom(data){
     });
   }};
   const _isMobile = window.innerWidth <= 768;
-  const baseOpts={responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:_isMobile?10:13},color:'#cbd5e1',maxRotation:_isMobile?90:45,minRotation:_isMobile?90:45,autoSkip:false},grid:{display:false}},y:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.05)'},beginAtZero:true}}};
+  /* maintainAspectRatio:false é seguro aqui porque .rn-chart-wrap tem height fixo (360px/280px) */
+  const baseOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:_isMobile?13:16,weight:'500'},color:'#cbd5e1',maxRotation:_isMobile?90:45,minRotation:_isMobile?90:45,autoSkip:false},grid:{display:false}},y:{ticks:{color:'#94a3b8',font:{size:_isMobile?11:13}},grid:{color:'rgba(255,255,255,0.05)'},beginAtZero:true}}};
   const ctxB=document.getElementById('_rn-hist-bar');
   if(ctxB){if(_rnHistBar)_rnHistBar.destroy();_rnHistBar=new Chart(ctxB,{type:'bar',plugins:[_DL_PLUGIN],data:{labels,datasets:[{label:'Atendimentos',data:tots,backgroundColor:'rgba(167,139,250,0.7)',borderColor:'#a78bfa',borderWidth:1,borderRadius:4}]},options:{...baseOpts,plugins:{...baseOpts.plugins,tooltip:{callbacks:{label:c=>c.raw.toLocaleString('pt-BR')+' atendimentos'}}}}});}
   const ctxP=document.getElementById('_rn-hist-pct');
