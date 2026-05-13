@@ -3123,7 +3123,7 @@ async function advRenderHeatMap(){
   const sec=document.getElementById('sec-pontos');
   if(!sec)return;
   if(document.getElementById('adv-heat-section'))return;
-  const{data:profiles}=await sb.from('profiles').select('id,nome,nome_ponto,numero_ponto,tipo_ponto').eq('papel','colaborador').eq('projeto',PROJ).order('numero_ponto').catch(()=>({data:null}));
+  const{data:profiles}=await sb.from('profiles').select('id,nome,nome_ponto,numero_ponto,tipo_ponto').eq('papel','colaborador').eq('projeto',PROJ).order('numero_ponto');
   const list=profiles&&profiles.length?profiles:Array.from({length:25},(_,i)=>({id:'fake-'+i,nome:`Ponto ${String(i+1).padStart(2,'0')}`,numero_ponto:i+1}));
   const hoje=new Date().toISOString().split('T')[0];
   const semana=new Date(Date.now()-7*86400000).toISOString().split('T')[0];
@@ -3226,7 +3226,7 @@ async function advInitComparar(){
     main.appendChild(sec);
   }
   /* load pontos */
-  const{data:profiles}=await sb.from('profiles').select('id,nome,nome_ponto,numero_ponto').eq('papel','colaborador').eq('projeto',PROJ).order('numero_ponto').catch(()=>({data:null}));
+  const{data:profiles}=await sb.from('profiles').select('id,nome,nome_ponto,numero_ponto').eq('papel','colaborador').eq('projeto',PROJ).order('numero_ponto');
   const list=profiles&&profiles.length?profiles:Array.from({length:25},(_,i)=>({id:'fake-'+i,nome:`Ponto ${String(i+1).padStart(2,'0')}`,numero_ponto:i+1}));
   const checksDiv=document.getElementById('adv-cmp-checks');
   if(checksDiv){
@@ -3559,7 +3559,7 @@ window.exportCSV = function(){
     rows=allPacientes.map(p=>`"${p.nome||''}",${p.idade||''},"${p.whatsapp||''}","${p.sintomas||''}",${p.nivel_dor||''},"${p.data_consulta||''}","${p.observacoes||''}"`).join('\n');
   } else {
     headers='Nome,Idade,WhatsApp,Grau OD,Grau OE,Lente,Armação,Status,Data Entrega,Observações\n';
-    rows=allPacientes.map(p=>`"${p.nome||''}",${p.idade||''},"${p.whatsapp||'"},"${p.grau_od||''}","${p.grau_oe||''}","${p.lente_tipo||'"},"${p.armacao||'"},"${p.status_pedido||'"},"${p.data_entrega||'"},"${p.observacoes||''}"`).join('\n');
+    rows=allPacientes.map(p=>`"${p.nome||''}",${p.idade||''},"${p.whatsapp||''}","${p.grau_od||''}","${p.grau_oe||''}","${p.lente_tipo||''}","${p.armacao||''}","${p.status_pedido||''}","${p.data_entrega||''}","${p.observacoes||''}"`).join('\n');
   }
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob(['﻿'+headers+rows],{type:'text/csv;charset=utf-8;'}));
@@ -4235,7 +4235,7 @@ window.doLogout = async function() {
   try {
     /* Limpar subscrições realtime abertas */
     if (typeof sb !== 'undefined') {
-      sb.removeAllChannels().catch(()=>{});
+      try { sb.removeAllChannels(); } catch(_){ }
     }
   } catch(e) {}
   if (typeof _origLogout === 'function') return _origLogout.apply(this, arguments);
@@ -5999,7 +5999,7 @@ window._epExport=()=>{
     rows=filtered.map(p=>`"${p.nome||''}",${p.idade||''},"${p.whatsapp||''}","${p.status_pedido||''}","${p.data_entrega||''}","${p.grau_od||''}","${p.grau_oe||''}","${p.tipo_lente||''}",${p.valor_pedido||''},"${p.criado_em?new Date(p.criado_em).toLocaleString('pt-BR'):''}"`).join('\n');
   } else {
     headers='Nome,Idade,WhatsApp,Sintomas,Dor,Data Consulta,Medicações,Registrado em\n';
-    rows=filtered.map(p=>`"${p.nome||''}",${p.idade||''},"${p.whatsapp||'"},"${p.sintomas||''}",${p.nivel_dor!=null?p.nivel_dor:''},"${p.data_consulta||'"},"${p.medicacoes||'"},"${p.criado_em?new Date(p.criado_em).toLocaleString('pt-BR'):''}"` ).join('\n');
+    rows=filtered.map(p=>`"${p.nome||''}",${p.idade||''},"${p.whatsapp||''}","${p.sintomas||''}",${p.nivel_dor!=null?p.nivel_dor:''},"${p.data_consulta||''}","${p.medicacoes||''}","${p.criado_em?new Date(p.criado_em).toLocaleString('pt-BR'):''}"` ).join('\n');
   }
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob(['﻿'+headers+rows],{type:'text/csv;charset=utf-8;'}));
@@ -6117,7 +6117,7 @@ function _initRealtime(){
 async function _loadProfiles(){
   if(Object.keys(_pMap).length) return;
   const proj=_proj()==='oculos'?'oculos':'fibromialgia';
-  const{data}=await sb.from('profiles').select('id,nome,nome_ponto').eq('papel','colaborador').eq('projeto',proj).catch(()=>({data:null}));
+  const{data}=await sb.from('profiles').select('id,nome,nome_ponto').eq('papel','colaborador').eq('projeto',proj);
   if(data) data.forEach(p=>_pMap[p.id]=p.nome_ponto||p.nome);
 }
 
@@ -6452,7 +6452,7 @@ window._pdmSendMsg=async()=>{
   const msg=$('pdm-msg-text')?.value.trim();
   if(!msg||!_pdActiveId)return;
   const adminId=typeof currentUser!=='undefined'?currentUser.id:null;
-  const {error}=await sb.from('mensagens_pontos').insert({de:adminId,para:_pdActiveId,mensagem:msg,lido:false}).catch(()=>({error:{message:'Tabela não existe — execute o SQL no Supabase'}}));
+  const {error}=await sb.from('mensagens_pontos').insert({de:adminId,para:_pdActiveId,mensagem:msg,lido:false});
   if(error){_toast(error.message,true);console.error(error);return;}
   _toast('Mensagem enviada para '+_pdActiveNome+'!');
   _pdmClose('pdm-msg-bg');
@@ -6513,12 +6513,12 @@ function _injectMsgSectionColab(){
 async function _loadMsgsColab(){
   if(typeof currentUser==='undefined')return;
   const uid=currentUser.id;
-  const {data,error}=await sb.from('mensagens_pontos').select('*').eq('para',uid).order('criado_em',{ascending:false}).limit(20).catch(()=>({data:null,error:{message:'Tabela não encontrada'}}));
+  const {data,error}=await sb.from('mensagens_pontos').select('*').eq('para',uid).order('criado_em',{ascending:false}).limit(20);
   const list=$('msgs-list');if(!list)return;
   if(error||!data){list.innerHTML=`<div style="text-align:center;padding:2rem;color:var(--text-muted)">${error?.message||'Sem mensagens'}</div>`;return;}
   /* Marca como lidas */
   const unread=data.filter(m=>!m.lido).map(m=>m.id);
-  if(unread.length) sb.from('mensagens_pontos').update({lido:true}).in('id',unread).catch(()=>{});
+  if(unread.length) { try { await sb.from('mensagens_pontos').update({lido:true}).in('id',unread); } catch(_){ } }
   /* Atualiza badge */
   const badge=$('msg-badge');if(badge){badge.style.display='none';}
   if(!data.length){list.innerHTML='<div style="text-align:center;padding:2rem;color:var(--text-muted)">Nenhuma mensagem ainda.</div>';return;}
@@ -6538,7 +6538,7 @@ async function _loadMsgsColab(){
 async function _checkUnreadMsgs(){
   if(typeof currentUser==='undefined'||typeof currentProfile==='undefined')return;
   if(currentProfile?.papel!=='colaborador')return;
-  const {data}=await sb.from('mensagens_pontos').select('id').eq('para',currentUser.id).eq('lido',false).limit(20).catch(()=>({data:null}));
+  const {data}=await sb.from('mensagens_pontos').select('id').eq('para',currentUser.id).eq('lido',false).limit(20);
   const badge=$('msg-badge');
   if(badge&&data?.length){badge.textContent=data.length;badge.style.display='';}
 }
@@ -6647,7 +6647,7 @@ window._pdmNotifyAll=async()=>{
   const adminId=typeof currentUser!=='undefined'?currentUser.id:null;
   let ok=0;
   for(const paraId of ids){
-    const{error}=await sb.from('mensagens_pontos').insert({de:adminId,para:paraId,mensagem:msg,lido:false}).catch(()=>({error:true}));
+    const{error}=await sb.from('mensagens_pontos').insert({de:adminId,para:paraId,mensagem:msg,lido:false});
     if(!error)ok++;
   }
   _toast(`Mensagem enviada para ${ok} ponto${ok>1?'s':''}!`);
@@ -6775,7 +6775,7 @@ async function _ffInit(){
     /* Carrega profiles se vazio */
     if(!Object.keys(window._pMapGlobal||{}).length){
       const proj=_proj()==='oculos'?'oculos':'fibromialgia';
-      const{data}=await sb.from('profiles').select('id,nome,nome_ponto').eq('papel','colaborador').eq('projeto',proj).catch(()=>({data:null}));
+      const{data}=await sb.from('profiles').select('id,nome,nome_ponto').eq('papel','colaborador').eq('projeto',proj);
       if(data){window._pMapGlobal={};data.forEach(p=>window._pMapGlobal[p.id]=p.nome_ponto||p.nome);}
     }
     _updatePulsoDia();_updateTimeline();_updateOfflineCard();_updateRecordsCard();
@@ -7565,8 +7565,8 @@ function _doExportCSV(data, label) {
     const ponto = pontoMap[p.cadastrado_por]||'';
     const hora = p.criado_em ? new Date(p.criado_em).toLocaleString('pt-BR') : '';
     return isOculos
-      ? `"${p.nome||''}",${p.idade||''},"${p.whatsapp||'"}","${p.status_pedido||'"}","${p.data_entrega||'"}","${ponto}","${hora}"`
-      : `"${p.nome||''}",${p.idade||''},"${p.whatsapp||'"}","${p.sintomas||'"}",${p.nivel_dor!=null?p.nivel_dor:''},"${p.data_consulta||'"}","${ponto}","${hora}"`;
+      ? `"${p.nome||''}",${p.idade||''},"${p.whatsapp||''}","${p.status_pedido||''}","${p.data_entrega||''}","${ponto}","${hora}"`
+      : `"${p.nome||''}",${p.idade||''},"${p.whatsapp||''}","${p.sintomas||''}",${p.nivel_dor!=null?p.nivel_dor:''},"${p.data_consulta||''}","${ponto}","${hora}"`;
   }).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['﻿'+headers+rows],{type:'text/csv;charset=utf-8;'}));
@@ -10003,18 +10003,18 @@ window._rnRender = async function() {
 
   let qp = sb.from('profiles').select('id,nome,nome_ponto,numero_ponto,projeto').eq('papel','colaborador');
   if(proj!=='ambos') qp = qp.eq('projeto',proj);
-  const {data:pts} = await qp.order('numero_ponto').catch(()=>({data:[]}));
+  const {data:pts} = await qp.order('numero_ponto');
   _rnPontos = pts||[];
 
   _rnAtend = {};
   const tbls = proj==='ambos'?['pacientes_fibro','pacientes_oculos']:proj==='oculos'?['pacientes_oculos']:['pacientes_fibro'];
   for(const tbl of tbls){
-    const {data:pacs} = await sb.from(tbl).select('cadastrado_por').gte('criado_em',inicio+'T00:00:00').lte('criado_em',fim+'T23:59:59').catch(()=>({data:[]}));
+    const {data:pacs} = await sb.from(tbl).select('cadastrado_por').gte('criado_em',inicio+'T00:00:00').lte('criado_em',fim+'T23:59:59');
     (pacs||[]).forEach(p=>{ _rnAtend[p.cadastrado_por]=(_rnAtend[p.cadastrado_por]||0)+1; });
   }
 
   _rnFb = {};
-  const {data:fbList} = await sb.from(_RN_FTBL).select('*').eq('semana_inicio',inicio).catch(()=>({data:null}));
+  const {data:fbList} = await sb.from(_RN_FTBL).select('*').eq('semana_inicio',inicio);
   (fbList||[]).forEach(f=>{ _rnFb[f.ponto_id]={pos:f.positivos||0,neg:f.negativos||0,neu:f.neutros||0,obs:f.observacoes||'',id:f.id}; });
 
   _rnKpis(inicio,fim);
@@ -10515,7 +10515,7 @@ window._profilesMap = window._profilesMap || {};
 async function _loadProfilesMap() {
   if(currentProfile?.papel !== 'admin') return;
   if(Object.keys(window._profilesMap).length > 0) return;
-  const {data} = await sb.from('profiles').select('id,nome,nome_ponto,numero_ponto').catch(()=>({data:null}));
+  const {data} = await sb.from('profiles').select('id,nome,nome_ponto,numero_ponto');
   if(data) data.forEach(pr => { window._profilesMap[pr.id] = pr; });
 }
 
