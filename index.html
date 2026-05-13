@@ -10576,13 +10576,17 @@ window._rnHistPrint=function(){
 const _prevSSrn=window.showSection;
 window.showSection=function(id,el){
   if(typeof _prevSSrn==='function') _prevSSrn(id,el);
-  /* Trigger Dashboard — refaz KPIs + charts ao voltar pra aba */
+  /* Trigger Dashboard — carrega allPacientes ANTES de chamar updateKPIs/Charts */
   if (id === 'dashboard' || id === 'sec-dashboard') {
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
-        console.log('[DASHBOARD FORCE] disparando updateKPIs + updateCharts');
+        console.log('[DASHBOARD FORCE] disparando loadData + updates');
+        if (typeof loadData === 'function') await loadData();
+        /* loadData já chama updateKPIs/updateTable/updateCharts ao final, mas chamamos de novo defensivamente
+           pra cobrir o caso de algum override pular essas chamadas */
         if (typeof updateKPIs === 'function') updateKPIs();
         if (typeof updateCharts === 'function') updateCharts();
+        console.log('[DASHBOARD FORCE] OK');
       } catch (e) { console.error('[DASHBOARD FORCE ERROR]', e); }
     }, 100);
   }
