@@ -4615,6 +4615,24 @@ function _buildStg1() {
           <label class="form-label">Seção Eleitoral</label>
           <input type="text" class="form-input" id="s1-secao" placeholder="Ex: 0123 / Zona 001">
         </div>
+        <div class="form-group">
+          <label class="form-label">Adultos no lar</label>
+          <input type="number" class="form-input" id="s1-adultos" placeholder="Ex: 3" min="0" max="20">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Estado civil</label>
+          <select class="form-input" id="s1-estciv">
+            <option value="">Selecione...</option>
+            <option>Solteiro(a)</option>
+            <option>Casado(a)</option>
+            <option>União estável</option>
+            <option>Separado(a)</option>
+            <option>Divorciado(a)</option>
+            <option>Viúvo(a)</option>
+          </select>
+        </div>
       </div>
       <div class="stg-actions">
         <button class="btn-stg-next" onclick="_stgGo(2)">Próximo →</button>
@@ -4885,6 +4903,9 @@ function _stgCollect(s) {
     _dat.nome_mae=document.getElementById('s1-mae')?.value.trim()||null;
     _dat.nome_pai=document.getElementById('s1-pai')?.value.trim()||null;
     _dat.secao_eleitoral=document.getElementById('s1-secao')?.value.trim()||null;
+    const _ad=parseInt(document.getElementById('s1-adultos')?.value);
+    _dat.adultos_no_lar=isNaN(_ad)?null:_ad;
+    _dat.estado_civil=document.getElementById('s1-estciv')?.value||null;
   } else if(s===2){
     if(proj==='oculos'){
       _dat.grau_od=document.getElementById('s2-od')?.value.trim()||null;
@@ -4961,6 +4982,8 @@ window._stgSave = async function() {
     nome_mae:_dat.nome_mae||null,
     nome_pai:_dat.nome_pai||null,
     secao_eleitoral:_dat.secao_eleitoral||null,
+    adultos_no_lar:_dat.adultos_no_lar!=null?_dat.adultos_no_lar:null,
+    estado_civil:_dat.estado_civil||null,
     whatsapp:_dat.whatsapp||null,
     idade:_dat.idade||null,
     precaucoes_clinicas:document.getElementById('s4-precaucoes')?.value.trim()||null,
@@ -4995,8 +5018,8 @@ window._stgSave = async function() {
 
   /* Remove campos com coluna potencialmente faltando — tenta inserir, se falhar remove e tenta sem */
   const newCols = proj==='fibro'
-    ? ['cpf','nome_mae','nome_pai','secao_eleitoral','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
-    : ['cpf','nome_mae','nome_pai','secao_eleitoral','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
+    ? ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
+    : ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
 
   let {error} = await sb.from(table).insert(payload);
 
@@ -10724,6 +10747,8 @@ window._abrirFichaPaciente = function(pid) {
   corpo += row('Nome da mãe', p.nome_mae);
   corpo += row('Nome do pai', p.nome_pai);
   corpo += row('Seção eleitoral', p.secao_eleitoral);
+  corpo += row('Estado civil', p.estado_civil);
+  corpo += row('Adultos no lar', p.adultos_no_lar);
 
   if(proj==='fibro') {
     corpo += sec('Quadro de Sintomas');
@@ -10830,6 +10855,218 @@ function _rtInit(){
 }
 
 if(!_rtInit()){const _t=setInterval(()=>{if(_rtInit())clearInterval(_t);},600);setTimeout(()=>clearInterval(_t),30000);}
+
+})();
+</script>
+
+<script>
+/* ============================
+   ABA PACIENTES ÚNICOS — só admin
+   Agrupa cadastros por CPF (fallback nome+whatsapp) e mostra timeline de visitas
+   ============================ */
+(function(){
+'use strict';
+
+function _puInit(){
+  if(typeof currentProfile==='undefined'||!currentProfile) return false;
+  if(currentProfile.papel!=='admin') return true;
+
+  const navAdmin=document.getElementById('nav-admin-section');
+  if(navAdmin && !document.getElementById('nav-pacientes-unicos')){
+    const ni=document.createElement('div');
+    ni.id='nav-pacientes-unicos';
+    ni.className='nav-item';
+    ni.setAttribute('data-section','pacientes-unicos');
+    ni.innerHTML='<i class="fas fa-id-card"></i> Pacientes';
+    ni.onclick=function(){ if(typeof showSection==='function') showSection('pacientes-unicos',this); window._renderPacientesUnicos(); };
+    /* Insere logo após "Pontos" pra ficar perto da navegação clínica */
+    const ref=navAdmin.querySelector('[data-section="pontos"]');
+    if(ref && ref.nextSibling) navAdmin.insertBefore(ni, ref.nextSibling);
+    else navAdmin.appendChild(ni);
+  }
+
+  const main=document.querySelector('main.main');
+  if(main && !document.getElementById('sec-pacientes-unicos')){
+    const sec=document.createElement('div');
+    sec.className='section';
+    sec.id='sec-pacientes-unicos';
+    sec.innerHTML=`
+      <h1 class="page-title">Pacientes</h1>
+      <p class="page-subtitle">Lista única por paciente — clique para ver o histórico completo de visitas</p>
+      <div class="table-card" style="margin-top:18px">
+        <div class="table-header">
+          <h3 id="pu-title">Pacientes únicos</h3>
+          <div class="table-controls">
+            <input type="text" class="search-input" id="pu-search" placeholder="Buscar nome, CPF ou WhatsApp..." oninput="window._renderPacientesUnicos()">
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Paciente</th>
+                <th>CPF</th>
+                <th>WhatsApp</th>
+                <th>Idade</th>
+                <th>Visitas</th>
+                <th>Última visita</th>
+              </tr>
+            </thead>
+            <tbody id="pu-body"></tbody>
+          </table>
+        </div>
+      </div>`;
+    main.appendChild(sec);
+  }
+  return true;
+}
+
+function _puAgrupar(){
+  const list=window.allPacientes||[];
+  const groups=new Map();
+  list.forEach(p=>{
+    const cpf=(p.cpf||'').replace(/\D/g,'');
+    const key=cpf
+      ? 'cpf:'+cpf
+      : 'nw:'+((p.nome||'').toLowerCase().trim())+'|'+((p.whatsapp||'').replace(/\D/g,''));
+    if(!groups.has(key)) groups.set(key,{key, paciente:p, visitas:[]});
+    const g=groups.get(key);
+    g.visitas.push(p);
+    if((p.criado_em||'') > (g.paciente.criado_em||'')) g.paciente=p;
+  });
+  groups.forEach(g=>g.visitas.sort((a,b)=>(b.criado_em||'').localeCompare(a.criado_em||'')));
+  return [...groups.values()];
+}
+
+window._renderPacientesUnicos=function(){
+  const body=document.getElementById('pu-body');
+  if(!body) return;
+  const q=(document.getElementById('pu-search')?.value||'').toLowerCase().trim();
+  const groups=_puAgrupar();
+  const filtered=q
+    ? groups.filter(g=>
+        (g.paciente.nome||'').toLowerCase().includes(q)||
+        (g.paciente.cpf||'').toLowerCase().includes(q)||
+        (g.paciente.whatsapp||'').replace(/\D/g,'').includes(q.replace(/\D/g,''))
+      )
+    : groups;
+  filtered.sort((a,b)=>(b.paciente.criado_em||'').localeCompare(a.paciente.criado_em||''));
+
+  const title=document.getElementById('pu-title');
+  if(title) title.textContent=filtered.length+' pacientes únicos';
+
+  body.innerHTML=filtered.slice(0,800).map(g=>{
+    const p=g.paciente;
+    const ultima=p.criado_em?new Date(p.criado_em).toLocaleDateString('pt-BR'):'—';
+    const nv=g.visitas.length;
+    return `<tr style="cursor:pointer" onclick="window._abrirHistoricoPaciente('${g.key.replace(/'/g,"\\'")}')" title="Clique para ver histórico de visitas">
+      <td style="font-weight:500;color:var(--text-primary)">${p.nome||'—'}</td>
+      <td>${p.cpf||'<span style="color:var(--text-muted);font-size:11px">(sem CPF)</span>'}</td>
+      <td>${p.whatsapp||'—'}</td>
+      <td>${p.idade||'—'}</td>
+      <td><span style="background:rgba(0,200,83,0.15);color:var(--accent);padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600">${nv} ${nv===1?'visita':'visitas'}</span></td>
+      <td>${ultima}</td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">Nenhum paciente encontrado</td></tr>';
+};
+
+window._abrirHistoricoPaciente=function(key){
+  const groups=_puAgrupar();
+  const g=groups.find(x=>x.key===key);
+  if(!g) return;
+  const p=g.paciente;
+  const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
+
+  function row(label,val){
+    if(val===null||val===undefined||val==='') return '';
+    return `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid rgba(0,200,83,0.06)">
+      <span style="color:var(--text-muted,#94a3b8);font-size:11px;min-width:140px;flex-shrink:0">${label}</span>
+      <span style="color:var(--text-primary,#f1f5f9);font-size:12px;word-break:break-word">${val}</span>
+    </div>`;
+  }
+  const fmtDate=v=>v?new Date(v+'T00:00:00').toLocaleDateString('pt-BR'):null;
+  const nomeCad=id=>{
+    const pr=window._profilesMap?.[id];
+    return pr?(pr.nome_ponto||pr.nome||'—'):'—';
+  };
+
+  const header=`
+    <div style="background:rgba(0,200,83,0.06);border:1px solid rgba(0,200,83,0.2);border-radius:10px;padding:14px;margin-bottom:18px">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent,#00e676);font-weight:700;margin-bottom:8px">Identificação</div>
+      ${row('Nome',p.nome)}
+      ${row('CPF',p.cpf)}
+      ${row('Idade',p.idade?p.idade+' anos':null)}
+      ${row('WhatsApp',p.whatsapp)}
+      ${row('Nome da mãe',p.nome_mae)}
+      ${row('Nome do pai',p.nome_pai)}
+      ${row('Seção eleitoral',p.secao_eleitoral)}
+      ${row('Estado civil',p.estado_civil)}
+      ${row('Adultos no lar',p.adultos_no_lar)}
+    </div>`;
+
+  const visitas=g.visitas.map((v,idx)=>{
+    let body='';
+    if(proj==='fibro'){
+      body+=row('Sintomas',v.sintomas);
+      body+=row('Tempo dos sintomas',v.tempo_sintomas);
+      body+=row('Medicações',v.medicacoes);
+      body+=row('Nível de dor',v.nivel_dor!=null?v.nivel_dor+'/10':null);
+      body+=row('Pontos de dor',v.pontos_dor);
+      body+=row('Data consulta',fmtDate(v.data_consulta));
+      body+=row('Próximo retorno',fmtDate(v.proximo_retorno));
+    } else {
+      body+=row('Grau OD',v.grau_od);
+      body+=row('Grau OE',v.grau_oe);
+      body+=row('Adição',v.adicao);
+      body+=row('Médico',v.nome_medico);
+      body+=row('Armação',v.armacao);
+      body+=row('Tipo de lente',v.tipo_lente);
+      body+=row('Tratamentos',v.tratamentos_lente);
+      body+=row('Valor do pedido',v.valor_pedido?'R$ '+parseFloat(v.valor_pedido).toFixed(2):null);
+      body+=row('Status',v.status_pedido);
+      body+=row('Data de entrega',fmtDate(v.data_entrega));
+    }
+    body+=row('Precauções clínicas',v.precaucoes_clinicas);
+    body+=row('Observações',v.observacoes);
+    body+=row('Cadastrado por',nomeCad(v.cadastrado_por));
+
+    const dataStr=v.criado_em?new Date(v.criado_em).toLocaleString('pt-BR'):'—';
+    const numVisita=g.visitas.length-idx;
+
+    return `<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(0,200,83,0.12);border-left:3px solid var(--accent,#00e676);border-radius:8px;padding:14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px">
+        <div style="font-weight:700;color:var(--accent,#00e676);font-size:13px">
+          ${idx===0?'🆕 ':''}Visita ${numVisita}
+        </div>
+        <div style="font-size:11px;color:var(--text-muted,#94a3b8)">${dataStr}</div>
+      </div>
+      ${body}
+    </div>`;
+  }).join('');
+
+  let bg=document.getElementById('_phist-bg');
+  if(!bg){
+    bg=document.createElement('div');
+    bg.id='_phist-bg';
+    bg.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+    bg.onclick=function(e){ if(e.target===bg) bg.style.display='none'; };
+    document.body.appendChild(bg);
+  }
+  bg.style.display='flex';
+  const nv=g.visitas.length;
+  bg.innerHTML=`
+    <div style="background:var(--bg-card,#0a2416);border:1px solid rgba(0,200,83,0.3);border-radius:16px;padding:24px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+      <button onclick="document.getElementById('_phist-bg').style.display='none'"
+        style="position:absolute;top:14px;right:14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:50%;width:32px;height:32px;color:var(--text-muted,#94a3b8);font-size:16px;cursor:pointer">✕</button>
+      <div style="font-size:18px;font-weight:700;color:var(--text-primary,#f1f5f9);margin-bottom:2px;padding-right:40px">${p.nome||'Paciente'}</div>
+      <div style="font-size:11px;color:var(--accent,#00e676);margin-bottom:18px">${nv} ${nv===1?'visita registrada':'visitas registradas'} · Fibromialgia</div>
+      ${header}
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent,#00e676);font-weight:700;margin-bottom:10px">📋 Histórico de Visitas</div>
+      ${visitas}
+    </div>`;
+};
+
+if(!_puInit()){const _t=setInterval(()=>{if(_puInit())clearInterval(_t);},600);setTimeout(()=>clearInterval(_t),30000);}
 
 })();
 </script>
