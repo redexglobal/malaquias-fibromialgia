@@ -4772,6 +4772,18 @@ function _buildStg4Fibro() {
       <div class="stg-resumo" id="stg4-resumo"></div>
       <div class="stg-section-title">Conclusão</div>
       <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Nível de melhora desde a última consulta <span style="color:var(--text-muted);font-size:11px;font-weight:400">(deixe em branco na primeira consulta)</span></label>
+        <select class="form-input" id="s4-melhora">
+          <option value="">— Não se aplica / primeira consulta —</option>
+          <option value="-2">😣 Piorou muito</option>
+          <option value="-1">😟 Piorou um pouco</option>
+          <option value="0">😐 Sem mudança</option>
+          <option value="1">🙂 Melhorou um pouco</option>
+          <option value="2">😊 Melhorou bastante</option>
+          <option value="3">😄 Muito melhor / recuperado</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
         <label class="form-label">Precauções Clínicas</label>
         <textarea class="form-input" id="s4-precaucoes" rows="3" placeholder="Alergias, contraindicações, medicamentos em uso, condições especiais que o Dr. precisa saber..."></textarea>
       </div>
@@ -4988,6 +5000,7 @@ window._stgSave = async function() {
     idade:_dat.idade||null,
     precaucoes_clinicas:document.getElementById('s4-precaucoes')?.value.trim()||null,
     observacoes:document.getElementById('s4-obs')?.value.trim()||null,
+    nivel_melhora:(()=>{const v=document.getElementById('s4-melhora')?.value;return v===''||v==null?null:parseInt(v);})(),
     cadastrado_por:typeof currentUser!=='undefined'?currentUser.id:null,
   };
 
@@ -5018,8 +5031,8 @@ window._stgSave = async function() {
 
   /* Remove campos com coluna potencialmente faltando — tenta inserir, se falhar remove e tenta sem */
   const newCols = proj==='fibro'
-    ? ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
-    : ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
+    ? ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','nivel_melhora','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
+    : ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','nivel_melhora','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
 
   let {error} = await sb.from(table).insert(payload);
 
@@ -10777,6 +10790,11 @@ window._abrirFichaPaciente = function(pid) {
   }
 
   corpo += sec('Precauções Clínicas');
+  corpo += row('Nível de melhora', (function(v){
+    if(v==null||v==='')return null;
+    const m={'-2':'😣 Piorou muito','-1':'😟 Piorou um pouco','0':'😐 Sem mudança','1':'🙂 Melhorou um pouco','2':'😊 Melhorou bastante','3':'😄 Muito melhor / recuperado'};
+    return m[String(v)]||('Nível '+v);
+  })(p.nivel_melhora));
   corpo += row('Precauções clínicas', p.precaucoes_clinicas || '(não informado)');
   corpo += row('Observações finais', p.observacoes || '(não informado)');
 
@@ -10892,7 +10910,7 @@ function _puInit(){
     sec.id='sec-pacientes-unicos';
     sec.innerHTML=`
       <h1 class="page-title">Pacientes</h1>
-      <p class="page-subtitle">Lista única por paciente — clique para ver o histórico completo de visitas</p>
+      <p class="page-subtitle">Lista única por paciente — clique para ver o histórico completo de retornos</p>
       <div class="table-card" style="margin-top:18px">
         <div class="table-header">
           <h3 id="pu-title">Pacientes únicos</h3>
@@ -10908,8 +10926,8 @@ function _puInit(){
                 <th>CPF</th>
                 <th>WhatsApp</th>
                 <th>Idade</th>
-                <th>Visitas</th>
-                <th>Última visita</th>
+                <th>Retornos</th>
+                <th>Último retorno</th>
               </tr>
             </thead>
             <tbody id="pu-body"></tbody>
@@ -10959,12 +10977,12 @@ window._renderPacientesUnicos=function(){
     const p=g.paciente;
     const ultima=p.criado_em?new Date(p.criado_em).toLocaleDateString('pt-BR'):'—';
     const nv=g.visitas.length;
-    return `<tr style="cursor:pointer" onclick="window._abrirHistoricoPaciente('${g.key.replace(/'/g,"\\'")}')" title="Clique para ver histórico de visitas">
+    return `<tr style="cursor:pointer" onclick="window._abrirHistoricoPaciente('${g.key.replace(/'/g,"\\'")}')" title="Clique para ver histórico de retornos">
       <td style="font-weight:500;color:var(--text-primary)">${p.nome||'—'}</td>
       <td>${p.cpf||'<span style="color:var(--text-muted);font-size:11px">(sem CPF)</span>'}</td>
       <td>${p.whatsapp||'—'}</td>
       <td>${p.idade||'—'}</td>
-      <td><span style="background:rgba(0,200,83,0.15);color:var(--accent);padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600">${nv} ${nv===1?'visita':'visitas'}</span></td>
+      <td><span style="background:rgba(0,200,83,0.15);color:var(--accent);padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600">${nv} ${nv===1?'retorno':'retornos'}</span></td>
       <td>${ultima}</td>
     </tr>`;
   }).join('')||'<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">Nenhum paciente encontrado</td></tr>';
@@ -11026,6 +11044,11 @@ window._abrirHistoricoPaciente=function(key){
       body+=row('Status',v.status_pedido);
       body+=row('Data de entrega',fmtDate(v.data_entrega));
     }
+    body+=row('Nível de melhora',(function(x){
+      if(x==null||x==='')return null;
+      const m={'-2':'😣 Piorou muito','-1':'😟 Piorou um pouco','0':'😐 Sem mudança','1':'🙂 Melhorou um pouco','2':'😊 Melhorou bastante','3':'😄 Muito melhor / recuperado'};
+      return m[String(x)]||('Nível '+x);
+    })(v.nivel_melhora));
     body+=row('Precauções clínicas',v.precaucoes_clinicas);
     body+=row('Observações',v.observacoes);
     body+=row('Cadastrado por',nomeCad(v.cadastrado_por));
@@ -11036,7 +11059,7 @@ window._abrirHistoricoPaciente=function(key){
     return `<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(0,200,83,0.12);border-left:3px solid var(--accent,#00e676);border-radius:8px;padding:14px;margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px">
         <div style="font-weight:700;color:var(--accent,#00e676);font-size:13px">
-          ${idx===0?'🆕 ':''}Visita ${numVisita}
+          ${idx===0?'🆕 ':''}Retorno ${numVisita}
         </div>
         <div style="font-size:11px;color:var(--text-muted,#94a3b8)">${dataStr}</div>
       </div>
@@ -11059,9 +11082,9 @@ window._abrirHistoricoPaciente=function(key){
       <button onclick="document.getElementById('_phist-bg').style.display='none'"
         style="position:absolute;top:14px;right:14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:50%;width:32px;height:32px;color:var(--text-muted,#94a3b8);font-size:16px;cursor:pointer">✕</button>
       <div style="font-size:18px;font-weight:700;color:var(--text-primary,#f1f5f9);margin-bottom:2px;padding-right:40px">${p.nome||'Paciente'}</div>
-      <div style="font-size:11px;color:var(--accent,#00e676);margin-bottom:18px">${nv} ${nv===1?'visita registrada':'visitas registradas'} · Fibromialgia</div>
+      <div style="font-size:11px;color:var(--accent,#00e676);margin-bottom:18px">${nv} ${nv===1?'retorno registrado':'retornos registrados'} · Fibromialgia</div>
       ${header}
-      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent,#00e676);font-weight:700;margin-bottom:10px">📋 Histórico de Visitas</div>
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent,#00e676);font-weight:700;margin-bottom:10px">📋 Histórico de Retornos</div>
       ${visitas}
     </div>`;
 };
