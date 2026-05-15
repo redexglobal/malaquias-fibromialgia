@@ -11094,5 +11094,290 @@ if(!_puInit()){const _t=setInterval(()=>{if(_puInit())clearInterval(_t);},600);s
 })();
 </script>
 
+<script>
+/* ============================
+   ABA ANÁLISE DE MELHORA — só admin
+   Donut geral (Melh./Est./Pior.) + lista por nível + tabela por ponto
+   Filtro de período. Dados de window.allPacientes + window._profilesMap.
+   ============================ */
+(function(){
+'use strict';
+
+let _amChart=null;
+let _amPeriodo='todos';
+
+const NIVEIS=[
+  {v:-2, label:'😣 Piorou muito',     color:'#dc2626', cat:'pior'},
+  {v:-1, label:'😟 Piorou um pouco',  color:'#f97316', cat:'pior'},
+  {v: 0, label:'😐 Sem mudança',      color:'#6b7280', cat:'estav'},
+  {v: 1, label:'🙂 Melhorou um pouco', color:'#84cc16', cat:'melh'},
+  {v: 2, label:'😊 Melhorou bastante', color:'#22c55e', cat:'melh'},
+  {v: 3, label:'😄 Muito melhor / recuperado', color:'#15803d', cat:'melh'},
+];
+
+function _amInit(){
+  if(typeof currentProfile==='undefined'||!currentProfile) return false;
+  if(currentProfile.papel!=='admin') return true;
+
+  const navAdmin=document.getElementById('nav-admin-section');
+  if(navAdmin && !document.getElementById('nav-analise-melhora')){
+    const ni=document.createElement('div');
+    ni.id='nav-analise-melhora';
+    ni.className='nav-item';
+    ni.setAttribute('data-section','analise-melhora');
+    ni.innerHTML='<i class="fas fa-chart-pie"></i> Análise de Melhora';
+    ni.onclick=function(){
+      if(typeof showSection==='function') showSection('analise-melhora',this);
+      setTimeout(()=>window._renderAnaliseMelhora(),60);
+    };
+    /* depois da aba Pacientes (que vem após "pontos") */
+    const ref=navAdmin.querySelector('[data-section="pacientes-unicos"]')||navAdmin.querySelector('[data-section="pontos"]');
+    if(ref && ref.nextSibling) navAdmin.insertBefore(ni, ref.nextSibling);
+    else navAdmin.appendChild(ni);
+  }
+
+  const main=document.querySelector('main.main');
+  if(main && !document.getElementById('sec-analise-melhora')){
+    const sec=document.createElement('div');
+    sec.className='section';
+    sec.id='sec-analise-melhora';
+    sec.innerHTML=`
+      <h1 class="page-title">Análise de Melhora</h1>
+      <p class="page-subtitle">Como os pacientes estão evoluindo — feedback registrado em cada retorno</p>
+
+      <div style="display:flex;gap:8px;margin:18px 0 22px;flex-wrap:wrap">
+        <button class="am-pbtn am-pbtn-active" data-am="todos"  onclick="window._amSetPeriodo('todos',this)">Todos</button>
+        <button class="am-pbtn"                  data-am="30d"   onclick="window._amSetPeriodo('30d',this)">Últimos 30 dias</button>
+        <button class="am-pbtn"                  data-am="90d"   onclick="window._amSetPeriodo('90d',this)">Últimos 90 dias</button>
+        <button class="am-pbtn"                  data-am="1ano"  onclick="window._amSetPeriodo('1ano',this)">Último ano</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:22px">
+        <div id="am-kpi-melh" class="am-kpi am-kpi-melh"></div>
+        <div id="am-kpi-estav" class="am-kpi am-kpi-estav"></div>
+        <div id="am-kpi-pior" class="am-kpi am-kpi-pior"></div>
+        <div id="am-kpi-total" class="am-kpi am-kpi-total"></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px" id="am-grid-main">
+        <div class="table-card" style="padding:18px">
+          <h3 style="margin:0 0 14px;font-size:14px">Distribuição geral</h3>
+          <div style="position:relative;height:260px"><canvas id="am-donut"></canvas></div>
+          <div id="am-donut-empty" style="display:none;text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px">Sem dados de melhora ainda nesse período</div>
+        </div>
+        <div class="table-card" style="padding:18px">
+          <h3 style="margin:0 0 14px;font-size:14px">Por nível de feedback</h3>
+          <div id="am-niveis"></div>
+        </div>
+      </div>
+
+      <div class="table-card" style="margin-top:6px">
+        <div class="table-header">
+          <h3>Por ponto de atendimento</h3>
+          <div class="table-controls">
+            <input type="text" class="search-input" id="am-search" placeholder="Buscar ponto..." oninput="window._renderAnaliseMelhora()">
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr>
+              <th>Ponto</th>
+              <th>Total c/ feedback</th>
+              <th style="color:#22c55e">Melhorando</th>
+              <th style="color:#6b7280">Estável</th>
+              <th style="color:#dc2626">Piorando</th>
+              <th>Tendência</th>
+            </tr></thead>
+            <tbody id="am-pontos-body"></tbody>
+          </table>
+        </div>
+      </div>`;
+    main.appendChild(sec);
+  }
+
+  /* CSS injetado uma vez */
+  if(!document.getElementById('am-styles')){
+    const st=document.createElement('style');
+    st.id='am-styles';
+    st.textContent=`
+      .am-pbtn{background:rgba(255,255,255,0.04);border:1px solid rgba(0,200,83,0.18);color:var(--text-muted);padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
+      .am-pbtn:hover{background:rgba(0,200,83,0.08);color:var(--text-primary)}
+      .am-pbtn-active{background:rgba(0,200,83,0.18);border-color:var(--accent,#00e676);color:var(--accent,#00e676)}
+      .am-kpi{padding:18px;border-radius:12px;border:1px solid;background:rgba(255,255,255,0.02)}
+      .am-kpi-melh{border-color:rgba(34,197,94,0.3);background:linear-gradient(135deg,rgba(34,197,94,0.08),rgba(34,197,94,0.02))}
+      .am-kpi-estav{border-color:rgba(107,114,128,0.3);background:linear-gradient(135deg,rgba(107,114,128,0.08),rgba(107,114,128,0.02))}
+      .am-kpi-pior{border-color:rgba(220,38,38,0.3);background:linear-gradient(135deg,rgba(220,38,38,0.08),rgba(220,38,38,0.02))}
+      .am-kpi-total{border-color:rgba(0,200,83,0.3);background:linear-gradient(135deg,rgba(0,200,83,0.08),rgba(0,200,83,0.02))}
+      .am-kpi-pct{font-size:32px;font-weight:800;line-height:1}
+      .am-kpi-lbl{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-muted);margin-top:6px}
+      .am-kpi-sub{font-size:12px;color:var(--text-muted);margin-top:4px}
+      .am-niv-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,200,83,0.06)}
+      .am-niv-row:last-child{border-bottom:none}
+      .am-niv-lbl{flex:0 0 175px;font-size:13px}
+      .am-niv-bar{flex:1;height:10px;background:rgba(255,255,255,0.04);border-radius:5px;overflow:hidden}
+      .am-niv-bar-fill{height:100%;border-radius:5px;transition:width .3s}
+      .am-niv-count{flex:0 0 50px;text-align:right;font-weight:700;font-size:13px}
+      .am-tend-bar{display:inline-flex;border-radius:6px;overflow:hidden;height:8px;width:100px;background:rgba(255,255,255,0.04)}
+      .am-tend-melh{background:#22c55e}
+      .am-tend-estav{background:#6b7280}
+      .am-tend-pior{background:#dc2626}
+      @media(max-width:780px){#am-grid-main{grid-template-columns:1fr}}
+    `;
+    document.head.appendChild(st);
+  }
+  return true;
+}
+
+window._amSetPeriodo=function(p,btn){
+  _amPeriodo=p;
+  document.querySelectorAll('.am-pbtn').forEach(b=>b.classList.remove('am-pbtn-active'));
+  if(btn) btn.classList.add('am-pbtn-active');
+  window._renderAnaliseMelhora();
+};
+
+function _amCutoff(){
+  const now=new Date();
+  if(_amPeriodo==='30d')  return new Date(now-30*86400000).toISOString();
+  if(_amPeriodo==='90d')  return new Date(now-90*86400000).toISOString();
+  if(_amPeriodo==='1ano') return new Date(now-365*86400000).toISOString();
+  return null;
+}
+
+function _amDados(){
+  const cutoff=_amCutoff();
+  return (window.allPacientes||[]).filter(p=>{
+    if(p.nivel_melhora==null||p.nivel_melhora==='') return false;
+    if(cutoff && (!p.criado_em || p.criado_em < cutoff)) return false;
+    return true;
+  });
+}
+
+function _amBucketCategoria(v){
+  v=parseInt(v);
+  if(v>0) return 'melh';
+  if(v<0) return 'pior';
+  return 'estav';
+}
+
+function _amNomePonto(uid){
+  const pr=window._profilesMap?.[uid];
+  if(!pr) return uid?'(carregando)':'—';
+  return pr.nome_ponto || pr.nome || '—';
+}
+
+window._renderAnaliseMelhora=function(){
+  if(!document.getElementById('sec-analise-melhora')) return;
+  const dados=_amDados();
+  const total=dados.length;
+
+  /* KPIs */
+  const cats={melh:0,estav:0,pior:0};
+  dados.forEach(p=>{ cats[_amBucketCategoria(p.nivel_melhora)]++; });
+  const pct=k=>total?Math.round(cats[k]/total*100):0;
+
+  const setKPI=(id,pctVal,n,lbl,sub)=>{
+    const el=document.getElementById(id);
+    if(el) el.innerHTML=`<div class="am-kpi-pct">${pctVal}${typeof pctVal==='number'?'%':''}</div><div class="am-kpi-lbl">${lbl}</div><div class="am-kpi-sub">${sub}</div>`;
+  };
+  setKPI('am-kpi-melh', pct('melh'), cats.melh, 'Melhorando', cats.melh+' pacientes 🟢');
+  setKPI('am-kpi-estav',pct('estav'),cats.estav,'Estável',    cats.estav+' pacientes 🟡');
+  setKPI('am-kpi-pior', pct('pior'), cats.pior, 'Piorando',   cats.pior+' pacientes 🔴');
+  const elT=document.getElementById('am-kpi-total');
+  if(elT) elT.innerHTML=`<div class="am-kpi-pct" style="color:var(--accent,#00e676)">${total}</div><div class="am-kpi-lbl">Com avaliação</div><div class="am-kpi-sub">${(window.allPacientes||[]).length} cadastros totais</div>`;
+
+  /* Donut */
+  const ctx=document.getElementById('am-donut');
+  const emptyEl=document.getElementById('am-donut-empty');
+  if(ctx){
+    if(_amChart){_amChart.destroy();_amChart=null;}
+    if(total>0){
+      if(emptyEl) emptyEl.style.display='none';
+      ctx.style.display='block';
+      _amChart=new Chart(ctx.getContext('2d'),{
+        type:'doughnut',
+        data:{
+          labels:['Melhorando','Estável','Piorando'],
+          datasets:[{
+            data:[cats.melh,cats.estav,cats.pior],
+            backgroundColor:['#22c55e','#6b7280','#dc2626'],
+            borderColor:'transparent',
+            borderWidth:2,
+          }]
+        },
+        options:{
+          responsive:true,
+          maintainAspectRatio:false,
+          cutout:'62%',
+          plugins:{
+            legend:{position:'bottom',labels:{color:'#cbd5e1',font:{size:12},padding:14}},
+            tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw} (${total?Math.round(c.raw/total*100):0}%)`}}
+          }
+        }
+      });
+    } else {
+      ctx.style.display='none';
+      if(emptyEl) emptyEl.style.display='block';
+    }
+  }
+
+  /* Lista por nível */
+  const nivCounts={};
+  NIVEIS.forEach(n=>nivCounts[n.v]=0);
+  dados.forEach(p=>{ const v=parseInt(p.nivel_melhora); if(nivCounts[v]!=null) nivCounts[v]++; });
+  const maxNiv=Math.max(1,...Object.values(nivCounts));
+  const nivEl=document.getElementById('am-niveis');
+  if(nivEl){
+    nivEl.innerHTML=NIVEIS.map(n=>{
+      const c=nivCounts[n.v];
+      const w=Math.round(c/maxNiv*100);
+      return `<div class="am-niv-row">
+        <div class="am-niv-lbl">${n.label}</div>
+        <div class="am-niv-bar"><div class="am-niv-bar-fill" style="width:${w}%;background:${n.color}"></div></div>
+        <div class="am-niv-count" style="color:${n.color}">${c}</div>
+      </div>`;
+    }).join('');
+  }
+
+  /* Por ponto */
+  const q=(document.getElementById('am-search')?.value||'').toLowerCase().trim();
+  const porPonto=new Map();
+  dados.forEach(p=>{
+    const k=p.cadastrado_por||'sem-ponto';
+    if(!porPonto.has(k)) porPonto.set(k,{nome:_amNomePonto(k), melh:0, estav:0, pior:0, total:0});
+    const o=porPonto.get(k);
+    o[_amBucketCategoria(p.nivel_melhora)]++;
+    o.total++;
+  });
+  let pontosArr=[...porPonto.values()];
+  if(q) pontosArr=pontosArr.filter(o=>o.nome.toLowerCase().includes(q));
+  pontosArr.sort((a,b)=>b.total-a.total);
+
+  const tbody=document.getElementById('am-pontos-body');
+  if(tbody){
+    tbody.innerHTML=pontosArr.map(o=>{
+      const pM=Math.round(o.melh/o.total*100);
+      const pE=Math.round(o.estav/o.total*100);
+      const pP=100-pM-pE;
+      return `<tr>
+        <td style="font-weight:500;color:var(--text-primary)">${o.nome}</td>
+        <td style="font-weight:600">${o.total}</td>
+        <td style="color:#22c55e;font-weight:600">${o.melh} <span style="font-size:11px;color:var(--text-muted)">(${pM}%)</span></td>
+        <td style="color:#9ca3af">${o.estav} <span style="font-size:11px;color:var(--text-muted)">(${pE}%)</span></td>
+        <td style="color:#dc2626;font-weight:600">${o.pior} <span style="font-size:11px;color:var(--text-muted)">(${pP}%)</span></td>
+        <td><div class="am-tend-bar" title="${pM}% melh · ${pE}% est · ${pP}% pior">
+          <div class="am-tend-melh" style="width:${pM}%"></div>
+          <div class="am-tend-estav" style="width:${pE}%"></div>
+          <div class="am-tend-pior" style="width:${pP}%"></div>
+        </div></td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted)">Nenhum ponto com feedback de melhora nesse período</td></tr>';
+  }
+};
+
+if(!_amInit()){const _t=setInterval(()=>{if(_amInit())clearInterval(_t);},600);setTimeout(()=>clearInterval(_t),30000);}
+
+})();
+</script>
+
 </body>
 </html>
