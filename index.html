@@ -11260,5 +11260,79 @@ if(!_amInit()){const _t=setInterval(()=>{if(_amInit())clearInterval(_t);},600);s
 })();
 </script>
 
+<script>
+/* ============================
+   AUTO-REFRESH ADMIN — garante dados sempre frescos
+   - Wrap loadData pra atualizar timestamp em toda chamada (FORCE hooks, realtime, etc.)
+   - Window focus → loadData
+   - Visibility change (alt-tab return) → loadData
+   - Polling 60s
+   - Indicador "Atualizado às HH:MM:SS" no header
+   ============================ */
+(function(){
+'use strict';
+
+let _refreshInterval=null;
+let _lastUpdateEl=null;
+
+function _fmtTime(){
+  return new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+function _ensureTimestampEl(){
+  if(_lastUpdateEl && document.body.contains(_lastUpdateEl)) return _lastUpdateEl;
+  const target=document.querySelector('.header-right')||document.querySelector('header.header')||document.querySelector('header');
+  if(!target) return null;
+  _lastUpdateEl=document.createElement('div');
+  _lastUpdateEl.id='admin-last-update';
+  _lastUpdateEl.style.cssText='font-size:11px;color:var(--text-muted);display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:rgba(0,200,83,0.06);border:1px solid rgba(0,200,83,0.18);border-radius:8px;margin-right:10px;white-space:nowrap';
+  _lastUpdateEl.title='Indicador de freshness — sistema atualiza sozinho ao voltar pra aba, ao trocar de seção, ao receber inserts realtime e a cada 60s';
+  target.insertBefore(_lastUpdateEl, target.firstChild);
+  return _lastUpdateEl;
+}
+function _updateTimestamp(){
+  const el=_ensureTimestampEl();
+  if(el) el.innerHTML='<i class="fas fa-circle" style="font-size:7px;color:var(--accent,#00e676)"></i> Atualizado às '+_fmtTime();
+}
+async function _autoRefresh(reason){
+  try{
+    if(typeof window.loadData==='function'){
+      await window.loadData();
+      _updateTimestamp();
+    }
+  }catch(e){ console.error('[AUTO-REFRESH ERROR]',reason,e); }
+}
+
+function _arInit(){
+  if(typeof currentProfile==='undefined'||!currentProfile) return false;
+  if(currentProfile.papel!=='admin') return true;
+
+  /* Wrap loadData pra atualizar timestamp em TODA chamada (FORCE hooks, realtime, etc.) */
+  if(!window._loadDataWrappedAR && typeof window.loadData==='function'){
+    const _origLD=window.loadData;
+    window.loadData=async function(...args){
+      const r=await _origLD.apply(this,args);
+      try{ _updateTimestamp(); }catch(e){}
+      return r;
+    };
+    window._loadDataWrappedAR=true;
+  }
+
+  _updateTimestamp(); /* mostra agora */
+
+  window.addEventListener('focus',()=>_autoRefresh('focus'));
+  document.addEventListener('visibilitychange',()=>{
+    if(!document.hidden) _autoRefresh('visible');
+  });
+  if(_refreshInterval) clearInterval(_refreshInterval);
+  _refreshInterval=setInterval(()=>_autoRefresh('60s'),60000);
+
+  return true;
+}
+
+if(!_arInit()){const _t=setInterval(()=>{if(_arInit())clearInterval(_t);},600);setTimeout(()=>clearInterval(_t),30000);}
+
+})();
+</script>
+
 </body>
 </html>
