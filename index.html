@@ -10747,33 +10747,54 @@ if(!_rtInit()){const _t=setInterval(()=>{if(_rtInit())clearInterval(_t);},600);s
 
 function _puInit(){
   if(typeof currentProfile==='undefined'||!currentProfile) return false;
-  if(currentProfile.papel!=='admin') return true;
 
-  const navAdmin=document.getElementById('nav-admin-section');
-  if(navAdmin && !document.getElementById('nav-pacientes-unicos')){
-    const ni=document.createElement('div');
-    ni.id='nav-pacientes-unicos';
-    ni.className='nav-item';
-    ni.setAttribute('data-section','pacientes-unicos');
-    ni.innerHTML='<i class="fas fa-id-card"></i> Pacientes';
-    ni.onclick=function(){ if(typeof showSection==='function') showSection('pacientes-unicos',this); window._renderPacientesUnicos(); };
-    /* Insere logo após "Pontos" pra ficar perto da navegação clínica */
-    const ref=navAdmin.querySelector('[data-section="pontos"]');
-    if(ref && ref.nextSibling) navAdmin.insertBefore(ni, ref.nextSibling);
-    else navAdmin.appendChild(ni);
+  const isAdmin = currentProfile.papel === 'admin';
+
+  if(isAdmin){
+    /* Admin: aba "Pacientes" no nav-admin-section (todos os pacientes) */
+    const navAdmin=document.getElementById('nav-admin-section');
+    if(navAdmin && !document.getElementById('nav-pacientes-unicos')){
+      const ni=document.createElement('div');
+      ni.id='nav-pacientes-unicos';
+      ni.className='nav-item';
+      ni.setAttribute('data-section','pacientes-unicos');
+      ni.innerHTML='<i class="fas fa-id-card"></i> Pacientes';
+      ni.onclick=function(){ if(typeof showSection==='function') showSection('pacientes-unicos',this); window._renderPacientesUnicos(); };
+      const ref=navAdmin.querySelector('[data-section="pontos"]');
+      if(ref && ref.nextSibling) navAdmin.insertBefore(ni, ref.nextSibling);
+      else navAdmin.appendChild(ni);
+    }
+  } else {
+    /* Colaborador: aba "Retornos" no nav principal, após Cadastrados (só vê próprios cadastros via RLS) */
+    const cadNav=document.querySelector('[data-section="cadastros"]');
+    const navMain=cadNav?.parentElement;
+    if(navMain && !document.getElementById('nav-retornos-ponto')){
+      const ni=document.createElement('div');
+      ni.id='nav-retornos-ponto';
+      ni.className='nav-item';
+      ni.setAttribute('data-section','pacientes-unicos');
+      ni.innerHTML='<i class="fas fa-history"></i> Retornos';
+      ni.onclick=function(){ if(typeof showSection==='function') showSection('pacientes-unicos',this); window._renderPacientesUnicos(); };
+      navMain.insertBefore(ni, cadNav.nextSibling);
+    }
   }
 
   const main=document.querySelector('main.main');
   if(main && !document.getElementById('sec-pacientes-unicos')){
+    const tituloAba   = isAdmin ? 'Pacientes' : 'Retornos';
+    const subTit      = isAdmin
+      ? 'Lista única por paciente — clique para ver o histórico completo de retornos'
+      : 'Pacientes que você cadastrou — clique pra ver os retornos anteriores antes de fazer um novo';
+    const tabelaTit   = isAdmin ? 'Pacientes únicos' : 'Seus pacientes';
     const sec=document.createElement('div');
     sec.className='section';
     sec.id='sec-pacientes-unicos';
     sec.innerHTML=`
-      <h1 class="page-title">Pacientes</h1>
-      <p class="page-subtitle">Lista única por paciente — clique para ver o histórico completo de retornos</p>
+      <h1 class="page-title">${tituloAba}</h1>
+      <p class="page-subtitle">${subTit}</p>
       <div class="table-card" style="margin-top:18px">
         <div class="table-header">
-          <h3 id="pu-title">Pacientes únicos</h3>
+          <h3 id="pu-title">${tabelaTit}</h3>
           <div class="table-controls">
             <input type="text" class="search-input" id="pu-search" placeholder="Buscar nome, CPF ou WhatsApp..." oninput="window._renderPacientesUnicos()">
           </div>
