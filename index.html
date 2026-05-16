@@ -1412,7 +1412,7 @@ tr:last-child td { border-bottom: none; }
             <div class="kpi-icon"><i class="fas fa-users"></i></div>
             <div class="kpi-trend" id="kpi-total-trend" style="display:none"></div>
           </div>
-          <div class="kpi-value" id="kpi-total">0</div>
+          <div class="kpi-value" id="kpi-total">—</div>
           <div class="kpi-label">Total de Pacientes</div>
           <div class="kpi-cmp neutral" id="kpi-total-cmp"></div>
           <div class="kpi-sparkline-wrap"><canvas id="spark-total"></canvas></div>
@@ -1421,7 +1421,7 @@ tr:last-child td { border-bottom: none; }
           <div class="kpi-header">
             <div class="kpi-icon"><i class="fas fa-calendar-day"></i></div>
           </div>
-          <div class="kpi-value" id="kpi-hoje">0</div>
+          <div class="kpi-value" id="kpi-hoje">—</div>
           <div class="kpi-label">Cadastros Hoje</div>
           <div class="kpi-cmp neutral" id="kpi-hoje-cmp"></div>
           <div class="kpi-sparkline-wrap"><canvas id="spark-hoje"></canvas></div>
@@ -1430,7 +1430,7 @@ tr:last-child td { border-bottom: none; }
           <div class="kpi-header">
             <div class="kpi-icon"><i class="fas fa-calendar-week"></i></div>
           </div>
-          <div class="kpi-value" id="kpi-semana">0</div>
+          <div class="kpi-value" id="kpi-semana">—</div>
           <div class="kpi-label">Cadastros na Semana</div>
           <div class="kpi-cmp neutral" id="kpi-semana-cmp"></div>
           <div class="kpi-sparkline-wrap"><canvas id="spark-semana"></canvas></div>
@@ -9063,7 +9063,9 @@ window.updateKPIs = function() {
     return d >= prevFrom && d <= prevTo;
   });
 
-  animateCount('kpi-total', filtered.length);
+  /* kpi-total = total ABSOLUTO de cadastros (não filtrado) — admin espera o número real do banco.
+     Filtro de período (AppFilters) continua usado em sparklines/comparações/charts, mas o KPI grande mostra o total. */
+  animateCount('kpi-total', allPacientes.length);
   animateCount('kpi-hoje', todayPac.length);
   animateCount('kpi-semana', weekPac.length);
 
