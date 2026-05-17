@@ -4753,13 +4753,37 @@ window._stgGo = function(n) {
 
 /* ---- Validação ---- */
 function _stgValidate(s) {
+  const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
+  const fail=(msg,el)=>{_toast(msg,true);try{el?.focus({preventScroll:false});}catch(_){}return false;};
+
   if(s===1){
-    if(!(document.getElementById('s1-nome')?.value.trim())){_toast('Nome completo é obrigatório',true);return false;}
-    if(!(document.getElementById('s1-whats')?.value.trim())){_toast('WhatsApp é obrigatório',true);return false;}
+    const nome=document.getElementById('s1-nome');
+    if(!nome?.value.trim()) return fail('Nome completo é obrigatório',nome);
+    const whats=document.getElementById('s1-whats');
+    if(!whats?.value.trim()) return fail('WhatsApp é obrigatório',whats);
   }
   if(s===2){
-    const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
-    if(proj!=='oculos'&&!(document.getElementById('s2-sintomas')?.value.trim())){_toast('Descreva os sintomas',true);return false;}
+    if(proj!=='oculos'){
+      const sint=document.getElementById('s2-sintomas');
+      if(!sint?.value.trim()) return fail('Descreva os sintomas',sint);
+    }
+  }
+  if(s===3){
+    if(proj==='oculos'){
+      const arm=document.getElementById('s3-armacao');
+      if(!arm?.value.trim()) return fail('Informe a armação escolhida',arm);
+      const lente=document.getElementById('s3-lente');
+      if(!lente?.value) return fail('Selecione o tipo de lente',lente);
+    } else {
+      const data=document.getElementById('s3-data');
+      if(!data?.value) return fail('Informe a data da consulta',data);
+    }
+  }
+  if(s===4){
+    if(proj!=='oculos'){
+      const ret=document.getElementById('s4-retorno');
+      if(!ret?.value) return fail('Informe a data do próximo retorno',ret);
+    }
   }
   return true;
 }
@@ -4842,6 +4866,7 @@ window._stgSave = async function() {
   _stgCollect(4);
   const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
   if(!_dat.nome){_toast('Nome é obrigatório',true);_stgGo(1);return;}
+  if(!_stgValidate(4)) return;
 
   const btn=document.getElementById('btn-finalizar');
   if(btn){btn.disabled=true;btn.textContent='Salvando...';}
