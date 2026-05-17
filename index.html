@@ -2500,14 +2500,25 @@ function acNome(q) {
     .filter(p => (p.nome || '').toLowerCase().includes(q.toLowerCase()))
     .slice(0, 5);
   if (!matches.length) { list.classList.remove('show'); return; }
-  list.innerHTML = matches.map(p => {
+  /* Refator XSS: usa DOM nodes em vez de innerHTML + addEventListener em vez de onclick inline.
+     Nomes com aspas, <, > nao quebram a tela nem permitem injecao. */
+  list.textContent = '';
+  matches.forEach(p => {
     const d = p.criado_em ? new Date(p.criado_em).toLocaleDateString('pt-BR') : '';
-    const nome = (p.nome || '').replace(/'/g, "\\'");
-    return `<div class="autocomplete-item" onclick="document.getElementById('f-nome').value='${nome}';document.getElementById('ac-nome-list').classList.remove('show')">
-      ${p.nome || ''}
-      <div class="autocomplete-warn">⚠ Já cadastrado${d ? ' em ' + d : ''}</div>
-    </div>`;
-  }).join('');
+    const item = document.createElement('div');
+    item.className = 'autocomplete-item';
+    item.textContent = p.nome || '';
+    const warn = document.createElement('div');
+    warn.className = 'autocomplete-warn';
+    warn.textContent = '⚠ Já cadastrado' + (d ? ' em ' + d : '');
+    item.appendChild(warn);
+    item.addEventListener('click', () => {
+      const inp = document.getElementById('f-nome');
+      if (inp) inp.value = p.nome || '';
+      list.classList.remove('show');
+    });
+    list.appendChild(item);
+  });
   list.classList.add('show');
 }
 document.addEventListener('click', e => {
@@ -2571,6 +2582,17 @@ function showToast(msg, isError = false) {
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 3000);
 }
+
+/* Escapa caracteres HTML pra interpolacao segura em innerHTML.
+   Uso obrigatorio quando o valor vem de dado do usuario (nome paciente, etc). */
+window._escHtml = function(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+};
 
 function switchProject(proj, btn) {
   document.querySelectorAll('.switch-btn').forEach(b => b.classList.remove('active'));
@@ -9695,10 +9717,11 @@ function updateCmd() {
       html += `<div class="cmd-grp">Pacientes</div>`;
       html += matches.map(p => {
         const dc = p.criado_em ? new Date(p.criado_em).toLocaleDateString('pt-BR') : '';
-        return `<div class="cmd-item" onclick="closeCmd();showSection('cadastros',document.querySelector('[data-section=cadastros]'));document.getElementById('search-paciente').value='${(p.nome||'').replace(/'/g,"\\'")}';filterTable()">
+        /* XSS safe: dados escapados pra innerHTML, nome tirado de dentro do onclick via data-pac-nome */
+        return `<div class="cmd-item" data-pac-nome="${_escHtml(p.nome||'')}">
           <i class="fas fa-user"></i>
-          <span class="cmd-item-lbl">${p.nome||'—'}</span>
-          <span class="cmd-item-sub">dor ${p.nivel_dor??'—'} · ${dc}</span>
+          <span class="cmd-item-lbl">${_escHtml(p.nome||'—')}</span>
+          <span class="cmd-item-sub">dor ${_escHtml(p.nivel_dor??'—')} · ${_escHtml(dc)}</span>
         </div>`;
       }).join('');
     }
@@ -9721,8 +9744,19 @@ function updateCmd() {
       </div>`).join('');
   }
 
-  if (!html) html = `<div class="cmd-empty">Nenhum resultado para "${q}"</div>`;
+  if (!html) html = `<div class="cmd-empty">Nenhum resultado para "${_escHtml(q)}"</div>`;
   res.innerHTML = html;
+  /* Listeners post-render pros itens de paciente (XSS safe: nome vem de data-attr, nao de onclick inline) */
+  res.querySelectorAll('.cmd-item[data-pac-nome]').forEach(el => {
+    el.addEventListener('click', () => {
+      const nome = el.dataset.pacNome || '';
+      closeCmd();
+      showSection('cadastros', document.querySelector('[data-section=cadastros]'));
+      const inp = document.getElementById('search-paciente');
+      if (inp) inp.value = nome;
+      if (typeof filterTable === 'function') filterTable();
+    });
+  });
   highlightCmd(document.querySelectorAll('.cmd-item'));
 }
 
@@ -10885,15 +10919,23 @@ window._renderPacientesUnicos=function(){
     const p=g.paciente;
     const ultima=p.criado_em?new Date(p.criado_em).toLocaleDateString('pt-BR'):'—';
     const nv=g.visitas.length;
-    return `<tr style="cursor:pointer" onclick="window._abrirHistoricoPaciente('${g.key.replace(/'/g,"\\'")}')" title="Clique para ver histórico de retornos">
-      <td style="font-weight:500;color:var(--text-primary)">${p.nome||'—'}</td>
-      <td>${p.cpf||'<span style="color:var(--text-muted);font-size:11px">(sem CPF)</span>'}</td>
-      <td>${p.whatsapp||'—'}</td>
-      <td>${p.idade||'—'}</td>
+    /* XSS safe: dados escapados pra innerHTML, key tirado de dentro do onclick via data-pac-key */
+    return `<tr style="cursor:pointer" data-pac-key="${_escHtml(g.key)}" title="Clique para ver histórico de retornos">
+      <td style="font-weight:500;color:var(--text-primary)">${_escHtml(p.nome||'—')}</td>
+      <td>${p.cpf?_escHtml(p.cpf):'<span style="color:var(--text-muted);font-size:11px">(sem CPF)</span>'}</td>
+      <td>${_escHtml(p.whatsapp||'—')}</td>
+      <td>${_escHtml(p.idade||'—')}</td>
       <td><span style="background:rgba(0,200,83,0.15);color:var(--accent);padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600">${nv} ${nv===1?'retorno':'retornos'}</span></td>
-      <td>${ultima}</td>
+      <td>${_escHtml(ultima)}</td>
     </tr>`;
   }).join('')||'<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">Nenhum paciente encontrado</td></tr>';
+  /* Listeners post-render: tirei o onclick inline pra evitar problemas se a key tiver caracter especial */
+  body.querySelectorAll('tr[data-pac-key]').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const key = tr.dataset.pacKey || '';
+      if (typeof window._abrirHistoricoPaciente === 'function') window._abrirHistoricoPaciente(key);
+    });
+  });
 };
 
 window._abrirHistoricoPaciente=function(key){
