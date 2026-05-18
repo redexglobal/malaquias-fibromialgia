@@ -2014,9 +2014,17 @@ function enterApp() {
   const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
   document.getElementById('dash-title').textContent = saudacao + ', ' + (currentProfile?.nome?.split(' ')[0] || 'Usuário');
   document.getElementById('dash-date').textContent = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  document.getElementById('f-data').value = _todayBR();
+  const _fdata = document.getElementById('f-data');
+  if (_fdata) _fdata.value = _todayBR();
 
   loadData();
+  /* Garante que o wizard de Novo Cadastro seja montado para todos os usuários */
+  setTimeout(function(){
+    if(typeof window.buildNovoForm==='function'){
+      const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
+      window.buildNovoForm(proj);
+    }
+  }, 100);
 }
 
 async function doLogout() {
@@ -4757,6 +4765,7 @@ function _buildStg4Oculos() {
 }
 
 /* ---- 3. Monta o formulário completo ---- */
+window.buildNovoForm = function(proj){ return buildNovoForm(proj); };
 function buildNovoForm(proj) {
   const sec = document.getElementById('sec-novo');
   if (!sec) return;
