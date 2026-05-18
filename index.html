@@ -2014,7 +2014,7 @@ function enterApp() {
   const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
   document.getElementById('dash-title').textContent = saudacao + ', ' + (currentProfile?.nome?.split(' ')[0] || 'Usuário');
   document.getElementById('dash-date').textContent = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  document.getElementById('f-data').value = new Date().toISOString().split('T')[0];
+  document.getElementById('f-data').value = _todayBR();
 
   loadData();
 }
@@ -2056,11 +2056,11 @@ async function loadData() {
 
 function updateKPIs() {
   console.log('[DASH KPI ORIG] iniciando. project=', typeof currentProject!=='undefined'?currentProject:'(undef)', 'allPacientes.length=', (allPacientes||[]).length);
-  const today = new Date().toISOString().split('T')[0];
-  const weekAgo = new Date(Date.now() - 7*86400000).toISOString().split('T')[0];
+  const today = _todayBR();
+  const weekAgo = _dateOffsetBR(-7);
 
   const total = allPacientes.length;
-  const hoje = allPacientes.filter(p => p.criado_em?.startsWith(today)).length;
+  const hoje = allPacientes.filter(p => _matchDayBR(p.criado_em,today)).length;
   const semana = allPacientes.filter(p => p.criado_em >= weekAgo).length;
   document.getElementById('kpi-total').textContent = total;
   document.getElementById('kpi-hoje').textContent = hoje;
@@ -2129,9 +2129,9 @@ function updateCharts() {
   const last30 = [];
   for (let i = 29; i >= 0; i--) {
     const d = new Date(Date.now() - i*86400000);
-    const key = d.toISOString().split('T')[0];
+    const key = _dateBR(d);
     const label = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-    const count = allPacientes.filter(p => p.criado_em?.startsWith(key)).length;
+    const count = allPacientes.filter(p => _matchDayBR(p.criado_em,key)).length;
     last30.push({ label, count });
   }
   console.log('[DASH G1] 30 dias buckets:', last30.reduce((s,d)=>s+d.count,0), 'total nos buckets');
@@ -2326,8 +2326,8 @@ function updateAnalyticsCharts(c) {
   let acc = 0;
   for (let i = 29; i >= 0; i--) {
     const d = new Date(Date.now() - i*86400000);
-    const key = d.toISOString().split('T')[0];
-    acc += allPacientes.filter(p => p.criado_em?.startsWith(key)).length;
+    const key = _dateBR(d);
+    acc += allPacientes.filter(p => _matchDayBR(p.criado_em,key)).length;
     trend.push({ label: d.getDate()+'/'+(d.getMonth()+1), value: acc });
   }
 
@@ -2594,6 +2594,26 @@ window._escHtml = function(s){
     .replace(/'/g,'&#39;');
 };
 
+/* Helpers de TIMEZONE (America/Sao_Paulo - Brasilia UTC-3, sem DST).
+   criado_em chega em UTC do Supabase; pra comparar com "hoje" no horario local
+   do admin, sempre usar essas funcoes em vez de toISOString().split('T')[0]. */
+window._todayBR = function(){
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+};
+window._dateBR = function(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+};
+window._matchDayBR = function(iso, prefix){
+  if(!iso || !prefix) return false;
+  return _dateBR(iso).startsWith(prefix);
+};
+window._dateOffsetBR = function(days){
+  return new Date(Date.now() + days * 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+};
+
 function switchProject(proj, btn) {
   document.querySelectorAll('.switch-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
@@ -2615,7 +2635,7 @@ function exportCSV() {
   const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
   const a = document.createElement('a');
   a.href = window.URL.createObjectURL(blob);
-  a.download = 'pacientes_fibro_' + new Date().toISOString().split('T')[0] + '.csv';
+  a.download = 'pacientes_fibro_' + _todayBR() + '.csv';
   a.click();
 }
 
@@ -2694,11 +2714,11 @@ async function updatePontos() {
     grid.innerHTML = pontos.map(p => `<div class="kpi-card"><div class="kpi-header"><div class="kpi-icon"><i class="fas fa-map-pin"></i></div><span class="status-badge ativo">${p.tipo}</span></div><div style="font-size:15px;font-weight:600;margin-bottom:2px">${p.nome}</div><div style="font-size:12px;color:var(--text-muted)">Ativo</div></div>`).join('');
     return;
   }
-  const hoje = new Date().toISOString().split('T')[0];
+  const hoje = _todayBR();
   grid.innerHTML = profiles.map(p => {
     const nome = p.nome_ponto || p.nome;
     const cnt = allPacientes.filter(pac => pac.cadastrado_por === p.id).length;
-    const cntHoje = allPacientes.filter(pac => pac.cadastrado_por === p.id && pac.criado_em?.startsWith(hoje)).length;
+    const cntHoje = allPacientes.filter(pac => pac.cadastrado_por === p.id && _matchDayBR(pac.criado_em,hoje)).length;
     const isAtivo = cnt > 0;
     return `<div class="kpi-card" style="cursor:pointer" onclick="openPontoDetalhe('${p.id}','${nome.replace(/'/g,"\\'")}','${p.tipo_ponto}')">
       <div class="kpi-header">
@@ -2815,9 +2835,9 @@ async function _carregarDetalhe(profileId) {
 }
 
 function _renderDetalheKPIs() {
-  const hoje=new Date().toISOString().split('T')[0];
-  const semana=new Date(Date.now()-7*86400000).toISOString().split('T')[0];
-  document.getElementById('d-hoje').textContent=_dRecs.filter(r=>r.criado_em?.startsWith(hoje)).length;
+  const hoje=_todayBR();
+  const semana=_dateOffsetBR(-7);
+  document.getElementById('d-hoje').textContent=_dRecs.filter(r=>_matchDayBR(r.criado_em,hoje)).length;
   document.getElementById('d-semana').textContent=_dRecs.filter(r=>r.criado_em&&r.criado_em>=semana).length;
   document.getElementById('d-total').textContent=_dRecs.length;
 }
@@ -3060,10 +3080,10 @@ function advRenderExec(){
   const dashSec=document.getElementById('sec-dashboard');
   if(!dashSec)return;
   if(document.getElementById('adv-exec-card'))return;
-  const hoje=new Date().toISOString().split('T')[0];
-  const ontem=new Date(Date.now()-86400000).toISOString().split('T')[0];
-  const totalHoje=(allPacientes||[]).filter(p=>p.criado_em?.startsWith(hoje)).length;
-  const totalOntem=(allPacientes||[]).filter(p=>p.criado_em?.startsWith(ontem)).length;
+  const hoje=_todayBR();
+  const ontem=_dateOffsetBR(-1);
+  const totalHoje=(allPacientes||[]).filter(p=>_matchDayBR(p.criado_em,hoje)).length;
+  const totalOntem=(allPacientes||[]).filter(p=>_matchDayBR(p.criado_em,ontem)).length;
   const pct=totalOntem>0?(((totalHoje-totalOntem)/totalOntem)*100).toFixed(0):null;
   const trendHtml=pct!==null
     ?`<span class="adv-exec-trend ${parseInt(pct)>=0?'up':'down'}">${parseInt(pct)>=0?'▲':'▼'} ${Math.abs(pct)}% vs ontem</span>`
@@ -3071,12 +3091,12 @@ function advRenderExec(){
 
   /* best ponto today */
   const pontoCount={};
-  (allPacientes||[]).filter(p=>p.criado_em?.startsWith(hoje)).forEach(p=>{const k=p.cadastrado_por||'?';pontoCount[k]=(pontoCount[k]||0)+1;});
+  (allPacientes||[]).filter(p=>_matchDayBR(p.criado_em,hoje)).forEach(p=>{const k=p.cadastrado_por||'?';pontoCount[k]=(pontoCount[k]||0)+1;});
   const bestEntry=Object.entries(pontoCount).sort((a,b)=>b[1]-a[1])[0];
   const bestStr=bestEntry?`ID: ${bestEntry[0].substring(0,6)} (${bestEntry[1]})`:'—';
 
   /* active pontos today */
-  const activePontos=new Set((allPacientes||[]).filter(p=>p.criado_em?.startsWith(hoje)).map(p=>p.cadastrado_por)).size;
+  const activePontos=new Set((allPacientes||[]).filter(p=>_matchDayBR(p.criado_em,hoje)).map(p=>p.cadastrado_por)).size;
 
   const card=document.createElement('div');
   card.id='adv-exec-card';
@@ -3109,8 +3129,8 @@ async function advRenderHeatMap(){
   if(document.getElementById('adv-heat-section'))return;
   const{data:profiles}=await sb.from('profiles').select('id,nome,nome_ponto,numero_ponto,tipo_ponto').eq('papel','colaborador').eq('projeto',PROJ).order('numero_ponto');
   const list=profiles&&profiles.length?profiles:Array.from({length:25},(_,i)=>({id:'fake-'+i,nome:`Ponto ${String(i+1).padStart(2,'0')}`,numero_ponto:i+1}));
-  const hoje=new Date().toISOString().split('T')[0];
-  const semana=new Date(Date.now()-7*86400000).toISOString().split('T')[0];
+  const hoje=_todayBR();
+  const semana=_dateOffsetBR(-7);
   const limite24h=new Date(Date.now()-86400000).toISOString();
 
   const section=document.createElement('div');
@@ -3123,7 +3143,7 @@ async function advRenderHeatMap(){
   list.slice(0,25).forEach(p=>{
     const nome=p.nome_ponto||p.nome||'Ponto';
     const recs=(allPacientes||[]).filter(r=>r.cadastrado_por===p.id);
-    const totalHoje=recs.filter(r=>r.criado_em?.startsWith(hoje)).length;
+    const totalHoje=recs.filter(r=>_matchDayBR(r.criado_em,hoje)).length;
     const totalSemana=recs.filter(r=>r.criado_em&&r.criado_em>=semana).length;
     const lastRec=recs.sort((a,b)=>b.criado_em?.localeCompare(a.criado_em||'')||0)[0];
     let status='none';
@@ -3227,11 +3247,11 @@ async function advInitComparar(){
 window.advRunComparar=function(){
   const checked=[...document.querySelectorAll('#adv-cmp-checks input:checked')];
   if(!checked.length){try{showToast('Selecione ao menos 1 ponto',true);}catch(_){}return;}
-  const hoje=new Date().toISOString().split('T')[0];
-  const semana=new Date(Date.now()-7*86400000).toISOString().split('T')[0];
+  const hoje=_todayBR();
+  const semana=_dateOffsetBR(-7);
   const labels=checked.map(c=>c.dataset.nome||c.value.substring(0,8));
   const totals=checked.map(c=>(allPacientes||[]).filter(p=>p.cadastrado_por===c.value).length);
-  const hojes=checked.map(c=>(allPacientes||[]).filter(p=>p.cadastrado_por===c.value&&p.criado_em?.startsWith(hoje)).length);
+  const hojes=checked.map(c=>(allPacientes||[]).filter(p=>p.cadastrado_por===c.value&&_matchDayBR(p.criado_em,hoje)).length);
   const semanas=checked.map(c=>(allPacientes||[]).filter(p=>p.cadastrado_por===c.value&&p.criado_em&&p.criado_em>=semana).length);
   const wrap=document.getElementById('adv-cmp-chart-wrap');
   wrap.style.display='block';
@@ -3286,7 +3306,7 @@ function advFilteredUpdateCharts(){
   }
   const now=new Date();
   let cutoff=null;
-  if(_advCurrentPeriod==='hoje')cutoff=new Date(now.toISOString().split('T')[0]+'T00:00:00');
+  if(_advCurrentPeriod==='hoje')cutoff=new Date(_todayBR()+'T00:00:00');
   else if(_advCurrentPeriod==='7d')cutoff=new Date(now-7*86400000);
   else if(_advCurrentPeriod==='30d')cutoff=new Date(now-30*86400000);
   else if(_advCurrentPeriod==='90d')cutoff=new Date(now-90*86400000);
@@ -3555,7 +3575,7 @@ window.exportCSV = function(){
   }
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob(['﻿'+headers+rows],{type:'text/csv;charset=utf-8;'}));
-  a.download=`dr-malaquias-${currentProject}-${new Date().toISOString().split('T')[0]}.csv`;
+  a.download=`dr-malaquias-${currentProject}-${_todayBR()}.csv`;
   a.click();
 };
 
@@ -3787,9 +3807,9 @@ window.openPontoDetalhe = async function(profileId,nome,tipo){
 };
 
 function _dpRefreshKPIs(){
-  const hoje=new Date().toISOString().split('T')[0];
-  const sem=new Date(Date.now()-7*86400000).toISOString().split('T')[0];
-  document.getElementById('d-hoje').textContent=_dpRecs.filter(r=>r.criado_em?.startsWith(hoje)).length;
+  const hoje=_todayBR();
+  const sem=_dateOffsetBR(-7);
+  document.getElementById('d-hoje').textContent=_dpRecs.filter(r=>_matchDayBR(r.criado_em,hoje)).length;
   document.getElementById('d-semana').textContent=_dpRecs.filter(r=>r.criado_em&&r.criado_em>=sem).length;
   document.getElementById('d-total').textContent=_dpRecs.length;
 }
@@ -4603,7 +4623,7 @@ function _buildStg3Fibro() {
       </div>
       <div class="form-group">
         <label class="form-label">Data da consulta</label>
-        <input type="date" class="form-input" id="s3-data" value="${new Date().toISOString().split('T')[0]}">
+        <input type="date" class="form-input" id="s3-data" value="${_todayBR()}">
       </div>
       <div class="stg-actions">
         <button class="btn-stg-back" onclick="_stgGo(2)">← Voltar</button>
@@ -5236,9 +5256,9 @@ function _pdRenderTable(recs){
 }
 
 function _pdRefreshKPIs(){
-  const hoje=new Date().toISOString().split('T')[0];
-  const sem=new Date(Date.now()-7*86400000).toISOString().split('T')[0];
-  _animNum('pd-hoje',_pdRecs.filter(r=>r.criado_em?.startsWith(hoje)).length);
+  const hoje=_todayBR();
+  const sem=_dateOffsetBR(-7);
+  _animNum('pd-hoje',_pdRecs.filter(r=>_matchDayBR(r.criado_em,hoje)).length);
   _animNum('pd-semana',_pdRecs.filter(r=>r.criado_em&&r.criado_em>=sem).length);
   _animNum('pd-total',_pdRecs.length);
 }
@@ -5334,7 +5354,7 @@ function _injectUltimosCadastrosNav(){
 
 async function _loadUltimosCadastros(){
   const proj=_projActive();
-  const hoje=new Date().toISOString().split('T')[0];
+  const hoje=_todayBR();
   const sub=_v('uc-subtitle');
   if(sub)sub.textContent='Atividade de hoje — '+( proj==='oculos'?'Óculos':'Fibromialgia');
 
@@ -5388,7 +5408,7 @@ function _ucSubscribe(proj){
   if(_ucSubFibro){_ucSubFibro.unsubscribe();_ucSubFibro=null;}
   if(_ucSubOculos){_ucSubOculos.unsubscribe();_ucSubOculos=null;}
 
-  const hoje=new Date().toISOString().split('T')[0];
+  const hoje=_todayBR();
   const tbl=_tbl(proj);
 
   const ch=sb.channel('uc_'+tbl+'_'+hoje)
@@ -5713,7 +5733,7 @@ window._loadUltimosCadastros=_loadUltimosCadastros;
 const $=id=>document.getElementById(id);
 const _proj=()=>typeof currentProject!=='undefined'?currentProject:'fibro';
 const _tbl=()=>_proj()==='oculos'?'pacientes_oculos':'pacientes_fibro';
-const _today=()=>new Date().toISOString().split('T')[0];
+const _today=()=>_todayBR();
 const _hora=iso=>{ try{return new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}catch(e){return'—';} };
 const _fmt=n=>new Date(n*86400000+new Date().setHours(0,0,0,0)).toLocaleDateString('pt-BR');
 const _animN=(id,n)=>{ const el=$(id);if(!el)return;const dur=600,st=Date.now();(function t(){const p=Math.min((Date.now()-st)/dur,1);el.textContent=Math.round(n*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(t);})(); };
@@ -5726,9 +5746,9 @@ function _renderHeatMap(container){
   if(!container)return;
   const all=window.allPacientes||[];
   const today=_today();
-  const yesterday=new Date(Date.now()-86400000).toISOString().split('T')[0];
-  const d2=new Date(Date.now()-2*86400000).toISOString().split('T')[0];
-  const d3=new Date(Date.now()-3*86400000).toISOString().split('T')[0];
+  const yesterday=_dateOffsetBR(-1);
+  const d2=_dateOffsetBR(-2);
+  const d3=_dateOffsetBR(-3);
 
   const profiles=Object.entries(_pMap);
   if(!profiles.length){ container.innerHTML='<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px">Carregando mapa...</div>'; return; }
@@ -5744,7 +5764,7 @@ function _renderHeatMap(container){
     </div>`;
 
   const grid=$('hm-inner');if(!grid)return;
-  const semana=new Date(Date.now()-7*86400000).toISOString().split('T')[0];
+  const semana=_dateOffsetBR(-7);
 
   profiles.forEach(([id,nome])=>{
     const recs=all.filter(p=>p.cadastrado_por===id);
@@ -5757,7 +5777,7 @@ function _renderHeatMap(container){
     else if(lastDate>=yesterday)s='warm';
     else if(lastDate>=d3)s='cool';
     else s='cold';
-    const totalHoje=recs.filter(p=>p.criado_em?.startsWith(today)).length;
+    const totalHoje=recs.filter(p=>_matchDayBR(p.criado_em,today)).length;
     const lastStr=lastDate?new Date(lastDate+'T00:00:00').toLocaleDateString('pt-BR'):'Nunca';
     const nomeShort=nome.replace('Ponto Fixo ','F').replace('Ponto Movel ','M').replace('Ponto ','P');
     const cell=document.createElement('div');
@@ -5877,7 +5897,7 @@ function _buildHourlyChart(){
   const all=window.allPacientes||[];
   const today=_today();
   const hours=Array.from({length:24},(_,h)=>h);
-  const counts=hours.map(h=>all.filter(p=>p.criado_em?.startsWith(today)&&new Date(p.criado_em).getHours()===h).length);
+  const counts=hours.map(h=>all.filter(p=>_matchDayBR(p.criado_em,today)&&new Date(p.criado_em).getHours()===h).length);
   const cumul=counts.map((_,i)=>counts.slice(0,i+1).reduce((a,b)=>a+b,0));
   const nowH=new Date().getHours();
   const labels=hours.map(h=>h+':00');
@@ -5908,7 +5928,7 @@ function _buildHourlyChart(){
 function _updateHourlyChart(newRecord){
   if(!_advChart)return;
   const today=_today();
-  if(!newRecord.criado_em?.startsWith(today))return;
+  if(!_matchDayBR(newRecord.criado_em,today))return;
   const h=new Date(newRecord.criado_em).getHours();
   const ds=_advChart.data.datasets[0];
   for(let i=h;i<24;i++)ds.data[i]=(ds.data[i]||0)+1;
@@ -5948,11 +5968,11 @@ function _presKeyHandler(e){if(e.key==='Escape')_presClose();}
 function _updatePresKPIs(){
   const all=window.allPacientes||[];
   const today=_today();
-  const sem=new Date(Date.now()-7*86400000).toISOString().split('T')[0];
+  const sem=_dateOffsetBR(-7);
   const kpisEl=$('pres-kpis');if(!kpisEl)return;
-  const todayC=all.filter(p=>p.criado_em?.startsWith(today)).length;
+  const todayC=all.filter(p=>_matchDayBR(p.criado_em,today)).length;
   const weekC=all.filter(p=>p.criado_em&&p.criado_em>=sem).length;
-  const activePontos=new Set(all.filter(p=>p.criado_em?.startsWith(today)).map(p=>p.cadastrado_por)).size;
+  const activePontos=new Set(all.filter(p=>_matchDayBR(p.criado_em,today)).map(p=>p.cadastrado_por)).size;
   const dorM=all.filter(p=>p.nivel_dor!=null).length?Math.round(all.filter(p=>p.nivel_dor!=null).reduce((a,p)=>a+p.nivel_dor,0)/all.filter(p=>p.nivel_dor!=null).length*10)/10:'—';
   kpisEl.innerHTML=[
     ['📅',todayC,'Hoje'],['📊',weekC,'Esta Semana'],['📍',activePontos,'Pontos Ativos'],['💊',dorM,'Média Dor']
@@ -5989,7 +6009,7 @@ function _updateHealthIndicator(){
     const last=recs.sort((a,b)=>b.criado_em?.localeCompare(a.criado_em||''))[0];
     return last?.criado_em<limite3d;
   }).length;
-  const today=all.filter(p=>p.criado_em?.startsWith(_today())).length;
+  const today=all.filter(p=>_matchDayBR(p.criado_em,_today())).length;
   dot.className='health-dot '+(criticos===0?'ok':criticos<5?'warn':'crit');
   tip.innerHTML=criticos===0
     ?`✅ Sistema OK<br><span style="color:var(--text-muted)">Todos os pontos ativos<br>${today} cadastros hoje</span>`
@@ -6007,9 +6027,9 @@ function _updateExecSummary(){
   const ec=$('adv12-exec');if(!ec)return;
   const all=window.allPacientes||[];
   const today=_today();
-  const yesterday=new Date(Date.now()-86400000).toISOString().split('T')[0];
-  const ystd=all.filter(p=>p.criado_em?.startsWith(yesterday)).length;
-  const todayC=all.filter(p=>p.criado_em?.startsWith(today)).length;
+  const yesterday=_dateOffsetBR(-1);
+  const ystd=all.filter(p=>_matchDayBR(p.criado_em,yesterday)).length;
+  const todayC=all.filter(p=>_matchDayBR(p.criado_em,today)).length;
   const activePontos=new Set(all.map(p=>p.cadastrado_por)).size;
   const hora=new Date().getHours();
   const saud=hora<12?'Bom dia':hora<18?'Boa tarde':'Boa noite';
@@ -6063,9 +6083,9 @@ window._epExport=()=>{
 window._epPrint=()=>{ _epClose(); setTimeout(()=>window.print(),200); };
 function _epFilter(all){
   const today=_today();
-  if(_epPeriod==='hoje')return all.filter(p=>p.criado_em?.startsWith(today));
-  if(_epPeriod==='semana'){const sem=new Date(Date.now()-7*86400000).toISOString().split('T')[0];return all.filter(p=>p.criado_em&&p.criado_em>=sem);}
-  if(_epPeriod==='mes'){const mes=new Date(Date.now()-30*86400000).toISOString().split('T')[0];return all.filter(p=>p.criado_em&&p.criado_em>=sem);}
+  if(_epPeriod==='hoje')return all.filter(p=>_matchDayBR(p.criado_em,today));
+  if(_epPeriod==='semana'){const sem=_dateOffsetBR(-7);return all.filter(p=>p.criado_em&&p.criado_em>=sem);}
+  if(_epPeriod==='mes'){const mes=_dateOffsetBR(-30);return all.filter(p=>p.criado_em&&p.criado_em>=sem);}
   if(_epPeriod==='custom'){const de=$('exp-de')?.value,ate=$('exp-ate')?.value;if(!de||!ate)return all;return all.filter(p=>p.criado_em&&p.criado_em.split('T')[0]>=de&&p.criado_em.split('T')[0]<=ate);}
   return all;
 }
@@ -6188,7 +6208,7 @@ window.updatePontos=async function(){
     const idMatch=onclick.match(/'([0-9a-f-]{36})'/);
     if(!idMatch)return;
     const id=idMatch[1];
-    const cntH=all.filter(p=>p.cadastrado_por===id&&p.criado_em?.startsWith(today)).length;
+    const cntH=all.filter(p=>p.cadastrado_por===id&&_matchDayBR(p.criado_em,today)).length;
     card.insertAdjacentHTML('beforeend',_scoreHTML(cntH));
   });
   /* Refresh heat map */
@@ -6423,7 +6443,7 @@ $('export-modal-bg')?.addEventListener('click',e=>{ if(e.target===$('export-moda
 
 const $=id=>document.getElementById(id);
 const _proj=()=>typeof currentProject!=='undefined'?currentProject:'fibro';
-const _today=()=>new Date().toISOString().split('T')[0];
+const _today=()=>_todayBR();
 const _animN=(id,n,dur=600)=>{ const el=$(id);if(!el)return;const st=Date.now();(function t(){const p=Math.min((Date.now()-st)/dur,1);el.textContent=Math.round(n*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(t);})(); };
 const _toast=m=>{ if(typeof showToast==='function')showToast(m); };
 
@@ -6611,7 +6631,7 @@ function _injectPulsoDia(){
 function _updatePulsoDia(){
   const el=$('ff-pulso');if(!el)return;
   const all=window.allPacientes||[];
-  const n=all.filter(p=>p.criado_em?.startsWith(_today())).length;
+  const n=all.filter(p=>_matchDayBR(p.criado_em,_today())).length;
   const pct=Math.min(100,Math.round(n/META_DIA*100));
   const circ=Math.PI*2*42;
   const offset=circ*(1-pct/100);
@@ -6646,7 +6666,7 @@ function _updateTimeline(){
   const all=window.allPacientes||[];
   const today=_today();
   const nowH=new Date().getHours();
-  const counts=Array.from({length:24},(_,h)=>all.filter(p=>p.criado_em?.startsWith(today)&&new Date(p.criado_em).getHours()===h).length);
+  const counts=Array.from({length:24},(_,h)=>all.filter(p=>_matchDayBR(p.criado_em,today)&&new Date(p.criado_em).getHours()===h).length);
   const maxC=Math.max(...counts,1);
   const peakH=counts.indexOf(Math.max(...counts));
   const bars=counts.map((c,h)=>{
@@ -6673,7 +6693,7 @@ function _updateOfflineCard(){
   const el=$('ff-offline');if(!el||!window._pMapGlobal||!Object.keys(window._pMapGlobal).length)return;
   const all=window.allPacientes||[];
   const today=_today();
-  const todayIds=new Set(all.filter(p=>p.criado_em?.startsWith(today)).map(p=>p.cadastrado_por));
+  const todayIds=new Set(all.filter(p=>_matchDayBR(p.criado_em,today)).map(p=>p.cadastrado_por));
   const offline=Object.entries(window._pMapGlobal).filter(([id])=>!todayIds.has(id));
   if(!offline.length){
     el.innerHTML=`<div class="offline-card" style="border-color:rgba(0,200,83,.2);background:rgba(0,200,83,.04)"><div class="offline-title" style="color:#00c853">✅ Todos os pontos ativos hoje!</div></div>`;
@@ -6781,6 +6801,11 @@ async function _onNewRecord(rec,proj){
   _updateTimeline();
   _updateOfflineCard();
   _updateWeeklyCardFF();
+  /* Tambem dispara os 4 KPI cards + tabela + charts pra refletir o cadastro novo
+     sem precisar do admin trocar de secao e voltar pro dashboard. */
+  if(typeof window.updateKPIs==='function') try{ window.updateKPIs(); }catch(e){ console.warn('[malaquias:rt-kpis]',e?.message||e); }
+  if(typeof window.updateTable==='function') try{ window.updateTable(); }catch(e){ console.warn('[malaquias:rt-table]',e?.message||e); }
+  if(typeof window.updateCharts==='function') try{ window.updateCharts(); }catch(e){ console.warn('[malaquias:rt-charts]',e?.message||e); }
 }
 
 function _updateWeeklyCardFF(){
@@ -6877,7 +6902,7 @@ const $  = id  => document.getElementById(id);
 const qs = sel => document.querySelector(sel);
 const _proj  = () => (typeof currentProject !== 'undefined' ? currentProject : 'fibro');
 const _tbl   = () => _proj() === 'oculos' ? 'pacientes_oculos' : 'pacientes_fibro';
-const _today = () => new Date().toISOString().split('T')[0];
+const _today = () => _todayBR();
 const _hora  = iso => { try { return new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); } catch(e) { return '—'; } };
 const _date  = iso => { try { return new Date(iso+'T00:00:00').toLocaleDateString('pt-BR'); } catch(e) { return iso||'—'; } };
 const _toast = (m,e) => { if(typeof showToast === 'function') showToast(m, e); };
@@ -6968,10 +6993,10 @@ function _render(isNew) {
   const tb = $('pfd-tbody'), cnt = $('pfd-count');
   if (!tb) return;
   const hoje = _today();
-  const sem  = new Date(Date.now()-7*86400000).toISOString().split('T')[0];
+  const sem  = _dateOffsetBR(-7);
 
   /* KPIs */
-  const todayCnt = _recs.filter(r => r.criado_em?.startsWith(hoje)).length;
+  const todayCnt = _recs.filter(r => _matchDayBR(r.criado_em,hoje)).length;
   const semCnt   = _recs.filter(r => r.criado_em && r.criado_em >= sem).length;
   const total    = _recs.length;
   /* Média por dia com base no primeiro cadastro */
@@ -7291,7 +7316,7 @@ const $ = id => document.getElementById(id);
 const qs = s => document.querySelector(s);
 const _proj = () => (typeof currentProject !== 'undefined' ? currentProject : 'fibro');
 const _tbl  = () => _proj() === 'oculos' ? 'pacientes_oculos' : 'pacientes_fibro';
-const _today = () => new Date().toISOString().split('T')[0];
+const _today = () => _todayBR();
 const _toast = (m,e) => { if(typeof showToast==='function')showToast(m,e); };
 
 /* ---- Estado dos filtros ---- */
@@ -7373,9 +7398,9 @@ function _getFiltered() {
   const today = _today();
   const cutoff = {
     hoje: today,
-    '7d':  new Date(Date.now()-7*86400000).toISOString().split('T')[0],
-    '30d': new Date(Date.now()-30*86400000).toISOString().split('T')[0],
-    '90d': new Date(Date.now()-90*86400000).toISOString().split('T')[0],
+    '7d':  _dateOffsetBR(-7),
+    '30d': _dateOffsetBR(-30),
+    '90d': _dateOffsetBR(-90),
   }[_filters.period] || null;
 
   return all.filter(p => {
@@ -7606,7 +7631,7 @@ window._cfgExportAll = function() {
 };
 window._cfgExportMes = function() {
   const mes = new Date().toISOString().substring(0,7);
-  const filtrado = (window.allPacientes||[]).filter(p=>p.criado_em?.startsWith(mes));
+  const filtrado = (window.allPacientes||[]).filter(p=>_matchDayBR(p.criado_em,mes));
   if (!filtrado.length) { _toast('Sem dados este mês', true); return; }
   _doExportCSV(filtrado, 'mes-'+mes);
 };
@@ -7652,12 +7677,12 @@ function _renderCalendar() {
   const monthStr = `${_calYear}-${String(_calMonth+1).padStart(2,'0')}`;
   const firstDay = new Date(_calYear, _calMonth, 1).getDay();
   const daysInMonth = new Date(_calYear, _calMonth+1, 0).getDate();
-  const today = new Date().toISOString().split('T')[0];
+  const today = _todayBR();
 
   /* Conta por dia */
   const dayCounts = {};
   all.forEach(p => {
-    if (p.criado_em?.startsWith(monthStr)) {
+    if (_matchDayBR(p.criado_em,monthStr)) {
       const d = p.criado_em.split('T')[0];
       dayCounts[d] = (dayCounts[d]||0) + 1;
     }
@@ -7864,7 +7889,7 @@ if (!_upgradeInit()) {
 const _$ = id => document.getElementById(id);
 const _proj = () => (typeof currentProject !== 'undefined' ? currentProject : 'fibro');
 const _tbl  = () => _proj() === 'oculos' ? 'pacientes_oculos' : 'pacientes_fibro';
-const _today = () => new Date().toISOString().split('T')[0];
+const _today = () => _todayBR();
 const _hora  = iso => { try { return new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); } catch(e) { return '—'; } };
 const _date  = iso => { try { return new Date(iso+'T00:00:00').toLocaleDateString('pt-BR'); } catch(e) { return iso||'—'; } };
 
@@ -7945,10 +7970,10 @@ function _ppRenderRows(isNew) {
   try {
     const grp = _$('pp-grouped'); if (!grp) return;
     const today = _today();
-    const sem   = new Date(Date.now()-7*86400000).toISOString().split('T')[0];
+    const sem   = _dateOffsetBR(-7);
 
     /* KPIs (sobre TODOS os registros, não respeita filtros) */
-    const todayC = _ppRecs.filter(r=>r.criado_em?.startsWith(today)).length;
+    const todayC = _ppRecs.filter(r=>_matchDayBR(r.criado_em,today)).length;
     const semC   = _ppRecs.filter(r=>r.criado_em&&r.criado_em>=sem).length;
     const total  = _ppRecs.length;
     const _an = (id,n) => { const el=_$(id);if(!el)return;const dur=400,st=Date.now();(function t(){const p=Math.min((Date.now()-st)/dur,1);el.textContent=Math.round(n*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(t);})(); };
@@ -8543,7 +8568,7 @@ function renderHistorico() {
   if (!tbody) return;
   const all = window.allPacientes || [];
   const search = (document.getElementById('hist-search')?.value || '').toLowerCase();
-  const today = new Date().toISOString().split('T')[0];
+  const today = _todayBR();
   const nowMs = Date.now();
 
   let ativos = 0, inativos = 0, recorde = 0;
@@ -8661,7 +8686,7 @@ async function epSalvar(id) {
 function loadResumoSemanal() {
   const all = window.allPacientes || [];
   const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
+  const todayStr = _todayBR();
 
   const startEsta = new Date(now); startEsta.setDate(now.getDate() - 6); startEsta.setHours(0,0,0,0);
   const startPassada = new Date(now); startPassada.setDate(now.getDate() - 13); startPassada.setHours(0,0,0,0);
@@ -8680,7 +8705,7 @@ function loadResumoSemanal() {
   if(el('rs-variacao')) { el('rs-variacao').textContent = varIcon + ' ' + Math.abs(varPct) + '%'; el('rs-variacao').style.color = varColor; }
 
   const byDay = {};
-  esta.forEach(p => { const d = (p.criado_em||'').split('T')[0]; byDay[d] = (byDay[d]||0)+1; });
+  esta.forEach(p => { const d = _dateBR(p.criado_em); byDay[d] = (byDay[d]||0)+1; });
   const melhorDia = Object.values(byDay).length ? Math.max(...Object.values(byDay)) : 0;
   if(el('rs-melhor-dia')) el('rs-melhor-dia').textContent = melhorDia;
 
@@ -8690,9 +8715,9 @@ function loadResumoSemanal() {
   const labels14 = [], dataEsta = [], dataPassada14 = [];
   for(let i = 6; i >= 0; i--) {
     const d = new Date(now); d.setDate(now.getDate() - i);
-    const dStr = d.toISOString().split('T')[0];
+    const dStr = _dateBR(d);
     const dAnterior = new Date(now); dAnterior.setDate(now.getDate() - i - 7);
-    const dAntStr = dAnterior.toISOString().split('T')[0];
+    const dAntStr = _dateBR(dAnterior);
     labels14.push(d.toLocaleDateString('pt-BR',{weekday:'short'}));
     dataEsta.push(all.filter(p => (p.criado_em||'').startsWith(dStr)).length);
     dataPassada14.push(all.filter(p => (p.criado_em||'').startsWith(dAntStr)).length);
@@ -8838,7 +8863,7 @@ function gerarPDF() {
   const blob = new Blob([html], {type:'text/html;charset=utf-8'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `relatorio-malaquias-${proj.toLowerCase()}-${new Date().toISOString().split('T')[0]}.html`;
+  a.download = `relatorio-malaquias-${proj.toLowerCase()}-${_todayBR()}.html`;
   a.click();
   if(typeof showToast==='function') showToast('Relatório gerado! Abra o arquivo e use Ctrl+P para salvar como PDF.');
 }
@@ -8884,13 +8909,13 @@ const AppFilters = {
   applyPreset(preset, save = true) {
     this.datePreset = preset;
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    const today = _todayBR();
     if (preset === 'today') { this.dateFrom = today; this.dateTo = today; }
     else if (preset === '7d') { this.dateFrom = dateOffset(-7); this.dateTo = today; }
     else if (preset === '30d') { this.dateFrom = dateOffset(-30); this.dateTo = today; }
     else if (preset === '90d') { this.dateFrom = dateOffset(-90); this.dateTo = today; }
     else if (preset === 'month') {
-      this.dateFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      this.dateFrom = _dateBR(new Date(now.getFullYear(), now.getMonth(), 1));
       this.dateTo = today;
     } else if (preset === 'all') { this.dateFrom = null; this.dateTo = null; }
     if (save) this.save();
@@ -8904,7 +8929,7 @@ const AppFilters = {
       const dor = p.nivel_dor ?? 0;
       if (dor < this.painMin || dor > this.painMax) return false;
       if (this.status === 'alta-dor' && dor < 7) return false;
-      if (this.status === 'hoje' && d !== new Date().toISOString().split('T')[0]) return false;
+      if (this.status === 'hoje' && d !== _todayBR()) return false;
       if (this.status === 'semana' && d < dateOffset(-7)) return false;
       return true;
     });
@@ -8935,7 +8960,7 @@ const AppFilters = {
 };
 
 function dateOffset(days) {
-  return new Date(Date.now() + days * 86400000).toISOString().split('T')[0];
+  return _dateOffsetBR(days);
 }
 
 // ─── FILTER UI ─────────────────────────────────────────────────────
@@ -9092,11 +9117,11 @@ function syncFilterUI() {
 const _origUpdateKPIs = window.updateKPIs;
 window.updateKPIs = function() {
   console.log('[DASH KPI ADMIN] iniciando. project=', typeof currentProject!=='undefined'?currentProject:'(undef)', 'allPacientes.length=', (allPacientes||[]).length, 'AppFilters=', typeof AppFilters!=='undefined'?AppFilters:'(undef)');
-  const today = new Date().toISOString().split('T')[0];
+  const today = _todayBR();
   const weekAgo = dateOffset(-7);
   const filtered = AppFilters.getFiltered(allPacientes);
-  const todayPac = allPacientes.filter(p => p.criado_em?.startsWith(today));
-  const weekPac  = allPacientes.filter(p => (p.criado_em||'').split('T')[0] >= weekAgo);
+  const todayPac = allPacientes.filter(p => _matchDayBR(p.criado_em,today));
+  const weekPac  = allPacientes.filter(p => _dateBR(p.criado_em) >= weekAgo);
   console.log('[DASH KPI ADMIN] filtered=', filtered.length, 'hoje=', todayPac.length, 'semana=', weekPac.length);
 
   // Previous period comparison
@@ -9106,7 +9131,7 @@ window.updateKPIs = function() {
   const prevTo   = AppFilters.dateFrom ? dateOffsetFrom(AppFilters.dateFrom, -1) : dateOffset(-31);
   const prevFrom = dateOffsetFrom(prevTo, -Math.round(periodLen));
   const prevPac  = allPacientes.filter(p => {
-    const d = (p.criado_em||'').split('T')[0];
+    const d = _dateBR(p.criado_em);
     return d >= prevFrom && d <= prevTo;
   });
 
@@ -9123,7 +9148,7 @@ window.updateKPIs = function() {
   // Comparison badges
   setCmp('kpi-total-cmp', filtered.length, prevPac.length, 'vs período anterior');
   setCmp('kpi-semana-cmp', weekPac.length, allPacientes.filter(p=>{
-    const d=(p.criado_em||'').split('T')[0]; return d >= dateOffset(-14) && d < weekAgo;
+    const d=_dateBR(p.criado_em); return d >= dateOffset(-14) && d < weekAgo;
   }).length, 'vs semana passada');
 
   const prevDors = prevPac.filter(p=>p.nivel_dor!=null).map(p=>p.nivel_dor);
@@ -9144,7 +9169,7 @@ window.updateKPIs = function() {
 };
 
 function dateOffsetFrom(base, days) {
-  return new Date(new Date(base).getTime() + days * 86400000).toISOString().split('T')[0];
+  return new Date(new Date(base).getTime() + days * 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
 }
 
 function setCmp(elId, curr, prev, label) {
@@ -9179,10 +9204,10 @@ function buildSparkline(canvasId, data, days, type) {
   if (!canvas) return;
   const c = getChartColors();
   const pts = [];
-  const today = new Date().toISOString().split('T')[0];
+  const today = _todayBR();
   for (let i = days - 1; i >= 0; i--) {
     const d = dateOffset(-i);
-    const count = data.filter(p => p.criado_em?.startsWith(d)).length;
+    const count = data.filter(p => _matchDayBR(p.criado_em,d)).length;
     pts.push(count);
   }
   if (_sparks[canvasId]) { _sparks[canvasId].destroy(); }
@@ -9207,7 +9232,7 @@ function buildSparklineDor(canvasId, data, days) {
   const pts = [];
   for (let i = days - 1; i >= 0; i--) {
     const d = dateOffset(-i);
-    const dors = data.filter(p => p.criado_em?.startsWith(d) && p.nivel_dor != null).map(p => p.nivel_dor);
+    const dors = data.filter(p => _matchDayBR(p.criado_em,d) && p.nivel_dor != null).map(p => p.nivel_dor);
     pts.push(dors.length ? +(dors.reduce((a,b)=>a+b,0)/dors.length).toFixed(1) : null);
   }
   if (_sparks[canvasId]) { _sparks[canvasId].destroy(); }
@@ -9238,7 +9263,7 @@ window.updateCharts = function() {
   for (let i = 6; i >= 0; i--) {
     const d = dateOffset(-i);
     const label = new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' });
-    const pacs = filtered.filter(p => p.criado_em?.startsWith(d));
+    const pacs = filtered.filter(p => _matchDayBR(p.criado_em,d));
     last7.push({ label, count: pacs.length, date: d, pacs });
   }
 
@@ -9369,7 +9394,7 @@ window.updateAlerts = function() {
   if (!list) return;
   const section = document.getElementById('alerts-section');
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = _todayBR();
   const snoozed = JSON.parse(localStorage.getItem('mq_snooze') || '{}');
 
   const alerts = [];
@@ -9395,7 +9420,7 @@ window.updateAlerts = function() {
   });
 
   // Pacientes com dor alta (>= 8) cadastrados hoje
-  const altaDorHoje = allPacientes.filter(p => p.criado_em?.startsWith(today) && p.nivel_dor >= 8);
+  const altaDorHoje = allPacientes.filter(p => _matchDayBR(p.criado_em,today) && p.nivel_dor >= 8);
   altaDorHoje.forEach(p => {
     const sk = 'altador_' + p.id;
     if (!snoozed[sk] || snoozed[sk] < today) {
@@ -9520,8 +9545,8 @@ function renderDrawerTotal() {
 function renderDrawerHoje() {
   const body = document.getElementById('drw-hoje-body');
   if (!body) return;
-  const today = new Date().toISOString().split('T')[0];
-  const data = allPacientes.filter(p => p.criado_em?.startsWith(today))
+  const today = _todayBR();
+  const data = allPacientes.filter(p => _matchDayBR(p.criado_em,today))
     .sort((a,b) => new Date(a.criado_em) - new Date(b.criado_em));
 
   if (!data.length) {
@@ -9546,7 +9571,7 @@ function renderDrawerSemana() {
   if (!body) return;
   const weekAgo = dateOffset(-7);
   const search = (document.getElementById('drw-semana-search')?.value || '').toLowerCase();
-  let data = allPacientes.filter(p => (p.criado_em||'').split('T')[0] >= weekAgo);
+  let data = allPacientes.filter(p => _dateBR(p.criado_em) >= weekAgo);
   if (search) data = data.filter(p => (p.nome||'').toLowerCase().includes(search));
 
   // Sparkline mini for week breakdown
@@ -9554,7 +9579,7 @@ function renderDrawerSemana() {
   for (let i = 6; i >= 0; i--) {
     const d = dateOffset(-i);
     const label = new Date(d+'T12:00').toLocaleDateString('pt-BR', { weekday:'short', day:'numeric' });
-    dayBreakdown.push({ label, count: allPacientes.filter(p=>p.criado_em?.startsWith(d)).length });
+    dayBreakdown.push({ label, count: allPacientes.filter(p=>_matchDayBR(p.criado_em,d)).length });
   }
   const maxDay = Math.max(1, ...dayBreakdown.map(d=>d.count));
 
@@ -9602,7 +9627,7 @@ function renderDrawerDor() {
 
   const prevFrom = AppFilters.dateFrom ? dateOffsetFrom(AppFilters.dateFrom, -30) : dateOffset(-60);
   const prevTo   = AppFilters.dateFrom ? dateOffsetFrom(AppFilters.dateFrom, -1) : dateOffset(-31);
-  const prevPac = allPacientes.filter(p => { const d=(p.criado_em||'').split('T')[0]; return d>=prevFrom&&d<=prevTo; });
+  const prevPac = allPacientes.filter(p => { const d=_dateBR(p.criado_em); return d>=prevFrom&&d<=prevTo; });
   const prevDors = prevPac.filter(p=>p.nivel_dor!=null).map(p=>p.nivel_dor);
   const prevMedia = prevDors.length ? (prevDors.reduce((a,b)=>a+b,0)/prevDors.length).toFixed(1) : '—';
 
@@ -9649,14 +9674,14 @@ function renderDrawerDor() {
 function exportDrawerCSV(type) {
   let data = [];
   if (type === 'total') data = AppFilters.getFiltered(allPacientes);
-  else if (type === 'semana') data = allPacientes.filter(p => (p.criado_em||'').split('T')[0] >= dateOffset(-7));
+  else if (type === 'semana') data = allPacientes.filter(p => _dateBR(p.criado_em) >= dateOffset(-7));
   if (!data.length) { showToastErr('Sem dados para exportar'); return; }
   const headers = 'Nome,Idade,WhatsApp,Nível Dor,Data Consulta\n';
   const rows = data.map(p => `"${p.nome||''}",${p.idade||''},${p.whatsapp||''},${p.nivel_dor??''},${p.data_consulta||''}`).join('\n');
   const blob = new Blob([headers+rows], {type:'text/csv;charset=utf-8'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `pacientes_${type}_${new Date().toISOString().split('T')[0]}.csv`;
+  a.download = `pacientes_${type}_${_todayBR()}.csv`;
   a.click();
   showToastOk('CSV exportado!');
 }
@@ -9875,9 +9900,9 @@ const _RN_FTBL = 'feedback_semanal';
 function _seg(dt) {
   const d = dt ? new Date(dt+'T12:00:00') : new Date();
   const diff = d.getDate() - d.getDay() + (d.getDay()===0 ? -6 : 1);
-  return new Date(d.setDate(diff)).toISOString().split('T')[0];
+  return _dateBR(new Date(d.setDate(diff)));
 }
-function _dom(seg) { const d=new Date(seg+'T12:00:00'); d.setDate(d.getDate()+6); return d.toISOString().split('T')[0]; }
+function _dom(seg) { const d=new Date(seg+'T12:00:00'); d.setDate(d.getDate()+6); return _dateBR(d); }
 function _ptBR(iso) { return iso ? new Date(iso+'T12:00:00').toLocaleDateString('pt-BR') : '—'; }
 
 let _rnBar=null, _rnPizza=null, _rnHistBar=null, _rnHistPct=null;
@@ -9916,7 +9941,7 @@ function _injectSec() {
   if(document.getElementById('sec-'+_RN_SEC)) return;
   const main = document.querySelector('main.main')||document.querySelector('.main');
   if(!main) return;
-  const hoje = new Date().toISOString().split('T')[0];
+  const hoje = _todayBR();
   const sec = document.createElement('div');
   sec.id = 'sec-'+_RN_SEC; sec.className = 'section';
   sec.innerHTML = `
