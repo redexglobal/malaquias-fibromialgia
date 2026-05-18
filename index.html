@@ -4535,6 +4535,23 @@ function _buildStg1() {
             <option>Viúvo(a)</option>
           </select>
         </div>
+        <div class="form-group">
+          <label class="form-label">Cidade / Município</label>
+          <input type="text" class="form-input" id="s1-cidade" placeholder="Ex: São Paulo" autocomplete="off">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Como nos conheceu</label>
+          <select class="form-input" id="s1-origem">
+            <option value="">Selecione...</option>
+            <option>Indicação médica</option>
+            <option>Familiar ou amigo</option>
+            <option>Redes sociais</option>
+            <option>Unidade de saúde</option>
+            <option>Outro</option>
+          </select>
+        </div>
       </div>
       <div class="stg-actions">
         <button class="btn-stg-next" onclick="_stgGo(2)">Próximo →</button>
@@ -4844,6 +4861,8 @@ function _stgCollect(s) {
     const _ad=parseInt(document.getElementById('s1-adultos')?.value);
     _dat.adultos_no_lar=isNaN(_ad)?null:_ad;
     _dat.estado_civil=document.getElementById('s1-estciv')?.value||null;
+    _dat.cidade=document.getElementById('s1-cidade')?.value.trim()||null;
+    _dat.origem=document.getElementById('s1-origem')?.value||null;
   } else if(s===2){
     if(proj==='oculos'){
       _dat.grau_od=document.getElementById('s2-od')?.value.trim()||null;
@@ -4923,6 +4942,8 @@ window._stgSave = async function() {
     secao_eleitoral:_dat.secao_eleitoral||null,
     adultos_no_lar:_dat.adultos_no_lar!=null?_dat.adultos_no_lar:null,
     estado_civil:_dat.estado_civil||null,
+    cidade:_dat.cidade||null,
+    origem:_dat.origem||null,
     whatsapp:_dat.whatsapp||null,
     idade:_dat.idade||null,
     precaucoes_clinicas:document.getElementById('s4-precaucoes')?.value.trim()||null,
@@ -4958,8 +4979,8 @@ window._stgSave = async function() {
 
   /* Remove campos com coluna potencialmente faltando — tenta inserir, se falhar remove e tenta sem */
   const newCols = proj==='fibro'
-    ? ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','nivel_melhora','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
-    : ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','nivel_melhora','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
+    ? ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
+    : ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
 
   let {error} = await sb.from(table).insert(payload);
 
@@ -10708,6 +10729,8 @@ window._abrirFichaPaciente = function(pid) {
   corpo += row('Seção eleitoral', p.secao_eleitoral);
   corpo += row('Estado civil', p.estado_civil);
   corpo += row('Adultos no lar', p.adultos_no_lar);
+  corpo += row('Cidade', p.cidade);
+  corpo += row('Como nos conheceu', p.origem);
 
   if(proj==='fibro') {
     corpo += sec('Quadro de Sintomas');
@@ -10995,6 +11018,8 @@ window._abrirHistoricoPaciente=function(key){
       ${row('Seção eleitoral',p.secao_eleitoral)}
       ${row('Estado civil',p.estado_civil)}
       ${row('Adultos no lar',p.adultos_no_lar)}
+      ${row('Cidade',p.cidade)}
+      ${row('Como nos conheceu',p.origem)}
     </div>`;
 
   const visitas=g.visitas.map((v,idx)=>{
@@ -11317,6 +11342,8 @@ async function _salvarRetorno(key,btnRef){
     secao_eleitoral: pBase.secao_eleitoral||null,
     adultos_no_lar: pBase.adultos_no_lar!=null?pBase.adultos_no_lar:null,
     estado_civil: pBase.estado_civil||null,
+    cidade: pBase.cidade||null,
+    origem: pBase.origem||null,
     whatsapp: pBase.whatsapp||null,
     idade: pBase.idade||null,
     cadastrado_por: typeof currentUser!=='undefined'?currentUser.id:null,
@@ -11357,8 +11384,8 @@ async function _salvarRetorno(key,btnRef){
 
   /* Mesmo padrão de graceful degradation do _stgSave: tenta com tudo, se coluna nova falhar, remove e tenta de novo */
   const newCols = proj==='fibro'
-    ? ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','nivel_melhora','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
-    : ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','nivel_melhora','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
+    ? ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
+    : ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
 
   let {error}=await sb.from(table).insert(payload);
   if(error && error.message && error.message.includes('column')){
