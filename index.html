@@ -11056,13 +11056,335 @@ window._abrirHistoricoPaciente=function(key){
     <div style="background:var(--bg-card,#0a2416);border:1px solid rgba(0,200,83,0.3);border-radius:16px;padding:24px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
       <button onclick="document.getElementById('_phist-bg').style.display='none'"
         style="position:absolute;top:14px;right:14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:50%;width:32px;height:32px;color:var(--text-muted,#94a3b8);font-size:16px;cursor:pointer">✕</button>
-      <div style="font-size:18px;font-weight:700;color:var(--text-primary,#f1f5f9);margin-bottom:2px;padding-right:40px">${p.nome||'Paciente'}</div>
-      <div style="font-size:11px;color:var(--accent,#00e676);margin-bottom:18px">${nv} ${nv===1?'retorno registrado':'retornos registrados'} · Fibromialgia</div>
+      <div style="font-size:18px;font-weight:700;color:var(--text-primary,#f1f5f9);margin-bottom:2px;padding-right:40px">${_escHtml(p.nome||'Paciente')}</div>
+      <div style="font-size:11px;color:var(--accent,#00e676);margin-bottom:14px">${nv} ${nv===1?'retorno registrado':'retornos registrados'} · Fibromialgia</div>
+      <button id="_pret-btn-open" data-pac-key="${_escHtml(g.key)}"
+        style="width:100%;padding:14px;margin-bottom:18px;background:linear-gradient(135deg,#00e676,#00c853);color:#0a2416;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 14px rgba(0,200,83,0.3);transition:transform 0.15s,box-shadow 0.15s">
+        <span style="font-size:18px;line-height:1">+</span>
+        <span>Adicionar novo retorno</span>
+      </button>
       ${header}
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent,#00e676);font-weight:700;margin-bottom:10px">📋 Histórico de Retornos</div>
       ${visitas}
     </div>`;
+  /* Listener post-render do botão de adicionar retorno (key safe via data-attr) */
+  const btnRet=document.getElementById('_pret-btn-open');
+  if(btnRet){
+    btnRet.addEventListener('click',()=>{
+      const k=btnRet.dataset.pacKey||'';
+      if(typeof window._abrirRetornoModal==='function') window._abrirRetornoModal(k);
+    });
+    btnRet.addEventListener('mouseenter',()=>{ btnRet.style.transform='translateY(-2px)'; btnRet.style.boxShadow='0 6px 20px rgba(0,200,83,0.45)'; });
+    btnRet.addEventListener('mouseleave',()=>{ btnRet.style.transform='translateY(0)'; btnRet.style.boxShadow='0 4px 14px rgba(0,200,83,0.3)'; });
+  }
 };
+
+/* ============================================================
+   MODAL ADICIONAR RETORNO — preenche so dados clinicos novos;
+   identificacao (nome, cpf, idade, etc.) e copiada do paciente
+   original. Funciona pra fibro e oculos.
+============================================================ */
+window._abrirRetornoModal=function(key){
+  const groups=_puAgrupar();
+  const g=groups.find(x=>x.key===key);
+  if(!g){ if(typeof showToast==='function') showToast('Paciente não encontrado',true); return; }
+  const pBase=g.paciente;
+  const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
+  const pontos=['Cabeça','Pescoço','Ombros','Costas sup.','Costas inf.','Braços','Antebraços','Quadris','Coxas','Joelhos','Pernas','Pés'];
+  const trts=['Antirreflexo','Blue Light','Fotossensível','Polarizado','UV 400','Anti-risco','Espelhado'];
+  const hojeBR=_todayBR();
+
+  let bg=document.getElementById('_pret-bg');
+  if(!bg){
+    bg=document.createElement('div');
+    bg.id='_pret-bg';
+    bg.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
+    bg.onclick=function(e){ if(e.target===bg) _fecharRetornoModal(); };
+    document.body.appendChild(bg);
+  }
+  bg.style.display='flex';
+
+  const corpoFibro=`
+    <div class="_pret-grupo">
+      <label class="_pret-label">Sintomas atuais</label>
+      <textarea id="_pret-sintomas" rows="2" class="_pret-input" placeholder="Como o paciente está se sentindo hoje?"></textarea>
+    </div>
+    <div class="_pret-grupo">
+      <label class="_pret-label">Tempo dos sintomas</label>
+      <input type="text" id="_pret-tempo" class="_pret-input" placeholder="Ex: 3 meses · 2 semanas">
+    </div>
+    <div class="_pret-grupo">
+      <label class="_pret-label">Medicações em uso</label>
+      <textarea id="_pret-medicacoes" rows="2" class="_pret-input" placeholder="Quais medicamentos está tomando agora?"></textarea>
+    </div>
+    <div class="_pret-grupo">
+      <label class="_pret-label">Nível de dor (0–10) — <span id="_pret-dor-val" style="color:#4ade80;font-weight:700">5</span></label>
+      <input type="range" id="_pret-dor" min="0" max="10" value="5" class="_pret-input" style="padding:0;height:6px">
+    </div>
+    <div class="_pret-grupo">
+      <label class="_pret-label">Pontos de dor</label>
+      <div id="_pret-pontos" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px;margin-top:4px">
+        ${pontos.map(pt=>`<label style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:6px;cursor:pointer;font-size:12px;color:var(--text-primary,#f1f5f9)"><input type="checkbox" value="${_escHtml(pt)}"><span>${_escHtml(pt)}</span></label>`).join('')}
+      </div>
+    </div>
+    <div class="_pret-row">
+      <div class="_pret-grupo">
+        <label class="_pret-label">Data da consulta <span style="color:#fb7185">*</span></label>
+        <input type="date" id="_pret-data" class="_pret-input" value="${hojeBR}">
+      </div>
+      <div class="_pret-grupo">
+        <label class="_pret-label">Próximo retorno <span style="color:#fb7185">*</span></label>
+        <input type="date" id="_pret-proximo" class="_pret-input">
+      </div>
+    </div>
+    <div class="_pret-grupo">
+      <label class="_pret-label">Nível de melhora <span style="color:var(--text-muted,#94a3b8);font-size:10px">(comparado à visita anterior)</span></label>
+      <select id="_pret-melhora" class="_pret-input">
+        <option value="">— Selecione —</option>
+        <option value="-2">😣 Piorou muito</option>
+        <option value="-1">😟 Piorou um pouco</option>
+        <option value="0">😐 Sem mudança</option>
+        <option value="1">🙂 Melhorou um pouco</option>
+        <option value="2">😊 Melhorou bastante</option>
+        <option value="3">😄 Muito melhor / recuperado</option>
+      </select>
+    </div>
+    <div class="_pret-grupo">
+      <label class="_pret-label">Precauções clínicas</label>
+      <textarea id="_pret-precaucoes" rows="2" class="_pret-input" placeholder="Alergias, contraindicações, ajustes necessários..."></textarea>
+    </div>
+    <div class="_pret-grupo">
+      <label class="_pret-label">Observações</label>
+      <textarea id="_pret-obs" rows="2" class="_pret-input" placeholder="Conduta, encaminhamentos, observações finais..."></textarea>
+    </div>`;
+
+  const corpoOculos=`
+    <div class="_pret-row">
+      <div class="_pret-grupo">
+        <label class="_pret-label">Grau OD</label>
+        <input type="text" id="_pret-od" class="_pret-input" placeholder="-2.00">
+      </div>
+      <div class="_pret-grupo">
+        <label class="_pret-label">Grau OE</label>
+        <input type="text" id="_pret-oe" class="_pret-input" placeholder="-2.00">
+      </div>
+    </div>
+    <div class="_pret-row">
+      <div class="_pret-grupo">
+        <label class="_pret-label">Adição</label>
+        <input type="text" id="_pret-adicao" class="_pret-input" placeholder="+1.50">
+      </div>
+      <div class="_pret-grupo">
+        <label class="_pret-label">Médico</label>
+        <input type="text" id="_pret-medico" class="_pret-input" placeholder="Nome do médico">
+      </div>
+    </div>
+    <div class="_pret-grupo">
+      <label class="_pret-label">Armação <span style="color:#fb7185">*</span></label>
+      <input type="text" id="_pret-armacao" class="_pret-input" placeholder="Modelo / código da armação">
+    </div>
+    <div class="_pret-grupo">
+      <label class="_pret-label">Tipo de lente <span style="color:#fb7185">*</span></label>
+      <select id="_pret-lente" class="_pret-input">
+        <option value="">Selecione...</option>
+        <option>Monofocal</option><option>Bifocal</option>
+        <option>Progressiva</option><option>Lente de contato</option><option>Outro</option>
+      </select>
+    </div>
+    <div class="_pret-grupo">
+      <label class="_pret-label">Tratamentos da lente</label>
+      <div id="_pret-trts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px;margin-top:4px">
+        ${trts.map(t=>`<label style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:6px;cursor:pointer;font-size:12px;color:var(--text-primary,#f1f5f9)"><input type="checkbox" value="${_escHtml(t)}"><span>${_escHtml(t)}</span></label>`).join('')}
+      </div>
+    </div>
+    <div class="_pret-row">
+      <div class="_pret-grupo">
+        <label class="_pret-label">Valor (R$)</label>
+        <input type="number" id="_pret-valor" min="0" step="0.01" class="_pret-input" placeholder="0,00">
+      </div>
+      <div class="_pret-grupo">
+        <label class="_pret-label">Status do pedido</label>
+        <select id="_pret-status" class="_pret-input">
+          <option value="aguardando">⏳ Aguardando</option>
+          <option value="em_producao">⚙️ Em produção</option>
+          <option value="pronto">✅ Pronto</option>
+          <option value="entregue">📦 Entregue</option>
+        </select>
+      </div>
+    </div>
+    <div class="_pret-grupo">
+      <label class="_pret-label">Data de entrega prevista</label>
+      <input type="date" id="_pret-entrega" class="_pret-input">
+    </div>
+    <div class="_pret-grupo">
+      <label class="_pret-label">Nível de melhora <span style="color:var(--text-muted,#94a3b8);font-size:10px">(comparado ao pedido anterior)</span></label>
+      <select id="_pret-melhora" class="_pret-input">
+        <option value="">— Selecione —</option>
+        <option value="-2">😣 Piorou muito</option>
+        <option value="-1">😟 Piorou um pouco</option>
+        <option value="0">😐 Sem mudança</option>
+        <option value="1">🙂 Melhorou um pouco</option>
+        <option value="2">😊 Melhorou bastante</option>
+        <option value="3">😄 Muito melhor / recuperado</option>
+      </select>
+    </div>
+    <div class="_pret-grupo">
+      <label class="_pret-label">Precauções clínicas</label>
+      <textarea id="_pret-precaucoes" rows="2" class="_pret-input" placeholder="Alergias, contraindicações..."></textarea>
+    </div>
+    <div class="_pret-grupo">
+      <label class="_pret-label">Observações</label>
+      <textarea id="_pret-obs" rows="2" class="_pret-input" placeholder="Observações finais, ajustes..."></textarea>
+    </div>`;
+
+  bg.innerHTML=`
+    <style>
+      ._pret-grupo{margin-bottom:12px}
+      ._pret-label{display:block;font-size:11px;font-weight:600;color:var(--text-muted,#94a3b8);margin-bottom:5px;letter-spacing:0.3px}
+      ._pret-input{width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:var(--text-primary,#f1f5f9);font-size:13px;font-family:inherit;outline:none;transition:border-color 0.15s}
+      ._pret-input:focus{border-color:var(--accent,#00e676)}
+      ._pret-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+      @media(max-width:520px){._pret-row{grid-template-columns:1fr}}
+    </style>
+    <div style="background:var(--bg-card,#0a2416);border:1px solid rgba(0,200,83,0.3);border-radius:16px;padding:22px;max-width:560px;width:100%;max-height:92vh;overflow-y:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.6)">
+      <button id="_pret-btn-close" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:50%;width:30px;height:30px;color:var(--text-muted,#94a3b8);font-size:15px;cursor:pointer">✕</button>
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent,#00e676);font-weight:700;margin-bottom:4px">📋 Novo Retorno</div>
+      <div style="font-size:17px;font-weight:700;color:var(--text-primary,#f1f5f9);margin-bottom:2px;padding-right:36px">${_escHtml(pBase.nome||'Paciente')}</div>
+      <div style="font-size:11px;color:var(--text-muted,#94a3b8);margin-bottom:16px">${pBase.cpf?'CPF: '+_escHtml(pBase.cpf):''}${pBase.cpf&&pBase.whatsapp?' · ':''}${pBase.whatsapp?'WhatsApp: '+_escHtml(pBase.whatsapp):''}</div>
+      <div style="background:rgba(0,200,83,0.06);border:1px solid rgba(0,200,83,0.18);border-radius:8px;padding:10px 12px;margin-bottom:18px;font-size:11px;color:var(--text-primary,#f1f5f9);line-height:1.5">
+        ℹ️ <strong style="color:var(--accent,#00e676)">Dados de identificação serão copiados automaticamente.</strong> Preencha só os campos clínicos do retorno de hoje.
+      </div>
+      ${proj==='oculos'?corpoOculos:corpoFibro}
+      <div style="display:flex;gap:10px;margin-top:18px">
+        <button id="_pret-btn-cancel" style="flex:1;padding:11px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:var(--text-muted,#94a3b8);font-size:13px;font-weight:600;cursor:pointer">Cancelar</button>
+        <button id="_pret-btn-save" data-pac-key="${_escHtml(g.key)}" style="flex:2;padding:11px;background:linear-gradient(135deg,#00e676,#00c853);border:none;border-radius:8px;color:#0a2416;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">✅ Registrar Retorno</button>
+      </div>
+    </div>`;
+
+  /* Listeners post-render */
+  document.getElementById('_pret-btn-close').addEventListener('click',_fecharRetornoModal);
+  document.getElementById('_pret-btn-cancel').addEventListener('click',_fecharRetornoModal);
+  const saveBtn=document.getElementById('_pret-btn-save');
+  saveBtn.addEventListener('click',()=>_salvarRetorno(saveBtn.dataset.pacKey,saveBtn));
+  /* Slider de dor (só fibro) */
+  const dor=document.getElementById('_pret-dor');
+  const dorVal=document.getElementById('_pret-dor-val');
+  if(dor&&dorVal){
+    dor.addEventListener('input',()=>{
+      const v=parseInt(dor.value);
+      dorVal.textContent=v;
+      dorVal.style.color=v<=3?'#4ade80':v<=6?'#fbbf24':'#fb7185';
+    });
+  }
+};
+
+window._fecharRetornoModal=function(){
+  const bg=document.getElementById('_pret-bg');
+  if(bg) bg.style.display='none';
+};
+
+async function _salvarRetorno(key,btnRef){
+  const groups=_puAgrupar();
+  const g=groups.find(x=>x.key===key);
+  if(!g){ if(typeof showToast==='function') showToast('Paciente não encontrado',true); return; }
+  const pBase=g.paciente;
+  const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
+  const focusFail=(msg,el)=>{ if(typeof showToast==='function') showToast(msg,true); try{el?.focus();}catch(_){}};
+
+  /* Validação igual ao _stgValidate */
+  if(proj==='fibro'){
+    const data=document.getElementById('_pret-data');
+    if(!data?.value){ focusFail('Informe a data da consulta',data); return; }
+    const ret=document.getElementById('_pret-proximo');
+    if(!ret?.value){ focusFail('Informe a data do próximo retorno',ret); return; }
+  } else {
+    const arm=document.getElementById('_pret-armacao');
+    if(!arm?.value.trim()){ focusFail('Informe a armação escolhida',arm); return; }
+    const lente=document.getElementById('_pret-lente');
+    if(!lente?.value){ focusFail('Selecione o tipo de lente',lente); return; }
+  }
+
+  if(btnRef){ btnRef.disabled=true; btnRef.textContent='Salvando...'; }
+
+  const table=proj==='oculos'?'pacientes_oculos':'pacientes_fibro';
+
+  /* Identificação copiada do paciente base + cadastrado_por = quem está fazendo o retorno */
+  const payload={
+    nome: pBase.nome,
+    cpf: pBase.cpf||null,
+    nome_mae: pBase.nome_mae||null,
+    nome_pai: pBase.nome_pai||null,
+    secao_eleitoral: pBase.secao_eleitoral||null,
+    adultos_no_lar: pBase.adultos_no_lar!=null?pBase.adultos_no_lar:null,
+    estado_civil: pBase.estado_civil||null,
+    whatsapp: pBase.whatsapp||null,
+    idade: pBase.idade||null,
+    cadastrado_por: typeof currentUser!=='undefined'?currentUser.id:null,
+    precaucoes_clinicas: document.getElementById('_pret-precaucoes')?.value.trim()||null,
+    observacoes: document.getElementById('_pret-obs')?.value.trim()||null,
+    nivel_melhora: (function(){
+      const v=document.getElementById('_pret-melhora')?.value;
+      return v===''||v==null?null:parseInt(v);
+    })(),
+  };
+
+  if(proj==='fibro'){
+    const pts=[...document.querySelectorAll('#_pret-pontos input:checked')].map(c=>c.value);
+    Object.assign(payload,{
+      sintomas: document.getElementById('_pret-sintomas')?.value.trim()||null,
+      tempo_sintomas: document.getElementById('_pret-tempo')?.value.trim()||null,
+      medicacoes: document.getElementById('_pret-medicacoes')?.value.trim()||null,
+      nivel_dor: parseInt(document.getElementById('_pret-dor')?.value)||0,
+      pontos_dor: pts.length?pts.join(', '):null,
+      data_consulta: document.getElementById('_pret-data')?.value||null,
+      proximo_retorno: document.getElementById('_pret-proximo')?.value||null,
+    });
+  } else {
+    const trts=[...document.querySelectorAll('#_pret-trts input:checked')].map(c=>c.value);
+    Object.assign(payload,{
+      grau_od: document.getElementById('_pret-od')?.value.trim()||null,
+      grau_oe: document.getElementById('_pret-oe')?.value.trim()||null,
+      adicao: document.getElementById('_pret-adicao')?.value.trim()||null,
+      nome_medico: document.getElementById('_pret-medico')?.value.trim()||null,
+      armacao: document.getElementById('_pret-armacao')?.value.trim()||null,
+      tipo_lente: document.getElementById('_pret-lente')?.value||null,
+      tratamentos_lente: trts.length?trts.join(', '):null,
+      valor_pedido: parseFloat(document.getElementById('_pret-valor')?.value)||null,
+      status_pedido: document.getElementById('_pret-status')?.value||'aguardando',
+      data_entrega: document.getElementById('_pret-entrega')?.value||null,
+    });
+  }
+
+  /* Mesmo padrão de graceful degradation do _stgSave: tenta com tudo, se coluna nova falhar, remove e tenta de novo */
+  const newCols = proj==='fibro'
+    ? ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','nivel_melhora','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
+    : ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','nivel_melhora','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
+
+  let {error}=await sb.from(table).insert(payload);
+  if(error && error.message && error.message.includes('column')){
+    const clean={...payload};
+    newCols.forEach(c=>delete clean[c]);
+    const r2=await sb.from(table).insert(clean);
+    error=r2.error;
+  }
+
+  if(btnRef){ btnRef.disabled=false; btnRef.textContent='✅ Registrar Retorno'; }
+
+  if(error){
+    console.error('[malaquias:retorno]',error);
+    if(typeof showToast==='function') showToast('Erro ao salvar: '+error.message,true);
+    return;
+  }
+
+  if(typeof showToast==='function') showToast('Retorno registrado com sucesso! 🎉');
+  _fecharRetornoModal();
+  /* Fecha modal de histórico também — usuário vê a lista atualizada com nova contagem */
+  const histBg=document.getElementById('_phist-bg');
+  if(histBg) histBg.style.display='none';
+  /* Realtime já dispara updateKPIs, mas chamamos loadData direto pra garantir consistência local imediata */
+  if(typeof loadData==='function') try{ await loadData(); }catch(e){ console.warn('[malaquias:retorno-reload]',e?.message||e); }
+  if(typeof window._renderPacientesUnicos==='function') try{ window._renderPacientesUnicos(); }catch(e){ console.warn('[malaquias:retorno-render]',e?.message||e); }
+}
 
 if(!_puInit()){const _t=setInterval(()=>{if(_puInit())clearInterval(_t);},600);setTimeout(()=>clearInterval(_t),30000);}
 
