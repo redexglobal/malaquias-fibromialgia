@@ -2024,6 +2024,8 @@ function enterApp() {
     _bf();
     document.querySelectorAll('[data-section="novo"]').forEach(function(ni){var _oc=ni.onclick;ni.onclick=function(e){if(typeof _oc==='function')_oc.call(this,e);_bf();};});
   })();
+  /* Notifica IIFEs que dependem de currentProfile (evita race condition no sidebar) */
+  setTimeout(function(){ window.dispatchEvent(new CustomEvent('malaquias:profile-ready')); }, 200);
 }
 
 async function doLogout() {
@@ -3409,6 +3411,7 @@ function advInit(){
 }
 
 advWait(advInit);
+window.addEventListener('malaquias:profile-ready',function(){advInit();},{once:true});
 
 })();
 </script>
@@ -5553,6 +5556,7 @@ function _f2Init(){
 if(!_f2Init()){
   const _t=setInterval(()=>{if(_f2Init())clearInterval(_t);},350);
   setTimeout(()=>clearInterval(_t),25000);
+  window.addEventListener('malaquias:profile-ready',function(){_f2Init();},{once:true});
 }
 
 /* Expor _loadUltimosCadastros globalmente para nav onclick */
@@ -10701,7 +10705,7 @@ function _rnInit(){
   if(currentProfile.email!=='natalia@malaquias.com') return true;
   _injectSec(); _injectNav(); return true;
 }
-if(!_rnInit()){const _t=setInterval(()=>{if(_rnInit())clearInterval(_t);},500);setTimeout(()=>clearInterval(_t),30000);}
+if(!_rnInit()){const _t=setInterval(()=>{if(_rnInit())clearInterval(_t);},500);setTimeout(()=>clearInterval(_t),30000);window.addEventListener('malaquias:profile-ready',function(){_rnInit();},{once:true});}
 
 })();
 </script>
@@ -11484,7 +11488,7 @@ async function _salvarRetorno(key,btnRef){
   if(typeof window._renderPacientesUnicos==='function') try{ window._renderPacientesUnicos(); }catch(e){ console.warn('[malaquias:retorno-render]',e?.message||e); }
 }
 
-if(!_puInit()){const _t=setInterval(()=>{if(_puInit())clearInterval(_t);},600);setTimeout(()=>clearInterval(_t),30000);}
+if(!_puInit()){const _t=setInterval(()=>{if(_puInit())clearInterval(_t);},600);setTimeout(()=>clearInterval(_t),30000);window.addEventListener('malaquias:profile-ready',function(){_puInit();},{once:true});}
 
 })();
 </script>
@@ -11769,7 +11773,7 @@ window._renderAnaliseMelhora=function(){
   }
 };
 
-if(!_amInit()){const _t=setInterval(()=>{if(_amInit())clearInterval(_t);},600);setTimeout(()=>clearInterval(_t),30000);}
+if(!_amInit()){const _t=setInterval(()=>{if(_amInit())clearInterval(_t);},600);setTimeout(()=>clearInterval(_t),30000);window.addEventListener('malaquias:profile-ready',function(){_amInit();},{once:true});}
 
 })();
 </script>
@@ -11843,7 +11847,7 @@ function _arInit(){
   return true;
 }
 
-if(!_arInit()){const _t=setInterval(()=>{if(_arInit())clearInterval(_t);},600);setTimeout(()=>clearInterval(_t),30000);}
+if(!_arInit()){const _t=setInterval(()=>{if(_arInit())clearInterval(_t);},600);setTimeout(()=>clearInterval(_t),30000);window.addEventListener('malaquias:profile-ready',function(){_arInit();},{once:true});}
 
 })();
 </script>
