@@ -5762,11 +5762,24 @@ window._loadUltimosCadastros=_loadUltimosCadastros;
 
 /* Print styles */
 @media print {
-  .sidebar, .header, .stg-wrapper, #sec-comparar, #sec-ultimos-cadastros, #sec-ponto-detalhe { display: none !important; }
-  .main { margin-left: 0 !important; padding: 0 !important; }
+  :root, body.admin-mode {
+    --bg-primary: #fff !important; --bg-secondary: #f8fafc !important;
+    --bg-card: #fff !important; --text-primary: #111 !important;
+    --text-muted: #555 !important; --border-glass: #e2e8f0 !important;
+    --accent: #065f46 !important;
+  }
+  .sidebar, .header, #app-header, .stg-wrapper,
+  #sec-comparar, #sec-ultimos-cadastros, #sec-ponto-detalhe,
+  #admin-last-update, .toast-adv, #toast-stack { display: none !important; }
+  .main { margin-left: 0 !important; padding: 12px 16px !important; }
   .section:not(.active) { display: none !important; }
-  body { background: white !important; color: #000 !important; }
-  .kpi-card, .chart-card, .table-card { border: 1px solid #ccc !important; background: white !important; }
+  body, body.admin-mode { background: white !important; color: #111 !important; }
+  .kpi-card, .chart-card, .table-card,
+  [style*="background:var(--bg-card)"], [style*="background: var(--bg-card)"] {
+    border: 1px solid #ccc !important; background: white !important; box-shadow: none !important;
+  }
+  .page-title { color: #111 !important; }
+  .page-subtitle, .kpi-label, .text-muted { color: #555 !important; }
 }
 </style>
 
@@ -10538,10 +10551,11 @@ async function _rnHistLoad(){
       if (tb) tb.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:#fca5a5"><i class="fas fa-exclamation-triangle" style="font-size:24px;display:block;margin-bottom:8px;opacity:.6"></i>Erro ao carregar histórico: ${error.message}<br><span style="font-size:11px;opacity:.7">Verifique permissões RLS de historico_natalia no Supabase.</span></td></tr>`;
       return;
     }
-    const hist = (data && data.length)
-      ? data.map(r => ({ id: r.id, nome: r.nome, pos: r.positivos||0, neg: r.negativos||0, neu: r.neutros||0, atualizado_em: r.atualizado_em }))
+    const realData = (data||[]).filter(r => !r.nome.startsWith('__'));
+    const hist = realData.length
+      ? realData.map(r => ({ id: r.id, nome: r.nome, pos: r.positivos||0, neg: r.negativos||0, neu: r.neutros||0, atualizado_em: r.atualizado_em }))
       : _RN_HIST.map(h => ({ ...h, id: null }));  /* fallback sem id — UPDATE não vai funcionar nesses */
-    if (!data || !data.length) console.warn('[NATALIA HIST] tabela vazia, usando fallback hardcoded sem id');
+    if (!realData.length) console.warn('[NATALIA HIST] tabela vazia ou só com linha de snapshot, usando fallback hardcoded sem id');
     _rnHistPanel(hist);
   } catch (e) {
     console.error('[NATALIA HIST] uncaught:', e);
@@ -11544,11 +11558,12 @@ function _amInit(){
       <h1 class="page-title">Análise de Melhora</h1>
       <p class="page-subtitle">Como os pacientes estão evoluindo — feedback registrado em cada retorno</p>
 
-      <div style="display:flex;gap:8px;margin:18px 0 22px;flex-wrap:wrap">
+      <div style="display:flex;gap:8px;margin:18px 0 22px;flex-wrap:wrap;align-items:center">
         <button class="am-pbtn am-pbtn-active" data-am="todos"  onclick="window._amSetPeriodo('todos',this)">Todos</button>
         <button class="am-pbtn"                  data-am="30d"   onclick="window._amSetPeriodo('30d',this)">Últimos 30 dias</button>
         <button class="am-pbtn"                  data-am="90d"   onclick="window._amSetPeriodo('90d',this)">Últimos 90 dias</button>
         <button class="am-pbtn"                  data-am="1ano"  onclick="window._amSetPeriodo('1ano',this)">Último ano</button>
+        <button onclick="window._amPrint()" style="margin-left:auto;background:#a78bfa;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:7px"><i class="fas fa-print"></i> Imprimir</button>
       </div>
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:22px">
@@ -11771,6 +11786,43 @@ window._renderAnaliseMelhora=function(){
       </tr>`;
     }).join('') || '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted)">Nenhum ponto com feedback de melhora nesse período</td></tr>';
   }
+};
+
+window._amPrint=function(){
+  const dados=_amDados();
+  const total=dados.length;
+  const cats={melh:0,estav:0,pior:0};
+  dados.forEach(p=>{cats[_amBucketCategoria(p.nivel_melhora)]++;});
+  const pct=k=>total?Math.round(cats[k]/total*100):0;
+  const porPonto=new Map();
+  dados.forEach(p=>{
+    const k=p.cadastrado_por||'sem-ponto';
+    if(!porPonto.has(k)) porPonto.set(k,{nome:_amNomePonto(k),melh:0,estav:0,pior:0,total:0});
+    const o=porPonto.get(k); o[_amBucketCategoria(p.nivel_melhora)]++; o.total++;
+  });
+  const pontosArr=[...porPonto.values()].sort((a,b)=>b.total-a.total);
+  const donutImg=document.getElementById('am-donut')?.toDataURL?.('image/png')||'';
+  const periodo=_amPeriodo==='todos'?'Todo o período':_amPeriodo==='30d'?'Últimos 30 dias':_amPeriodo==='90d'?'Últimos 90 dias':'Último ano';
+  const rows=pontosArr.map(o=>{
+    const pM=Math.round(o.melh/o.total*100);const pE=Math.round(o.estav/o.total*100);const pP=100-pM-pE;
+    return `<tr><td>${o.nome}</td><td style="text-align:center">${o.total}</td><td style="text-align:center;color:#16a34a;font-weight:700">${o.melh} (${pM}%)</td><td style="text-align:center;color:#6b7280">${o.estav} (${pE}%)</td><td style="text-align:center;color:#dc2626;font-weight:700">${o.pior} (${pP}%)</td></tr>`;
+  }).join('')||'<tr><td colspan="5" style="text-align:center;padding:20px;color:#9ca3af">Nenhum dado no período</td></tr>';
+  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Análise de Melhora — Dr. Malaquias</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;font-size:13px;color:#111}h1{font-size:20px;color:#065f46;margin-bottom:4px}p.sub{color:#6b7280;font-size:12px;margin-bottom:20px}.kpis{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}.kpi{border:1px solid #d1fae5;border-radius:8px;padding:12px 16px;flex:1;min-width:120px}.kl{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#6b7280}.kv{font-size:24px;font-weight:800;margin-top:3px}.ks{font-size:11px;color:#9ca3af;margin-top:2px}.chart{text-align:center;margin-bottom:20px}img{max-width:280px}table{width:100%;border-collapse:collapse;margin-bottom:16px}th{background:#065f46;color:#fff;padding:8px 10px;font-size:11px;text-align:left}td{padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px}tr:nth-child(even)td{background:#f9fafb}.ft{text-align:center;color:#9ca3af;font-size:10px;margin-top:16px;border-top:1px solid #e5e7eb;padding-top:12px}@media print{body{padding:14px}}</style></head><body>
+  <h1>Análise de Melhora dos Pacientes</h1>
+  <p class="sub">Período: ${periodo} · Gerado em ${new Date().toLocaleString('pt-BR')} · Sistema Dr. Malaquias — Fibromialgia</p>
+  <div class="kpis">
+    <div class="kpi"><div class="kl">Total c/ avaliação</div><div class="kv" style="color:#065f46">${total}</div></div>
+    <div class="kpi"><div class="kl">Melhorando</div><div class="kv" style="color:#16a34a">${pct('melh')}%</div><div class="ks">${cats.melh} pacientes</div></div>
+    <div class="kpi"><div class="kl">Estável</div><div class="kv" style="color:#6b7280">${pct('estav')}%</div><div class="ks">${cats.estav} pacientes</div></div>
+    <div class="kpi"><div class="kl">Piorando</div><div class="kv" style="color:#dc2626">${pct('pior')}%</div><div class="ks">${cats.pior} pacientes</div></div>
+  </div>
+  ${donutImg?`<div class="chart"><img src="${donutImg}" alt="Distribuição geral"></div>`:''}
+  <table><thead><tr><th>Ponto</th><th style="text-align:center">Total</th><th style="text-align:center">Melhorando</th><th style="text-align:center">Estável</th><th style="text-align:center">Piorando</th></tr></thead><tbody>${rows}</tbody></table>
+  <div class="ft">Sistema Dr. Malaquias · Fibromialgia</div>
+  <script>window.onload=function(){window.print();}<\/script></body></html>`;
+  const w=window.open('','_blank');
+  if(w){w.document.write(html);w.document.close();}
+  else alert('Permita pop-ups para imprimir.');
 };
 
 if(!_amInit()){const _t=setInterval(()=>{if(_amInit())clearInterval(_t);},600);setTimeout(()=>clearInterval(_t),30000);window.addEventListener('malaquias:profile-ready',function(){_amInit();},{once:true});}
