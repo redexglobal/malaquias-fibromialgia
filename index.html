@@ -11164,7 +11164,10 @@ window._abrirHistoricoPaciente=function(key){
         <div style="font-weight:700;color:var(--accent,#00e676);font-size:13px">
           ${idx===0?'🆕 ':''}Retorno ${numVisita}
         </div>
-        <div style="font-size:11px;color:var(--text-muted,#94a3b8)">${dataStr}</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <button onclick="window._pEditOpen('${v.id}')" title="Editar este registro" style="background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.35);color:#00e676;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">✏️ Editar</button>
+          <div style="font-size:11px;color:var(--text-muted,#94a3b8)">${dataStr}</div>
+        </div>
       </div>
       ${body}
     </div>`;
@@ -11514,6 +11517,192 @@ async function _salvarRetorno(key,btnRef){
   /* Realtime já dispara updateKPIs, mas chamamos loadData direto pra garantir consistência local imediata */
   if(typeof loadData==='function') try{ await loadData(); }catch(e){ console.warn('[malaquias:retorno-reload]',e?.message||e); }
   if(typeof window._renderPacientesUnicos==='function') try{ window._renderPacientesUnicos(); }catch(e){ console.warn('[malaquias:retorno-render]',e?.message||e); }
+}
+
+/* ============================================================
+   MODAL EDITAR REGISTRO — colaborador/admin corrige dados de um
+   cadastro existente (UPDATE). Datas de consulta/proximo retorno
+   (oculos: entrega) ficam TRAVADAS. RLS _update_own/_update_admin.
+============================================================ */
+window._pEditOpen=function(recordId){
+  const rec=(window.allPacientes||[]).find(p=>String(p.id)===String(recordId));
+  if(!rec){ if(typeof showToast==='function') showToast('Registro não encontrado',true); return; }
+  const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
+  const esc=s=>(s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const pontos=['Cabeça','Pescoço','Ombros','Costas sup.','Costas inf.','Braços','Antebraços','Quadris','Coxas','Joelhos','Pernas','Pés'];
+  const trts=['Antirreflexo','Blue Light','Fotossensível','Polarizado','UV 400','Anti-risco','Espelhado'];
+  const pdSet=new Set((rec.pontos_dor||'').split(',').map(s=>s.trim()).filter(Boolean));
+  const trtSet=new Set((rec.tratamentos_lente||'').split(',').map(s=>s.trim()).filter(Boolean));
+  const dorVal=rec.nivel_dor!=null?rec.nivel_dor:5;
+  const melhoraOpts=[['-2','😣 Piorou muito'],['-1','😟 Piorou um pouco'],['0','😐 Sem mudança'],['1','🙂 Melhorou um pouco'],['2','😊 Melhorou bastante'],['3','😄 Muito melhor / recuperado']];
+
+  let bg=document.getElementById('_ped-bg');
+  if(!bg){
+    bg=document.createElement('div');
+    bg.id='_ped-bg';
+    bg.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:10001;display:flex;align-items:center;justify-content:center;padding:16px';
+    bg.onclick=function(e){ if(e.target===bg) _pEditClose(); };
+    document.body.appendChild(bg);
+  }
+  bg.style.display='flex';
+
+  const ident=`
+    <div class="_ped-grupo"><label class="_ped-label">Nome</label><input type="text" id="_ped-nome" class="_ped-input" value="${esc(rec.nome)}"></div>
+    <div class="_ped-row">
+      <div class="_ped-grupo"><label class="_ped-label">CPF</label><input type="text" id="_ped-cpf" class="_ped-input" value="${esc(rec.cpf)}"></div>
+      <div class="_ped-grupo"><label class="_ped-label">Idade</label><input type="number" id="_ped-idade" class="_ped-input" value="${esc(rec.idade)}"></div>
+    </div>
+    <div class="_ped-grupo"><label class="_ped-label">WhatsApp</label><input type="text" id="_ped-whats" class="_ped-input" value="${esc(rec.whatsapp)}"></div>`;
+
+  const corpoFibro=`
+    <div class="_ped-grupo"><label class="_ped-label">Sintomas</label><textarea id="_ped-sintomas" rows="2" class="_ped-input">${esc(rec.sintomas)}</textarea></div>
+    <div class="_ped-grupo"><label class="_ped-label">Tempo dos sintomas</label><input type="text" id="_ped-tempo" class="_ped-input" value="${esc(rec.tempo_sintomas)}"></div>
+    <div class="_ped-grupo"><label class="_ped-label">Medicações em uso</label><textarea id="_ped-medicacoes" rows="2" class="_ped-input">${esc(rec.medicacoes)}</textarea></div>
+    <div class="_ped-grupo"><label class="_ped-label">Nível de dor (0–10) — <span id="_ped-dor-val" style="color:#4ade80;font-weight:700">${dorVal}</span></label><input type="range" id="_ped-dor" min="0" max="10" value="${dorVal}" class="_ped-input" style="padding:0;height:6px"></div>
+    <div class="_ped-grupo"><label class="_ped-label">Pontos de dor</label>
+      <div id="_ped-pontos" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px;margin-top:4px">
+        ${pontos.map(pt=>`<label style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:6px;cursor:pointer;font-size:12px;color:var(--text-primary,#f1f5f9)"><input type="checkbox" value="${esc(pt)}" ${pdSet.has(pt)?'checked':''}><span>${esc(pt)}</span></label>`).join('')}
+      </div>
+    </div>
+    <div class="_ped-grupo"><label class="_ped-label">Nível de melhora</label>
+      <select id="_ped-melhora" class="_ped-input"><option value="">— Selecione —</option>${melhoraOpts.map(o=>`<option value="${o[0]}" ${String(rec.nivel_melhora)===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select>
+    </div>
+    <div class="_ped-grupo"><label class="_ped-label">Precauções clínicas</label><textarea id="_ped-precaucoes" rows="2" class="_ped-input">${esc(rec.precaucoes_clinicas)}</textarea></div>
+    <div class="_ped-grupo"><label class="_ped-label">Observações</label><textarea id="_ped-obs" rows="2" class="_ped-input">${esc(rec.observacoes)}</textarea></div>
+    <div class="_ped-row">
+      <div class="_ped-grupo"><label class="_ped-label">🔒 Data da consulta</label><input type="date" class="_ped-input" value="${esc(rec.data_consulta)}" disabled style="opacity:.55;cursor:not-allowed"></div>
+      <div class="_ped-grupo"><label class="_ped-label">🔒 Próximo retorno</label><input type="date" class="_ped-input" value="${esc(rec.proximo_retorno)}" disabled style="opacity:.55;cursor:not-allowed"></div>
+    </div>`;
+
+  const corpoOculos=`
+    <div class="_ped-row">
+      <div class="_ped-grupo"><label class="_ped-label">Grau OD</label><input type="text" id="_ped-od" class="_ped-input" value="${esc(rec.grau_od)}"></div>
+      <div class="_ped-grupo"><label class="_ped-label">Grau OE</label><input type="text" id="_ped-oe" class="_ped-input" value="${esc(rec.grau_oe)}"></div>
+    </div>
+    <div class="_ped-row">
+      <div class="_ped-grupo"><label class="_ped-label">Adição</label><input type="text" id="_ped-adicao" class="_ped-input" value="${esc(rec.adicao)}"></div>
+      <div class="_ped-grupo"><label class="_ped-label">Médico</label><input type="text" id="_ped-medico" class="_ped-input" value="${esc(rec.nome_medico)}"></div>
+    </div>
+    <div class="_ped-grupo"><label class="_ped-label">Armação</label><input type="text" id="_ped-armacao" class="_ped-input" value="${esc(rec.armacao)}"></div>
+    <div class="_ped-grupo"><label class="_ped-label">Tipo de lente</label>
+      <select id="_ped-lente" class="_ped-input">${['','Monofocal','Bifocal','Progressiva','Lente de contato','Outro'].map(o=>`<option value="${esc(o)}" ${(rec.tipo_lente||'')===o?'selected':''}>${o||'Selecione...'}</option>`).join('')}</select>
+    </div>
+    <div class="_ped-grupo"><label class="_ped-label">Tratamentos da lente</label>
+      <div id="_ped-trts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px;margin-top:4px">
+        ${trts.map(t=>`<label style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:6px;cursor:pointer;font-size:12px;color:var(--text-primary,#f1f5f9)"><input type="checkbox" value="${esc(t)}" ${trtSet.has(t)?'checked':''}><span>${esc(t)}</span></label>`).join('')}
+      </div>
+    </div>
+    <div class="_ped-row">
+      <div class="_ped-grupo"><label class="_ped-label">Valor (R$)</label><input type="number" id="_ped-valor" min="0" step="0.01" class="_ped-input" value="${esc(rec.valor_pedido)}"></div>
+      <div class="_ped-grupo"><label class="_ped-label">Status do pedido</label>
+        <select id="_ped-status" class="_ped-input">${[['aguardando','⏳ Aguardando'],['em_producao','⚙️ Em produção'],['pronto','✅ Pronto'],['entregue','📦 Entregue']].map(o=>`<option value="${o[0]}" ${(rec.status_pedido||'aguardando')===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="_ped-grupo"><label class="_ped-label">Nível de melhora</label>
+      <select id="_ped-melhora" class="_ped-input"><option value="">— Selecione —</option>${melhoraOpts.map(o=>`<option value="${o[0]}" ${String(rec.nivel_melhora)===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select>
+    </div>
+    <div class="_ped-grupo"><label class="_ped-label">Precauções clínicas</label><textarea id="_ped-precaucoes" rows="2" class="_ped-input">${esc(rec.precaucoes_clinicas)}</textarea></div>
+    <div class="_ped-grupo"><label class="_ped-label">Observações</label><textarea id="_ped-obs" rows="2" class="_ped-input">${esc(rec.observacoes)}</textarea></div>
+    <div class="_ped-grupo"><label class="_ped-label">🔒 Data de entrega</label><input type="date" class="_ped-input" value="${esc(rec.data_entrega)}" disabled style="opacity:.55;cursor:not-allowed"></div>`;
+
+  bg.innerHTML=`
+    <style>
+      ._ped-grupo{margin-bottom:12px}
+      ._ped-label{display:block;font-size:11px;font-weight:600;color:var(--text-muted,#94a3b8);margin-bottom:5px;letter-spacing:0.3px}
+      ._ped-input{width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:var(--text-primary,#f1f5f9);font-size:13px;font-family:inherit;outline:none}
+      ._ped-input:focus{border-color:var(--accent,#00e676)}
+      ._ped-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+      @media(max-width:520px){._ped-row{grid-template-columns:1fr}}
+    </style>
+    <div style="background:var(--bg-card,#0a2416);border:1px solid rgba(0,200,83,0.3);border-radius:16px;padding:22px;max-width:560px;width:100%;max-height:92vh;overflow-y:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.6)">
+      <button id="_ped-btn-close" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:50%;width:30px;height:30px;color:var(--text-muted,#94a3b8);font-size:15px;cursor:pointer">✕</button>
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent,#00e676);font-weight:700;margin-bottom:4px">✏️ Editar Registro</div>
+      <div style="font-size:17px;font-weight:700;color:var(--text-primary,#f1f5f9);margin-bottom:14px;padding-right:36px">${esc(rec.nome||'Paciente')}</div>
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 12px;margin-bottom:18px;font-size:11px;color:var(--text-muted,#94a3b8);line-height:1.5">🔒 As datas ficam travadas. Todo o resto pode ser corrigido — inclusive a medicação.</div>
+      ${ident}
+      ${proj==='oculos'?corpoOculos:corpoFibro}
+      <div style="display:flex;gap:10px;margin-top:18px">
+        <button id="_ped-btn-cancel" style="flex:1;padding:11px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:var(--text-muted,#94a3b8);font-size:13px;font-weight:600;cursor:pointer">Cancelar</button>
+        <button id="_ped-btn-save" style="flex:2;padding:11px;background:linear-gradient(135deg,#00e676,#00c853);border:none;border-radius:8px;color:#0a2416;font-size:13px;font-weight:700;cursor:pointer">💾 Salvar Alterações</button>
+      </div>
+    </div>`;
+
+  document.getElementById('_ped-btn-close').addEventListener('click',_pEditClose);
+  document.getElementById('_ped-btn-cancel').addEventListener('click',_pEditClose);
+  const saveBtn=document.getElementById('_ped-btn-save');
+  saveBtn.addEventListener('click',()=>_pEditSave(recordId,saveBtn));
+  const dor=document.getElementById('_ped-dor'), dv=document.getElementById('_ped-dor-val');
+  if(dor&&dv){ dor.addEventListener('input',()=>{ const v=parseInt(dor.value); dv.textContent=v; dv.style.color=v<=3?'#4ade80':v<=6?'#fbbf24':'#fb7185'; }); }
+};
+
+window._pEditClose=function(){ const bg=document.getElementById('_ped-bg'); if(bg) bg.style.display='none'; };
+
+async function _pEditSave(recordId,btnRef){
+  const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
+  const table=proj==='oculos'?'pacientes_oculos':'pacientes_fibro';
+  const val=id=>{const e=document.getElementById(id);return e?e.value:undefined;};
+  const txt=id=>{const v=val(id);return v!=null&&String(v).trim()!==''?String(v).trim():null;};
+
+  const payload={
+    nome: txt('_ped-nome'),
+    cpf: txt('_ped-cpf'),
+    idade: parseInt(val('_ped-idade'))||null,
+    whatsapp: txt('_ped-whats'),
+    precaucoes_clinicas: txt('_ped-precaucoes'),
+    observacoes: txt('_ped-obs'),
+    nivel_melhora: (function(){ const v=val('_ped-melhora'); return v===''||v==null?null:parseInt(v); })(),
+  };
+  if(!payload.nome){ if(typeof showToast==='function') showToast('O nome não pode ficar vazio',true); return; }
+
+  if(proj==='fibro'){
+    const pts=[...document.querySelectorAll('#_ped-pontos input:checked')].map(c=>c.value);
+    Object.assign(payload,{
+      sintomas: txt('_ped-sintomas'),
+      tempo_sintomas: txt('_ped-tempo'),
+      medicacoes: txt('_ped-medicacoes'),
+      nivel_dor: parseInt(val('_ped-dor'))||0,
+      pontos_dor: pts.length?pts.join(', '):null,
+    });
+  } else {
+    const trts=[...document.querySelectorAll('#_ped-trts input:checked')].map(c=>c.value);
+    Object.assign(payload,{
+      grau_od: txt('_ped-od'),
+      grau_oe: txt('_ped-oe'),
+      adicao: txt('_ped-adicao'),
+      nome_medico: txt('_ped-medico'),
+      armacao: txt('_ped-armacao'),
+      tipo_lente: val('_ped-lente')||null,
+      tratamentos_lente: trts.length?trts.join(', '):null,
+      valor_pedido: parseFloat(val('_ped-valor'))||null,
+      status_pedido: val('_ped-status')||'aguardando',
+    });
+  }
+
+  if(btnRef){ btnRef.disabled=true; btnRef.textContent='Salvando...'; }
+
+  const newCols = proj==='fibro'
+    ? ['cpf','nivel_melhora','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor']
+    : ['cpf','nivel_melhora','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
+
+  let {error}=await sb.from(table).update(payload).eq('id',recordId);
+  if(error && error.message && error.message.includes('column')){
+    const clean={...payload};
+    newCols.forEach(c=>delete clean[c]);
+    const r2=await sb.from(table).update(clean).eq('id',recordId);
+    error=r2.error;
+  }
+
+  if(btnRef){ btnRef.disabled=false; btnRef.textContent='💾 Salvar Alterações'; }
+  if(error){ console.error('[malaquias:edit]',error); if(typeof showToast==='function') showToast('Erro ao salvar: '+error.message,true); return; }
+
+  const idx=(window.allPacientes||[]).findIndex(p=>String(p.id)===String(recordId));
+  if(idx>=0) window.allPacientes[idx]={...window.allPacientes[idx],...payload};
+  if(typeof showToast==='function') showToast('Registro atualizado! 🎉');
+  _pEditClose();
+  const histBg=document.getElementById('_phist-bg'); if(histBg) histBg.style.display='none';
+  if(typeof loadData==='function') try{ await loadData(); }catch(e){ console.warn('[malaquias:edit-reload]',e?.message||e); }
+  if(typeof window._renderPacientesUnicos==='function') try{ window._renderPacientesUnicos(); }catch(e){ console.warn('[malaquias:edit-render]',e?.message||e); }
+  if(typeof window.updateTable==='function') try{ window.updateTable(); }catch(e){ console.warn('[malaquias:edit-table]',e?.message||e); }
 }
 
 if(!_puInit()){const _t=setInterval(()=>{if(_puInit())clearInterval(_t);},600);setTimeout(()=>clearInterval(_t),30000);window.addEventListener('malaquias:profile-ready',function(){_puInit();},{once:true});}
