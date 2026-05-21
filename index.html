@@ -11570,8 +11570,8 @@ window._pEditOpen=function(recordId){
     <div class="_ped-grupo"><label class="_ped-label">Precauções clínicas</label><textarea id="_ped-precaucoes" rows="2" class="_ped-input">${esc(rec.precaucoes_clinicas)}</textarea></div>
     <div class="_ped-grupo"><label class="_ped-label">Observações</label><textarea id="_ped-obs" rows="2" class="_ped-input">${esc(rec.observacoes)}</textarea></div>
     <div class="_ped-row">
-      <div class="_ped-grupo"><label class="_ped-label">🔒 Data da consulta</label><input type="date" class="_ped-input" value="${esc(rec.data_consulta)}" disabled style="opacity:.55;cursor:not-allowed"></div>
-      <div class="_ped-grupo"><label class="_ped-label">🔒 Próximo retorno</label><input type="date" class="_ped-input" value="${esc(rec.proximo_retorno)}" disabled style="opacity:.55;cursor:not-allowed"></div>
+      <div class="_ped-grupo"><label class="_ped-label">Data da consulta</label><input type="date" id="_ped-data" class="_ped-input" value="${esc(rec.data_consulta)}"></div>
+      <div class="_ped-grupo"><label class="_ped-label">Próximo retorno</label><input type="date" id="_ped-proximo" class="_ped-input" value="${esc(rec.proximo_retorno)}"></div>
     </div>`;
 
   const corpoOculos=`
@@ -11603,7 +11603,7 @@ window._pEditOpen=function(recordId){
     </div>
     <div class="_ped-grupo"><label class="_ped-label">Precauções clínicas</label><textarea id="_ped-precaucoes" rows="2" class="_ped-input">${esc(rec.precaucoes_clinicas)}</textarea></div>
     <div class="_ped-grupo"><label class="_ped-label">Observações</label><textarea id="_ped-obs" rows="2" class="_ped-input">${esc(rec.observacoes)}</textarea></div>
-    <div class="_ped-grupo"><label class="_ped-label">🔒 Data de entrega</label><input type="date" class="_ped-input" value="${esc(rec.data_entrega)}" disabled style="opacity:.55;cursor:not-allowed"></div>`;
+    <div class="_ped-grupo"><label class="_ped-label">Data de entrega</label><input type="date" id="_ped-entrega" class="_ped-input" value="${esc(rec.data_entrega)}"></div>`;
 
   bg.innerHTML=`
     <style>
@@ -11618,7 +11618,7 @@ window._pEditOpen=function(recordId){
       <button id="_ped-btn-close" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:50%;width:30px;height:30px;color:var(--text-muted,#94a3b8);font-size:15px;cursor:pointer">✕</button>
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent,#00e676);font-weight:700;margin-bottom:4px">✏️ Editar Registro</div>
       <div style="font-size:17px;font-weight:700;color:var(--text-primary,#f1f5f9);margin-bottom:14px;padding-right:36px">${esc(rec.nome||'Paciente')}</div>
-      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 12px;margin-bottom:18px;font-size:11px;color:var(--text-muted,#94a3b8);line-height:1.5">🔒 As datas ficam travadas. Todo o resto pode ser corrigido — inclusive a medicação.</div>
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 12px;margin-bottom:18px;font-size:11px;color:var(--text-muted,#94a3b8);line-height:1.5">✏️ Você pode corrigir todos os dados deste registro, incluindo as datas e a medicação.</div>
       ${ident}
       ${proj==='oculos'?corpoOculos:corpoFibro}
       <div style="display:flex;gap:10px;margin-top:18px">
@@ -11662,6 +11662,8 @@ async function _pEditSave(recordId,btnRef){
       medicacoes: txt('_ped-medicacoes'),
       nivel_dor: parseInt(val('_ped-dor'))||0,
       pontos_dor: pts.length?pts.join(', '):null,
+      data_consulta: val('_ped-data')||null,
+      proximo_retorno: val('_ped-proximo')||null,
     });
   } else {
     const trts=[...document.querySelectorAll('#_ped-trts input:checked')].map(c=>c.value);
@@ -11675,6 +11677,7 @@ async function _pEditSave(recordId,btnRef){
       tratamentos_lente: trts.length?trts.join(', '):null,
       valor_pedido: parseFloat(val('_ped-valor'))||null,
       status_pedido: val('_ped-status')||'aguardando',
+      data_entrega: val('_ped-entrega')||null,
     });
   }
 
