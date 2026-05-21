@@ -4040,11 +4040,11 @@ window.updateTable = function() {
 
     const thead = document.querySelector('#sec-cadastros table thead tr');
     if (thead) thead.innerHTML = proj === 'fibro'
-      ? '<th>Paciente</th><th>Idade</th><th>WhatsApp</th><th>Visitas</th><th>Último atendimento</th><th>Histórico</th>'
-      : '<th>Paciente</th><th>Idade</th><th>WhatsApp</th><th>Pedidos</th><th>Último pedido</th><th>Histórico</th>';
+      ? '<th>Paciente</th><th>CPF</th><th>Idade</th><th>WhatsApp</th><th>Visitas</th><th>Último atendimento</th><th>Histórico</th>'
+      : '<th>Paciente</th><th>CPF</th><th>Idade</th><th>WhatsApp</th><th>Pedidos</th><th>Último pedido</th><th>Histórico</th>';
 
     if (!groups.length) {
-      body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">Nenhum paciente cadastrado.</td></tr>';
+      body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">Nenhum paciente cadastrado.</td></tr>';
       return;
     }
 
@@ -4052,6 +4052,7 @@ window.updateTable = function() {
 
     body.innerHTML = groups.slice(0, 50).map(g => {
       const last = g.visitas[0];
+      const cpfShow = (g.visitas.find(v=>v.cpf)||{}).cpf||'';
       let colDate;
       if (proj === 'fibro') {
         colDate = last.data_consulta ? new Date(last.data_consulta+'T00:00:00').toLocaleDateString('pt-BR') : '—';
@@ -4060,6 +4061,7 @@ window.updateTable = function() {
       }
       return `<tr style="cursor:pointer" data-pac-key="${_esc(g.key)}">
         <td style="font-weight:500;color:var(--text-primary)">${_esc(g.nome)}</td>
+        <td>${cpfShow?_esc(cpfShow):'<span style="color:var(--text-muted);font-size:11px">(sem CPF)</span>'}</td>
         <td>${g.idade||'—'}</td>
         <td style="color:var(--text-secondary)">${_esc(g.whatsapp)}</td>
         <td><span style="background:rgba(0,200,83,.15);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600;color:var(--accent)">${g.visitas.length}</span></td>
