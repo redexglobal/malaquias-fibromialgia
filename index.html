@@ -11039,12 +11039,13 @@ window._renderPacientesUnicos=function(){
   const body=document.getElementById('pu-body');
   if(!body) return;
   const q=(document.getElementById('pu-search')?.value||'').toLowerCase().trim();
+  const qDigits=q.replace(/\D/g,'');
   const groups=_puAgrupar();
   const filtered=q
     ? groups.filter(g=>
         (g.paciente.nome||'').toLowerCase().includes(q)||
-        (g.paciente.cpf||'').toLowerCase().includes(q)||
-        (g.paciente.whatsapp||'').replace(/\D/g,'').includes(q.replace(/\D/g,''))
+        (qDigits && g.visitas.some(v=>(v.cpf||'').replace(/\D/g,'').includes(qDigits)))||
+        (qDigits && g.visitas.some(v=>(v.whatsapp||'').replace(/\D/g,'').includes(qDigits)))
       )
     : groups;
   filtered.sort((a,b)=>(b.paciente.criado_em||'').localeCompare(a.paciente.criado_em||''));
@@ -11054,12 +11055,13 @@ window._renderPacientesUnicos=function(){
 
   body.innerHTML=filtered.slice(0,800).map(g=>{
     const p=g.paciente;
+    const cpfShow=p.cpf||(g.visitas.find(v=>v.cpf)||{}).cpf||'';
     const ultima=p.criado_em?new Date(p.criado_em).toLocaleDateString('pt-BR'):'—';
     const nv=g.visitas.length;
     /* XSS safe: dados escapados pra innerHTML, key tirado de dentro do onclick via data-pac-key */
     return `<tr style="cursor:pointer" data-pac-key="${_escHtml(g.key)}" title="Clique para ver histórico de retornos">
       <td style="font-weight:500;color:var(--text-primary)">${_escHtml(p.nome||'—')}</td>
-      <td>${p.cpf?_escHtml(p.cpf):'<span style="color:var(--text-muted);font-size:11px">(sem CPF)</span>'}</td>
+      <td>${cpfShow?_escHtml(cpfShow):'<span style="color:var(--text-muted);font-size:11px">(sem CPF)</span>'}</td>
       <td>${_escHtml(p.whatsapp||'—')}</td>
       <td>${_escHtml(p.idade||'—')}</td>
       <td><span style="background:rgba(0,200,83,0.15);color:var(--accent);padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600">${nv} ${nv===1?'retorno':'retornos'}</span></td>
