@@ -10761,7 +10761,11 @@ window.updateTable = function() {
   const body = document.getElementById('table-body');
   if(!body) return;
   const search = document.getElementById('search-paciente')?.value.toLowerCase()||'';
-  const filtered = (window.allPacientes||[]).filter(p => !search || p.nome?.toLowerCase().includes(search));
+  const sd = search.replace(/\D/g,'');
+  const filtered = (window.allPacientes||[]).filter(p => !search ||
+    p.nome?.toLowerCase().includes(search) ||
+    (sd && (p.cpf||'').replace(/\D/g,'').includes(sd)) ||
+    (sd && (p.whatsapp||'').replace(/\D/g,'').includes(sd)));
   const cnt = document.getElementById('table-count');
   if(cnt) cnt.textContent = filtered.length + ' registros';
 
