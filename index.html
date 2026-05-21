@@ -1494,6 +1494,7 @@ tr:last-child td { border-bottom: none; }
           </div>
           <div class="table-actions">
             <input type="text" class="search-input" placeholder="Buscar paciente..." id="search-paciente" oninput="filterTable()">
+            <input type="date" class="search-input" id="search-data" title="Buscar por data de atendimento ou cadastro" oninput="filterTable()" style="max-width:175px">
             <button class="btn-sm" onclick="exportCSV()"><i class="fas fa-download"></i> CSV</button>
           </div>
         </div>
@@ -4007,6 +4008,16 @@ window.updateCharts = function() {
 };
 
 /* ---- 4. TABELA GERAL: nomes de ponto (admin) + histórico clicável (ponto) ---- */
+/* Match de data da busca: bate se a data digitada == data da consulta,
+   proximo retorno, data de entrega (oculos) OU a data de lancamento no
+   sistema (criado_em, em horario BR). '' = sem filtro de data. */
+window._matchDataBusca = function(rec, d){
+  if(!d) return true;
+  if(rec.data_consulta===d || rec.proximo_retorno===d || rec.data_entrega===d) return true;
+  if(typeof window._matchDayBR==='function'){ try{ return window._matchDayBR(rec.criado_em, d); }catch(_){} }
+  return (rec.criado_em||'').slice(0,10)===d;
+};
+
 const _prevUpdateTable = window.updateTable;
 window.updateTable = function() {
   const body = document.getElementById('table-body');
@@ -4035,6 +4046,8 @@ window.updateTable = function() {
       (searchDigits && g.visitas.some(v=>(v.cpf||'').replace(/\D/g,'').includes(searchDigits)))||
       (searchDigits && g.visitas.some(v=>(v.whatsapp||'').replace(/\D/g,'').includes(searchDigits)))
     );
+    const dataF = document.getElementById('search-data')?.value||'';
+    if (dataF) groups = groups.filter(g=>g.visitas.some(v=>window._matchDataBusca(v,dataF)));
 
     const cnt = document.getElementById('table-count');
     if (cnt) cnt.textContent = groups.length + ' paciente' + (groups.length !== 1 ? 's' : '');
@@ -10765,10 +10778,12 @@ window.updateTable = function() {
   if(!body) return;
   const search = document.getElementById('search-paciente')?.value.toLowerCase()||'';
   const sd = search.replace(/\D/g,'');
-  const filtered = (window.allPacientes||[]).filter(p => !search ||
+  const dataF = document.getElementById('search-data')?.value||'';
+  const filtered = (window.allPacientes||[]).filter(p => (!search ||
     p.nome?.toLowerCase().includes(search) ||
     (sd && (p.cpf||'').replace(/\D/g,'').includes(sd)) ||
-    (sd && (p.whatsapp||'').replace(/\D/g,'').includes(sd)));
+    (sd && (p.whatsapp||'').replace(/\D/g,'').includes(sd))) &&
+    window._matchDataBusca(p, dataF));
   const cnt = document.getElementById('table-count');
   if(cnt) cnt.textContent = filtered.length + ' registros';
 
@@ -11007,6 +11022,7 @@ function _puInit(){
           <h3 id="pu-title">${tabelaTit}</h3>
           <div class="table-controls">
             <input type="text" class="search-input" id="pu-search" placeholder="Buscar nome, CPF ou WhatsApp..." oninput="window._renderPacientesUnicos()">
+            <input type="date" class="search-input" id="pu-search-data" title="Buscar por data de atendimento ou cadastro" oninput="window._renderPacientesUnicos()" style="max-width:175px">
           </div>
         </div>
         <div style="overflow-x:auto">
@@ -11052,14 +11068,16 @@ window._renderPacientesUnicos=function(){
   if(!body) return;
   const q=(document.getElementById('pu-search')?.value||'').toLowerCase().trim();
   const qDigits=q.replace(/\D/g,'');
+  const dataF=document.getElementById('pu-search-data')?.value||'';
   const groups=_puAgrupar();
-  const filtered=q
+  let filtered=q
     ? groups.filter(g=>
         (g.paciente.nome||'').toLowerCase().includes(q)||
         (qDigits && g.visitas.some(v=>(v.cpf||'').replace(/\D/g,'').includes(qDigits)))||
         (qDigits && g.visitas.some(v=>(v.whatsapp||'').replace(/\D/g,'').includes(qDigits)))
       )
     : groups;
+  if(dataF) filtered=(typeof window._matchDataBusca==='function')?filtered.filter(g=>g.visitas.some(v=>window._matchDataBusca(v,dataF))):filtered;
   filtered.sort((a,b)=>(b.paciente.criado_em||'').localeCompare(a.paciente.criado_em||''));
 
   const title=document.getElementById('pu-title');
