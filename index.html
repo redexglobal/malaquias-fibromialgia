@@ -4028,7 +4028,12 @@ window.updateTable = function() {
     });
 
     let groups = [...groupMap.values()].sort((a,b)=>(b.visitas[0]?.criado_em||'').localeCompare(a.visitas[0]?.criado_em||''));
-    if (search) groups = groups.filter(g=>(g.nome||'').toLowerCase().includes(search)||g.whatsapp.includes(search));
+    const searchDigits = search.replace(/\D/g,'');
+    if (search) groups = groups.filter(g=>
+      (g.nome||'').toLowerCase().includes(search)||
+      (searchDigits && g.visitas.some(v=>(v.cpf||'').replace(/\D/g,'').includes(searchDigits)))||
+      (searchDigits && g.visitas.some(v=>(v.whatsapp||'').replace(/\D/g,'').includes(searchDigits)))
+    );
 
     const cnt = document.getElementById('table-count');
     if (cnt) cnt.textContent = groups.length + ' paciente' + (groups.length !== 1 ? 's' : '');
