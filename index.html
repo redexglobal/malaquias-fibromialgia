@@ -2078,12 +2078,25 @@ async function loadData() {
   }
 }
 
+/* Conta PACIENTES ÚNICOS (não linhas). Cada retorno é uma linha; aqui
+   agrupamos por CPF (sem máscara) ou, sem CPF, por nome+whatsapp — mesma
+   regra das abas Pacientes/Retornos. */
+function _contarPacientesUnicos(list) {
+  const keys = new Set();
+  (list || []).forEach(p => {
+    const cpf = (p.cpf || '').replace(/\D/g, '');
+    const key = cpf ? ('cpf:' + cpf) : ('nw:' + ((p.nome||'').toLowerCase().trim()) + '|' + ((p.whatsapp||'').replace(/\D/g,'')));
+    keys.add(key);
+  });
+  return keys.size;
+}
+
 function updateKPIs() {
   console.log('[DASH KPI ORIG] iniciando. project=', typeof currentProject!=='undefined'?currentProject:'(undef)', 'allPacientes.length=', (allPacientes||[]).length);
   const today = _todayBR();
   const weekAgo = _dateOffsetBR(-7);
 
-  const total = allPacientes.length;
+  const total = _contarPacientesUnicos(allPacientes);
   const hoje = allPacientes.filter(p => _matchDayBR(p.criado_em,today)).length;
   const semana = allPacientes.filter(p => p.criado_em >= weekAgo).length;
   document.getElementById('kpi-total').textContent = total;
@@ -9327,9 +9340,9 @@ window.updateKPIs = function() {
     return d >= prevFrom && d <= prevTo;
   });
 
-  /* kpi-total = total ABSOLUTO de cadastros (não filtrado) — admin espera o número real do banco.
-     Filtro de período (AppFilters) continua usado em sparklines/comparações/charts, mas o KPI grande mostra o total. */
-  animateCount('kpi-total', allPacientes.length);
+  /* kpi-total = PACIENTES ÚNICOS (agrupa retornos do mesmo paciente por CPF).
+     O filtro de período continua nas sparklines/comparações/charts. */
+  animateCount('kpi-total', _contarPacientesUnicos(allPacientes));
   animateCount('kpi-hoje', todayPac.length);
   animateCount('kpi-semana', weekPac.length);
 
