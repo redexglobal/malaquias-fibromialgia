@@ -1698,7 +1698,7 @@ tr:last-child td { border-bottom: none; }
       <p class="page-subtitle">Renomear e gerenciar os pontos de atendimento</p>
       <div class="card-section">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
-          <div style="font-size:13px;color:var(--text-secondary)">Use <i class="fas fa-arrow-up" style="color:var(--accent)"></i> <i class="fas fa-arrow-down" style="color:var(--accent)"></i> para mudar a ordem e o ícone <i class="fas fa-pen" style="color:var(--accent)"></i> para renomear</div>
+          <div style="font-size:13px;color:var(--text-secondary)">Arraste a linha pelo <span style="color:var(--accent)">⠿</span> para mudar a ordem e clique no <i class="fas fa-pen" style="color:var(--accent)"></i> para renomear</div>
           <input type="text" class="search-input" id="ep-search" placeholder="Buscar ponto..." oninput="renderEditarPontos()" style="width:220px">
         </div>
         <div class="table-wrap">
@@ -8782,20 +8782,21 @@ async function loadEditarPontos() {
 /* ordem efetiva: coluna 'ordem' (definida pela Natalia); fallback numero_ponto */
 function _epOrd(p) { return (p && p.ordem != null) ? p.ordem : (p && p.numero_ponto != null ? p.numero_ponto : 999); }
 
+let _epDragId = null;
+
 function renderEditarPontos() {
   const tbody = document.getElementById('ep-tbody');
   if (!tbody) return;
   const search = (document.getElementById('ep-search')?.value || '').toLowerCase();
   const ordenados = [..._epProfiles].sort((a,b)=>_epOrd(a)-_epOrd(b));
   const visiveis = ordenados.filter(p => !search || (p.nome_ponto || p.nome || p.email || '').toLowerCase().includes(search));
+  const arrastavel = !search;
   const rows = visiveis.map((p, idx) => {
       const nomePonto = p.nome_ponto || p.nome || '';
-      const isFirst = idx === 0, isLast = idx === visiveis.length - 1;
-      const setaBtn = (dir, label, disabled) => `<button title="${label}" ${disabled?'disabled':''} onclick="_epMover('${p.id}',${dir})" style="width:26px;height:24px;border-radius:5px;background:${disabled?'rgba(255,255,255,0.03)':'rgba(0,230,118,0.1)'};border:1px solid ${disabled?'rgba(255,255,255,0.07)':'rgba(0,230,118,0.25)'};color:${disabled?'var(--text-muted)':'var(--accent)'};cursor:${disabled?'default':'pointer'};font-size:11px;padding:0">${dir<0?'▲':'▼'}</button>`;
-      return `<tr id="ep-row-${p.id}" style="border-bottom:1px solid var(--border-glass);transition:background 0.15s" onmouseover="this.style.background='var(--hover-bg)'" onmouseout="this.style.background=''">
+      const grip = arrastavel ? `<span title="Arraste para reordenar" style="cursor:grab;color:var(--accent);font-size:17px;line-height:1;user-select:none">⠿</span>` : '';
+      return `<tr id="ep-row-${p.id}" data-id="${p.id}" ${arrastavel?'draggable="true"':''} style="border-bottom:1px solid var(--border-glass);transition:background 0.15s${arrastavel?';cursor:grab':''}" onmouseover="this.style.background='var(--hover-bg)'" onmouseout="this.style.background=''">
         <td style="padding:8px 12px;white-space:nowrap;text-align:center">
-          <span style="display:inline-block;min-width:22px;font-weight:700;color:var(--accent);font-size:13px">${idx+1}</span>
-          <span style="display:inline-flex;gap:3px;margin-left:6px;vertical-align:middle">${setaBtn(-1,'Subir',isFirst)}${setaBtn(1,'Descer',isLast)}</span>
+          <span style="display:inline-flex;align-items:center;gap:8px;justify-content:center">${grip}<span style="display:inline-block;min-width:22px;font-weight:700;color:var(--accent);font-size:13px">${idx+1}</span></span>
         </td>
         <td style="padding:10px 12px;font-size:12px;color:var(--text-secondary)">${p.email}</td>
         <td style="padding:10px 12px;font-size:13px;font-weight:500;color:var(--text-primary)" id="ep-nome-${p.id}">${nomePonto || '—'}</td>
@@ -8808,29 +8809,40 @@ function renderEditarPontos() {
       </tr>`;
     });
   tbody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted)">Nenhum ponto encontrado.</td></tr>';
+  if (arrastavel) _epSetupDnD();
 }
 
-/* Move o ponto pra cima/baixo trocando a 'ordem' com o vizinho e persistindo. */
-async function _epMover(id, dir) {
-  if (document.getElementById('ep-search')?.value) { if(typeof showToast==='function') showToast('Limpe a busca pra reordenar a lista completa.', true); return; }
+/* Arrastar-e-soltar: arrasta a linha e solta sobre outra; renumera 1..N e persiste. */
+function _epSetupDnD() {
+  const tbody = document.getElementById('ep-tbody');
+  if (!tbody) return;
+  tbody.querySelectorAll('tr[draggable="true"]').forEach(tr => {
+    tr.addEventListener('dragstart', e => { _epDragId = tr.dataset.id; tr.style.opacity = '0.4'; try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', tr.dataset.id); } catch(_){} });
+    tr.addEventListener('dragend', () => { tr.style.opacity = ''; tbody.querySelectorAll('tr').forEach(r => r.style.boxShadow = ''); });
+    tr.addEventListener('dragover', e => { e.preventDefault(); if (tr.dataset.id !== _epDragId) tr.style.boxShadow = 'inset 0 3px 0 var(--accent)'; });
+    tr.addEventListener('dragleave', () => { tr.style.boxShadow = ''; });
+    tr.addEventListener('drop', e => { e.preventDefault(); tr.style.boxShadow = ''; const fromId = _epDragId, toId = tr.dataset.id; if (fromId && toId && fromId !== toId) _epReordenarPara(fromId, toId); });
+  });
+}
+
+async function _epReordenarPara(fromId, toId) {
   const lista = [..._epProfiles].sort((a,b)=>_epOrd(a)-_epOrd(b));
-  const i = lista.findIndex(p=>p.id===id);
-  const j = i + dir;
-  if (i < 0 || j < 0 || j >= lista.length) return;
-  const A = lista[i], B = lista[j];
-  const ordA = _epOrd(A), ordB = _epOrd(B);
+  const from = lista.findIndex(p => p.id === fromId);
+  const to = lista.findIndex(p => p.id === toId);
+  if (from < 0 || to < 0) return;
+  const [moved] = lista.splice(from, 1);
+  lista.splice(to, 0, moved);
+  const updates = [];
+  lista.forEach((p, i) => { const novo = i + 1; if (_epOrd(p) !== novo) { p.ordem = novo; updates.push({ id: p.id, ordem: novo }); } });
+  renderEditarPontos();
   try {
-    const r1 = await sb.from('profiles').update({ ordem: ordB }).eq('id', A.id);
-    if (r1.error) throw r1.error;
-    const r2 = await sb.from('profiles').update({ ordem: ordA }).eq('id', B.id);
-    if (r2.error) throw r2.error;
-    A.ordem = ordB; B.ordem = ordA;
-    renderEditarPontos();
+    await Promise.all(updates.map(u => sb.from('profiles').update({ ordem: u.ordem }).eq('id', u.id).then(r => { if (r.error) throw r.error; })));
     if (typeof updatePontos === 'function') { try { updatePontos(); } catch(_){} }
-  } catch(e) {
+    if (typeof showToast === 'function') showToast('Ordem atualizada!');
+  } catch (e) {
     const msg = (e.message || e || '').toString();
-    if (/column|ordem/i.test(msg)) { if(typeof showToast==='function') showToast('Falta criar a coluna "ordem" no Supabase (rode o SQL que o Vilson tem).', true); }
-    else if(typeof showToast==='function') showToast('Erro ao reordenar: ' + msg, true);
+    if (typeof showToast === 'function') showToast(/column|ordem/i.test(msg) ? 'Falta criar a coluna "ordem" no Supabase.' : 'Erro ao salvar ordem: ' + msg, true);
+    loadEditarPontos();
   }
 }
 
