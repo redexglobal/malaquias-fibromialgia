@@ -1698,13 +1698,14 @@ tr:last-child td { border-bottom: none; }
       <p class="page-subtitle">Renomear e gerenciar os pontos de atendimento</p>
       <div class="card-section">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
-          <div style="font-size:13px;color:var(--text-secondary)">Clique no ícone <i class="fas fa-pen" style="color:var(--accent)"></i> para renomear</div>
+          <div style="font-size:13px;color:var(--text-secondary)">Use <i class="fas fa-arrow-up" style="color:var(--accent)"></i> <i class="fas fa-arrow-down" style="color:var(--accent)"></i> para mudar a ordem e o ícone <i class="fas fa-pen" style="color:var(--accent)"></i> para renomear</div>
           <input type="text" class="search-input" id="ep-search" placeholder="Buscar ponto..." oninput="renderEditarPontos()" style="width:220px">
         </div>
         <div class="table-wrap">
           <table style="width:100%;border-collapse:collapse">
             <thead>
               <tr>
+                <th style="text-align:center;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-glass)">Ordem</th>
                 <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-glass)">Email</th>
                 <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-glass)">Nome do Ponto</th>
                 <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-glass)">Tipo</th>
@@ -3639,6 +3640,17 @@ window.updatePontos = async function(){
         const before = profiles.length;
         profiles = window._aplicarFiltrosPontos(profiles);
       }
+    }
+    /* Ordena os cards pela ordem definida em Editar Pontos (coluna 'ordem'); fallback numero_ponto */
+    try {
+      const projDB = currentProject === 'oculos' ? 'oculos' : 'fibromialgia';
+      const { data: _ords } = await sb.from('profiles').select('*').eq('papel','colaborador').eq('projeto',projDB);
+      const omap = {};
+      (_ords||[]).forEach(r => { omap[r.id] = (r.ordem != null ? r.ordem : (r.numero_ponto != null ? r.numero_ponto : 999)); });
+      const ordOf = p => (omap[p.id] != null ? omap[p.id] : (p.numero_ponto != null ? p.numero_ponto : 999));
+      profiles.sort((a,b)=>ordOf(a)-ordOf(b));
+    } catch(_) {
+      profiles.sort((a,b)=>((a.numero_ponto!=null?a.numero_ponto:999)-(b.numero_ponto!=null?b.numero_ponto:999)));
     }
     if(!profiles.length){
       grid.innerHTML='<div style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:2rem;font-size:14px"><i class="fas fa-filter" style="font-size:28px;margin-bottom:8px;display:block;opacity:.4"></i>Nenhum ponto encontrado'+(dataEsp?' nesta data':' com os filtros atuais')+'.</div>';
@@ -8761,21 +8773,30 @@ async function loadEditarPontos() {
   const proj = typeof currentProject !== 'undefined' ? currentProject : 'fibro';
   const projDB = proj === 'fibro' ? 'fibromialgia' : 'oculos';
   try {
-    const { data } = await sb.from('profiles').select('id,email,nome,nome_ponto,tipo_ponto').eq('papel','colaborador').eq('projeto',projDB).order('tipo_ponto');
+    const { data } = await sb.from('profiles').select('*').eq('papel','colaborador').eq('projeto',projDB);
     _epProfiles = data || [];
   } catch(e) { _epProfiles = []; }
   renderEditarPontos();
 }
 
+/* ordem efetiva: coluna 'ordem' (definida pela Natalia); fallback numero_ponto */
+function _epOrd(p) { return (p && p.ordem != null) ? p.ordem : (p && p.numero_ponto != null ? p.numero_ponto : 999); }
+
 function renderEditarPontos() {
   const tbody = document.getElementById('ep-tbody');
   if (!tbody) return;
   const search = (document.getElementById('ep-search')?.value || '').toLowerCase();
-  const rows = _epProfiles
-    .filter(p => !search || (p.nome_ponto || p.nome || p.email || '').toLowerCase().includes(search))
-    .map(p => {
+  const ordenados = [..._epProfiles].sort((a,b)=>_epOrd(a)-_epOrd(b));
+  const visiveis = ordenados.filter(p => !search || (p.nome_ponto || p.nome || p.email || '').toLowerCase().includes(search));
+  const rows = visiveis.map((p, idx) => {
       const nomePonto = p.nome_ponto || p.nome || '';
+      const isFirst = idx === 0, isLast = idx === visiveis.length - 1;
+      const setaBtn = (dir, label, disabled) => `<button title="${label}" ${disabled?'disabled':''} onclick="_epMover('${p.id}',${dir})" style="width:26px;height:24px;border-radius:5px;background:${disabled?'rgba(255,255,255,0.03)':'rgba(0,230,118,0.1)'};border:1px solid ${disabled?'rgba(255,255,255,0.07)':'rgba(0,230,118,0.25)'};color:${disabled?'var(--text-muted)':'var(--accent)'};cursor:${disabled?'default':'pointer'};font-size:11px;padding:0">${dir<0?'▲':'▼'}</button>`;
       return `<tr id="ep-row-${p.id}" style="border-bottom:1px solid var(--border-glass);transition:background 0.15s" onmouseover="this.style.background='var(--hover-bg)'" onmouseout="this.style.background=''">
+        <td style="padding:8px 12px;white-space:nowrap;text-align:center">
+          <span style="display:inline-block;min-width:22px;font-weight:700;color:var(--accent);font-size:13px">${idx+1}</span>
+          <span style="display:inline-flex;gap:3px;margin-left:6px;vertical-align:middle">${setaBtn(-1,'Subir',isFirst)}${setaBtn(1,'Descer',isLast)}</span>
+        </td>
         <td style="padding:10px 12px;font-size:12px;color:var(--text-secondary)">${p.email}</td>
         <td style="padding:10px 12px;font-size:13px;font-weight:500;color:var(--text-primary)" id="ep-nome-${p.id}">${nomePonto || '—'}</td>
         <td style="padding:10px 12px;font-size:11px;color:var(--text-muted);text-transform:uppercase">${p.tipo_ponto||'—'}</td>
@@ -8786,7 +8807,31 @@ function renderEditarPontos() {
         </td>
       </tr>`;
     });
-  tbody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-muted)">Nenhum ponto encontrado.</td></tr>';
+  tbody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted)">Nenhum ponto encontrado.</td></tr>';
+}
+
+/* Move o ponto pra cima/baixo trocando a 'ordem' com o vizinho e persistindo. */
+async function _epMover(id, dir) {
+  if (document.getElementById('ep-search')?.value) { if(typeof showToast==='function') showToast('Limpe a busca pra reordenar a lista completa.', true); return; }
+  const lista = [..._epProfiles].sort((a,b)=>_epOrd(a)-_epOrd(b));
+  const i = lista.findIndex(p=>p.id===id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= lista.length) return;
+  const A = lista[i], B = lista[j];
+  const ordA = _epOrd(A), ordB = _epOrd(B);
+  try {
+    const r1 = await sb.from('profiles').update({ ordem: ordB }).eq('id', A.id);
+    if (r1.error) throw r1.error;
+    const r2 = await sb.from('profiles').update({ ordem: ordA }).eq('id', B.id);
+    if (r2.error) throw r2.error;
+    A.ordem = ordB; B.ordem = ordA;
+    renderEditarPontos();
+    if (typeof updatePontos === 'function') { try { updatePontos(); } catch(_){} }
+  } catch(e) {
+    const msg = (e.message || e || '').toString();
+    if (/column|ordem/i.test(msg)) { if(typeof showToast==='function') showToast('Falta criar a coluna "ordem" no Supabase (rode o SQL que o Vilson tem).', true); }
+    else if(typeof showToast==='function') showToast('Erro ao reordenar: ' + msg, true);
+  }
 }
 
 function epStartEdit(id, nomeAtual, email) {
