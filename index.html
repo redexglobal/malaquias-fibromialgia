@@ -2045,14 +2045,27 @@ async function doLogout() {
 })();
 
 // ============== DATA ==============
+/* Paginacao: busca TODOS os registros em blocos de 1000 (o Supabase corta
+   cada requisicao em 1000). Sem isso, o painel so enxergava os 1000 mais
+   recentes e os antigos sumiam da tela — apesar de salvos no banco. */
+window._fetchAllRows = async function(tbl, ownId){
+  const PAGE = 1000;
+  let all = [], from = 0, batch;
+  do {
+    let q = sb.from(tbl).select('*').order('criado_em',{ascending:false}).range(from, from+PAGE-1);
+    if (ownId) q = q.eq('cadastrado_por', ownId);
+    const { data, error } = await q;
+    if (error) { console.error('[malaquias:fetchAll]', error?.message||error); break; }
+    batch = data || [];
+    all = all.concat(batch);
+    from += batch.length;
+  } while (batch.length === PAGE);
+  return all;
+};
+
 async function loadData() {
-  let query = sb.from('pacientes_fibro').select('*').order('criado_em', { ascending: false });
-  if (currentProfile?.papel !== 'admin') {
-    query = query.eq('cadastrado_por', currentUser.id);
-  }
-  const { data, error } = await query;
-  if (error) { console.error(error); return; }
-  allPacientes = data || [];
+  const ownId = (currentProfile?.papel !== 'admin') ? currentUser.id : null;
+  allPacientes = await window._fetchAllRows('pacientes_fibro', ownId);
   updateKPIs();
   updateTable();
   updateCharts();
@@ -3469,12 +3482,8 @@ if(!_setAdminMode()){
 /* ---- override loadData to be project-aware ---- */
 window.loadData = async function(){
   const tbl = currentProject==='fibro' ? 'pacientes_fibro' : 'pacientes_oculos';
-  let query = sb.from(tbl).select('*').order('criado_em',{ascending:false});
-  if(currentProfile?.papel !== 'admin'){
-    query = query.eq('cadastrado_por', currentUser.id);
-  }
-  const {data,error} = await query;
-  if(error){console.error('loadData:',error);return;}
+  const ownId = (currentProfile?.papel !== 'admin') ? currentUser.id : null;
+  const data = await window._fetchAllRows(tbl, ownId);
   /* mutate-in-place pra preservar sync entre let allPacientes e window.allPacientes */
   if (!Array.isArray(window.allPacientes)) window.allPacientes = [];
   window.allPacientes.length = 0;
@@ -8112,7 +8121,7 @@ function _ppRenderRows(isNew) {
     /* Aplica filtros (texto + data) */
     const recs = _ppGetFiltered();
     const ft = _$('pp-footer');
-    const limitAviso = total >= 500 ? ' <span style="color:#f59e0b">⚠ limite 500 — ajuste o filtro de data</span>' : '';
+    const limitAviso = total >= 2000 ? ' <span style="color:#f59e0b">⚠ muitos registros — use o filtro de data pra agilizar</span>' : '';
     if (ft) ft.innerHTML = `Exibindo <strong style="color:#10b981">${recs.length}</strong> de <strong>${total}</strong> cadastro${total!==1?'s':''}${limitAviso}`;
 
     if (!total) {
@@ -8254,20 +8263,8 @@ window.openPontoDetalhe = async function(profileId, nome, tipo) {
     const grp = _$('pp-grouped');
     if (grp) grp.innerHTML = `<div class="pp-empty"><i class="fas fa-spinner fa-spin"></i> Carregando cadastros...</div>`;
 
-    /* Busca dados — limit 500 pra date filter ter material */
-    const { data, error } = await sb.from(_tbl())
-      .select('*')
-      .eq('cadastrado_por', profileId)
-      .order('criado_em', { ascending: false })
-      .limit(500);
-
-    if (error) {
-      console.error('[OPEN PONTO ERROR]', error);
-      if(typeof showToast==='function') showToast('Erro: '+error.message, true);
-      if (grp) grp.innerHTML = `<div class="pp-empty">Erro ao carregar cadastros: ${error.message}</div>`;
-      return;
-    }
-    _ppRecs = data || [];
+    /* Busca TODOS os cadastros do ponto (paginado em blocos de 1000) */
+    _ppRecs = await window._fetchAllRows(_tbl(), profileId);
     _ppRenderRows(false);
 
     /* Realtime */
