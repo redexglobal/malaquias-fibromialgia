@@ -7585,41 +7585,55 @@ function _getFiltered() {
   });
 }
 
+/* Render AGRUPADO por paciente (admin) — 1 linha por pessoa (CPF, ou
+   nome+whatsapp sem CPF), com a contagem de visitas. Clique abre o
+   historico completo. Usado pelo Cadastros e pelos filtros avancados. */
+window._renderCadastrosAgrupadoAdmin = function(records) {
+  const body = document.getElementById('table-body');
+  if (!body) return;
+  const thStyle = 'text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--text-muted)';
+  const thead = document.querySelector('#sec-cadastros table thead tr');
+  if (thead) thead.innerHTML = ['Paciente','CPF','WhatsApp','Ponto','Visitas','Último atendimento','Histórico'].map(h=>`<th style="${thStyle}">${h}</th>`).join('');
+  const groups = new Map();
+  (records||[]).forEach(p => {
+    const cpf = (p.cpf||'').replace(/\D/g,'');
+    const key = cpf ? 'cpf:'+cpf : 'nw:'+((p.nome||'').toLowerCase().trim())+'|'+((p.whatsapp||'').replace(/\D/g,''));
+    if (!groups.has(key)) groups.set(key, { key, paciente: p, visitas: [] });
+    const g = groups.get(key);
+    g.visitas.push(p);
+    if ((p.criado_em||'') > (g.paciente.criado_em||'')) g.paciente = p;
+  });
+  const arr = [...groups.values()].sort((a,b)=>(b.paciente.criado_em||'').localeCompare(a.paciente.criado_em||''));
+  const cnt = document.getElementById('table-count');
+  if (cnt) cnt.textContent = arr.length + (arr.length===1?' paciente único':' pacientes únicos');
+  const esc = window._escHtml || (s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'));
+  if (!arr.length) { body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">Nenhum paciente encontrado.</td></tr>'; return; }
+  body.innerHTML = arr.slice(0,500).map(g => {
+    const p = g.paciente;
+    const cpfShow = p.cpf || (g.visitas.find(v=>v.cpf)||{}).cpf || '';
+    const ultima = p.criado_em ? new Date(p.criado_em).toLocaleDateString('pt-BR') : '—';
+    const nomeCad = (typeof _nomeCadastrador==='function') ? _nomeCadastrador(p.cadastrado_por) : '';
+    const nv = g.visitas.length;
+    return `<tr style="cursor:pointer" data-pac-key="${esc(g.key)}" title="Clique para ver histórico completo">
+      <td style="padding:10px 12px;font-weight:500;color:var(--text-primary)">${esc(p.nome||'—')}</td>
+      <td style="padding:10px 12px">${cpfShow?esc(cpfShow):'<span style="color:var(--text-muted);font-size:11px">(sem CPF)</span>'}</td>
+      <td style="padding:10px 12px;color:var(--text-secondary)">${esc(p.whatsapp||'—')}</td>
+      <td style="padding:10px 12px;font-size:12px;color:var(--accent);font-weight:600">${esc(nomeCad)}</td>
+      <td style="padding:10px 12px"><span style="background:rgba(0,200,83,0.15);color:var(--accent);padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600">${nv}</span></td>
+      <td style="padding:10px 12px">${ultima}</td>
+      <td style="padding:10px 12px"><button class="btn-sm" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();if(typeof window._abrirHistoricoPaciente==='function')window._abrirHistoricoPaciente(this.closest('tr').dataset.pacKey)">Ver histórico</button></td>
+    </tr>`;
+  }).join('');
+  body.querySelectorAll('tr[data-pac-key]').forEach(tr => {
+    tr.addEventListener('click', () => { if (typeof window._abrirHistoricoPaciente === 'function') window._abrirHistoricoPaciente(tr.dataset.pacKey); });
+  });
+};
+
 function _renderFilteredTable() {
   const filtered = _getFiltered();
   const cnt = $('fil-count');
-  if (cnt) cnt.textContent = filtered.length + ' resultado' + (filtered.length!==1?'s':'');
-  const body = $('table-body');
-  if (!body) return;
-
-  if (!filtered.length) {
-    body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">Nenhum registro encontrado com os filtros aplicados.</td></tr>';
-    return;
-  }
-
-  const pontoMap = window._pMapGlobal || window._pMap || {};
-  body.innerHTML = filtered.slice(0, 100).map(p => {
-    const col4 = _proj() === 'oculos'
-      ? ({aguardando:'⏳',em_producao:'⚙️',pronto:'✅',entregue:'📦'}[p.status_pedido]||'')+(p.status_pedido||'—')
-      : (p.nivel_dor!=null?`<span class="dor-badge ${p.nivel_dor<=3?'dor-low':p.nivel_dor<=6?'dor-mid':'dor-high'}">${p.nivel_dor}/10</span>`:'—');
-    const colDate = _proj() === 'oculos'
-      ? (p.data_entrega?new Date(p.data_entrega+'T00:00:00').toLocaleDateString('pt-BR'):'—')
-      : (p.data_consulta?new Date(p.data_consulta+'T00:00:00').toLocaleDateString('pt-BR'):'—');
-    const pontoNome = pontoMap[p.cadastrado_por] || p.cadastrado_por?.substring(0,8) || '—';
-    const hora = p.criado_em ? new Date(p.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
-    return `<tr>
-      <td style="font-weight:500;color:var(--text-primary)">${p.nome||'—'}</td>
-      <td>${p.idade||'—'}</td>
-      <td style="color:var(--text-secondary)">${p.whatsapp||'—'}</td>
-      <td>${col4}</td>
-      <td>${colDate}</td>
-      <td style="font-size:12px;color:var(--text-muted)">${pontoNome}</td>
-      <td>
-        <button class="btn-row-action btn-row-edit" onclick="_emOpen('${p.id}')">✏️ Editar</button>
-        <button class="btn-row-action btn-row-del" onclick="_emConfirmDelete('${p.id}','${(p.nome||'').replace(/'/g,"\\'")}')">🗑️</button>
-      </td>
-    </tr>`;
-  }).join('');
+  if (cnt) cnt.textContent = filtered.length + ' atendimento' + (filtered.length!==1?'s':'');
+  window._renderCadastrosAgrupadoAdmin(filtered);
 }
 
 /* ====================================================
@@ -10859,27 +10873,7 @@ window.updateTable = function() {
     (sd && (p.cpf||'').replace(/\D/g,'').includes(sd)) ||
     (sd && (p.whatsapp||'').replace(/\D/g,'').includes(sd))) &&
     window._matchDataBusca(p, dataF));
-  const cnt = document.getElementById('table-count');
-  if(cnt) cnt.textContent = filtered.length + ' registros';
-
-  body.innerHTML = filtered.slice(0,500).map(p => {
-    const dorClass = (p.nivel_dor||0)<=3?'dor-low':(p.nivel_dor||0)<=6?'dor-mid':'dor-high';
-    const data = p.data_consulta ? new Date(p.data_consulta+'T00:00:00').toLocaleDateString('pt-BR') : '—';
-    const avalNum = parseInt(p.avaliacao)||0;
-    const stars = avalNum>0
-      ? Array.from({length:5},(_,i)=>`<span style="color:${i<avalNum?'#f59e0b':'#4a5568'};font-size:14px">★</span>`).join('')
-      : '<span style="color:var(--text-muted);font-size:12px">—</span>';
-    const nomeCad = _nomeCadastrador(p.cadastrado_por);
-    return `<tr style="cursor:pointer" onclick="_abrirFichaPaciente('${p.id}')" title="Clique para ver ficha completa">
-      <td style="font-weight:500;color:var(--text-primary)">${p.nome||'—'}</td>
-      <td>${p.idade||'—'}</td>
-      <td>${p.whatsapp||'—'}</td>
-      <td><span class="dor-badge ${dorClass}">${p.nivel_dor||'—'}</span></td>
-      <td>${data}</td>
-      <td style="font-size:12px;color:var(--accent);font-weight:600">${nomeCad}</td>
-      <td style="white-space:nowrap">${stars}</td>
-    </tr>`;
-  }).join('');
+  window._renderCadastrosAgrupadoAdmin(filtered);
 };
 
 /* --- Override loadData para carregar profiles antes de renderizar --- */
