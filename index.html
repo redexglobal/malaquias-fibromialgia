@@ -2755,12 +2755,20 @@ async function updatePontos() {
 }
 
 // ============== REALTIME ==============
+/* Debounce do reload da Natalia: numa rajada de eventos, junta tudo numa
+   recarga so (apos 700ms de silencio) — evita tempestade de loadData
+   paginado e corrida entre cargas concorrentes. O toast continua por evento. */
+let _natReloadTimer = null;
+function _natReloadDebounced(){
+  clearTimeout(_natReloadTimer);
+  _natReloadTimer = setTimeout(()=>{ try{ loadData(); }catch(e){ console.warn('[malaquias:nat-reload]', e?.message||e); } }, 700);
+}
 sb.channel('fibro-changes')
   .on('postgres_changes', { event: '*', schema: 'public', table: 'pacientes_fibro' }, payload => {
     if (currentProfile?.email === 'natalia@malaquias.com') {
       const ev = payload.eventType;
       showToast(ev === 'UPDATE' ? 'Cadastro de paciente atualizado!' : ev === 'DELETE' ? 'Cadastro de paciente removido!' : 'Novo cadastro recebido!');
-      loadData();
+      _natReloadDebounced();
     }
   })
   .subscribe();
