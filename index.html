@@ -1372,7 +1372,7 @@ tr:last-child td { border-bottom: none; }
     </div>
 
     <div class="nav-section" id="nav-juridico-section" style="display:none">
-      <div class="nav-section-title">Jurídico</div>
+      <div class="nav-section-title" style="display:flex;align-items:center;justify-content:space-between;padding-right:4px">Jurídico<button id="jur-bell" onclick="jurAlertsOpen()" title="Ver alertas de prazo" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:14px;padding:2px 5px;position:relative;line-height:1"><i class="fas fa-bell"></i><span id="jur-bell-count" style="display:none;position:absolute;top:-5px;right:-3px;background:#ef4444;color:#fff;border-radius:8px;font-size:9px;font-weight:700;padding:0 4px;min-width:14px;text-align:center;line-height:14px"></span></button></div>
       <div class="nav-item" data-section="juridico" onclick="showSection('juridico', this)">
         <i class="fas fa-gavel"></i> Atendimento Jurídico
       </div>
@@ -12680,7 +12680,7 @@ const _fmtD=d=>{if(!d)return'—';try{return new Date(d+'T12:00:00').toLocaleDat
 const _sLbl={aguardando:'Aguardando',aprovado:'Aprovado',negado:'Negado',recurso:'Em Recurso',em_andamento:'Em Andamento',concluido:'Concluído',arquivado:'Arquivado'};
 const _badge=s=>`<span class="jur-badge ${_esc(s||'')}">${_esc(_sLbl[s]||s||'—')}</span>`;
 const _isAdm=()=>typeof currentProfile!=='undefined'&&currentProfile?.papel==='admin';
-const _acoes=id=>`<div style="display:flex;gap:4px">${_isAdm()?`<button class="btn-limpar" style="padding:3px 8px;font-size:12px" onclick="jurExcluir('${_esc(id)}')" title="Excluir"><i class="fas fa-trash"></i></button>`:''}<button class="btn-limpar" style="padding:3px 8px;font-size:12px" onclick="jurPrint('${_esc(id)}')" title="Imprimir processo"><i class="fas fa-print"></i></button><button class="btn-primary" style="padding:3px 8px;font-size:12px" onclick="jurAbrir('${_esc(id)}')" title="Editar"><i class="fas fa-pencil-alt"></i></button></div>`;
+const _acoes=id=>`<div style="display:flex;gap:4px">${_isAdm()?`<button class="btn-limpar" style="padding:3px 8px;font-size:12px" onclick="jurExcluir('${_esc(id)}')" title="Excluir"><i class="fas fa-trash"></i></button>`:''}<button class="btn-limpar" style="padding:3px 8px;font-size:12px" onclick="jurPrint('${_esc(id)}')" title="Imprimir processo"><i class="fas fa-print"></i></button><button class="btn-limpar" style="padding:3px 8px;font-size:12px;color:#7c3aed" onclick="jurGerarProcuracao('${_esc(id)}')" title="Gerar Procuração"><i class="fas fa-file-signature"></i></button><button class="btn-limpar" style="padding:3px 8px;font-size:12px;color:#0891b2" onclick="jurGerarRequerimento('${_esc(id)}')" title="Gerar Requerimento INSS"><i class="fas fa-file-medical-alt"></i></button><button class="btn-primary" style="padding:3px 8px;font-size:12px" onclick="jurAbrir('${_esc(id)}')" title="Editar"><i class="fas fa-pencil-alt"></i></button></div>`;
 
 /* ---- FILTRO DE DADOS ---- */
 function _jurGetFiltered(){
@@ -12903,6 +12903,7 @@ function _jurCadRender(){
   /* Badge sidebar */
   const bdg=document.getElementById('jur-nav-badge');
   if(bdg){bdg.textContent=_jurData.length||'';bdg.style.display=_jurData.length?'inline-block':'none';}
+  if(window._jurAlertsUpdate)window._jurAlertsUpdate(_jurData);
 }
 
 /* ---- RENDER HELPERS ---- */
@@ -13186,6 +13187,223 @@ function _retInit(){
 if(typeof currentProfile!=='undefined'&&currentProfile)_retInit();
 window.addEventListener('malaquias:profile-ready',_retInit,{once:true});
 setTimeout(()=>{if(typeof currentProfile!=='undefined'&&currentProfile)_retInit();},3500);
+})();
+</script>
+
+<!-- Drawer Alertas Jurídico -->
+<div id="jur-alert-drawer" style="display:none;position:fixed;top:0;right:0;bottom:0;width:380px;max-width:94vw;background:var(--card-bg,#1a2332);border-left:1px solid var(--border-glass,rgba(255,255,255,.08));z-index:9998;overflow-y:auto;box-shadow:-6px 0 40px rgba(0,0,0,.5)">
+  <div style="padding:20px 24px;border-bottom:1px solid var(--border-glass,rgba(255,255,255,.08));display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card-bg,#1a2332);z-index:1">
+    <h3 style="margin:0;font-size:16px;font-weight:700;color:var(--text-primary)"><i class="fas fa-bell" style="color:#d97706;margin-right:8px"></i>Alertas de Prazo</h3>
+    <button onclick="jurAlertsClose()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:22px;line-height:1;padding:4px">×</button>
+  </div>
+  <div id="jur-alert-list" style="padding:16px 20px"></div>
+</div>
+<div id="jur-alert-overlay" onclick="jurAlertsClose()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9997"></div>
+
+<script>
+/* ---- JURIDICO ALERTAS + DOCUMENTOS (v1) ---- */
+(function(){
+'use strict';
+
+/* ═══════════════════ SISTEMA DE ALERTAS ═══════════════════ */
+
+/* Chamada pelo IIFE principal após cada render */
+window._jurAlertsUpdate=function(data){
+  const today=new Date();today.setHours(0,0,0,0);
+  const overdue=[],urgent=[];
+  (data||[]).forEach(x=>{
+    if(!x.proxima_data)return;
+    const nd=new Date(x.proxima_data+'T12:00:00');
+    const diff=Math.floor((nd-today)/86400000);
+    if(diff<0)overdue.push({...x,_diff:diff});
+    else if(diff<=7)urgent.push({...x,_diff:diff});
+  });
+  window._jurAlertData={overdue,urgent};
+  const total=overdue.length+urgent.length;
+  const bell=document.getElementById('jur-bell-count');
+  if(bell){bell.textContent=total;bell.style.display=total?'inline-block':'none';}
+  /* Toast diário — uma vez por sessão por projeto */
+  if(total>0&&typeof PROJ!=='undefined'){
+    const key='jur_alrt_'+PROJ+'_'+today.toISOString().slice(0,10);
+    if(!sessionStorage.getItem(key)){
+      sessionStorage.setItem(key,'1');
+      setTimeout(()=>{
+        const parts=[];
+        if(overdue.length)parts.push(overdue.length+' prazo'+(overdue.length!==1?'s':'')+' VENCIDO'+(overdue.length!==1?'S':''));
+        if(urgent.length)parts.push(urgent.length+' vencendo em ≤7 dias');
+        if(typeof showToast==='function')showToast('⚠️ '+parts.join(' · '),true);
+      },2000);
+    }
+  }
+};
+
+window.jurAlertsOpen=function(){
+  const d=window._jurAlertData||{overdue:[],urgent:[]};
+  const total=d.overdue.length+d.urgent.length;
+  const list=document.getElementById('jur-alert-list');
+  if(list){
+    if(!total){
+      list.innerHTML='<div style="text-align:center;padding:48px 16px;color:var(--text-muted)"><i class="fas fa-check-circle" style="font-size:36px;color:#16a34a;display:block;margin-bottom:14px"></i><strong style="font-size:15px">Nenhum alerta no momento</strong><p style="font-size:13px;margin:8px 0 0">Todos os prazos estão em dia!</p></div>';
+    }else{
+      const e=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const fD=d=>{if(!d)return'—';try{return new Date(d+'T12:00:00').toLocaleDateString('pt-BR');}catch(_){return d;}};
+      const card=(x,tipo)=>{
+        const isOver=tipo==='overdue';
+        const days=Math.abs(x._diff);
+        const lbl=isOver?days+' dia'+(days!==1?'s':'')+' atrasado':x._diff+' dia'+(x._diff!==1?'s':'')+' restante'+(x._diff!==1?'s':'');
+        const col=isOver?'#ef4444':'#d97706';
+        const bg=isOver?'rgba(239,68,68,.08)':'rgba(251,191,36,.08)';
+        const ico=isOver?'fa-exclamation-circle':'fa-clock';
+        return `<div style="background:${bg};border:1px solid ${col}44;border-radius:10px;padding:12px 14px;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <i class="fas ${ico}" style="color:${col};font-size:14px;flex-shrink:0"></i>
+            <strong style="color:var(--text-primary);font-size:13px">${e(x.paciente_nome||'—')}</strong>
+            <span style="margin-left:auto;font-size:10px;font-weight:700;color:${col};background:${col}22;padding:2px 8px;border-radius:8px;white-space:nowrap">${lbl}</span>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);line-height:1.5">
+            Próxima data: <strong style="color:var(--text-primary)">${fD(x.proxima_data)}</strong>
+            · ${x.status_processo||'—'}
+            · <a href="#" onclick="jurAbrir('${e(x.id)}');jurAlertsClose();return false" style="color:var(--accent);text-decoration:none">Abrir →</a>
+          </div>
+        </div>`;
+      };
+      let html='';
+      if(d.overdue.length)html+=`<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#ef4444;margin-bottom:10px">Prazo Vencido (${d.overdue.length})</div>`+d.overdue.map(x=>card(x,'overdue')).join('');
+      if(d.urgent.length)html+=`<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#d97706;margin:${d.overdue.length?'18px':0} 0 10px">Vencendo em ≤7 Dias (${d.urgent.length})</div>`+d.urgent.map(x=>card(x,'urgent')).join('');
+      list.innerHTML=html;
+    }
+  }
+  const dr=document.getElementById('jur-alert-drawer');const ov=document.getElementById('jur-alert-overlay');
+  if(dr)dr.style.display='block';if(ov)ov.style.display='block';
+};
+window.jurAlertsClose=function(){
+  const dr=document.getElementById('jur-alert-drawer');const ov=document.getElementById('jur-alert-overlay');
+  if(dr)dr.style.display='none';if(ov)ov.style.display='none';
+};
+
+/* ═══════════════════ GERAÇÃO DE DOCUMENTOS ═══════════════════ */
+
+/* Busca registro por ID — tenta cache global, senão query Supabase */
+async function _getDoc(id){
+  const cache=window._jurDocCache;
+  if(Array.isArray(cache)){const r=cache.find(x=>x&&x.id===id);if(r)return r;}
+  if(typeof sb==='undefined')return null;
+  const{data,error}=await sb.from('atendimentos_juridicos').select('*').eq('id',id).single();
+  if(error){console.error('[jur:doc]',error.message);return null;}
+  return data;
+}
+
+/* Cabeçalho HTML compartilhado dos documentos impressos */
+function _docHead(titulo){
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${titulo}<\/title>
+<style>
+*{box-sizing:border-box}
+body{font-family:'Times New Roman',Times,serif;font-size:12pt;color:#000;margin:0;padding:2.5cm 3cm}
+h1{text-align:center;font-size:15pt;text-transform:uppercase;letter-spacing:.05em;margin:0 0 6px}
+.subtitle{text-align:center;font-size:10pt;color:#444;margin:0 0 24px;border-bottom:2px solid #000;padding-bottom:10px}
+.section-title{font-size:11pt;font-weight:bold;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #666;padding-bottom:3px;margin:20px 0 8px}
+p{margin:5px 0;line-height:1.6}
+.lb{font-weight:bold}
+.indent{margin-left:20px}
+.assinatura{margin-top:48px;display:flex;gap:48px;flex-wrap:wrap}
+.ass-box{flex:1;min-width:180px;text-align:center}
+.ass-line{border-top:1px solid #000;padding-top:5px;margin-top:48px;font-size:10pt}
+.rodape{margin-top:28px;font-size:9pt;color:#777;text-align:center;border-top:1px solid #ccc;padding-top:8px}
+@media print{body{padding:1.5cm 2cm}@page{margin:1cm;size:A4}}
+<\/style><\/head><body>`;
+}
+
+window.jurGerarProcuracao=async function(id){
+  if(typeof showToast==='function')showToast('Gerando procuração...');
+  const x=await _getDoc(id);
+  if(!x){if(typeof showToast==='function')showToast('Processo não encontrado',true);return;}
+  const e=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const hoje=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+  const html=_docHead('Procuração — '+e(x.paciente_nome||''))+
+`<h1>Procuração Ad Judicia et Extra<\/h1>
+<p class="subtitle">Outorga de poderes para fins previdenciários<\/p>
+
+<p class="section-title">Outorgante<\/p>
+<p><span class="lb">Nome:<\/span> ${e(x.paciente_nome||'—')}<\/p>
+<p><span class="lb">CPF:<\/span> ${e(x.paciente_cpf||'não informado')}<\/p>
+<p><span class="lb">Residente em:<\/span> ${e(x.paciente_endereco||'não informado')}, ${e(x.paciente_cidade||'')}<\/p>
+
+<p class="section-title">Outorgado(a)<\/p>
+<p><span class="lb">Advogado(a):<\/span> ${e(x.advogado_nome||'[Nome do Advogado]')}<\/p>
+<p><span class="lb">OAB:<\/span> ${e(x.advogado_oab||'[OAB]')}${x.advogado_contato?' &nbsp;·&nbsp; <span class="lb">Contato:<\/span> '+e(x.advogado_contato):''}<\/p>
+
+<p class="section-title">Objeto e Poderes<\/p>
+<p>O(A) <strong>OUTORGANTE<\/strong> nomeia e constitui como seu(ua) bastante procurador(a) o(a) <strong>OUTORGADO(A)<\/strong> acima qualificado(a), a quem confere amplos e gerais poderes para representá-lo(a) perante o <strong>Instituto Nacional do Seguro Social — INSS<\/strong> e demais órgãos da Previdência Social, para requerer, acompanhar e impulsionar todos os atos administrativos referentes ao benefício previdenciário:<\/p>
+<div class="indent">
+  <p><span class="lb">Tipo de benefício:<\/span> ${e(x.tipo_beneficio||'não especificado')}<\/p>
+  ${x.nit_pis?'<p><span class="lb">NIT/PIS:<\/span> '+e(x.nit_pis)+'<\/p>':''}
+  ${x.numero_beneficio?'<p><span class="lb">N.º do Benefício:<\/span> '+e(x.numero_beneficio)+'<\/p>':''}
+  ${x.diagnostico?'<p><span class="lb">Diagnóstico:<\/span> '+e(x.diagnostico)+(x.cid?' (CID: '+e(x.cid)+')':'')+'<\/p>':''}
+<\/div>
+<p>Podendo praticar todos os atos necessários ao fiel cumprimento deste mandato, inclusive interpor recursos administrativos, requerer perícias médicas, apresentar documentos, assinar petições e requerimentos, com poderes de substabelecimento.<\/p>
+
+<p style="margin-top:20px">${e(x.paciente_cidade||'—')}, ${hoje}<\/p>
+
+<div class="assinatura">
+  <div class="ass-box"><div class="ass-line">${e(x.paciente_nome||'')}<br>CPF: ${e(x.paciente_cpf||'')}<br><em>Outorgante<\/em><\/div><\/div>
+  <div class="ass-box"><div class="ass-line">${e(x.advogado_nome||'[Advogado]')}<br>OAB: ${e(x.advogado_oab||'')}<br><em>Outorgado(a)<\/em><\/div><\/div>
+<\/div>
+<div class="rodape">Sistema Dr. Malaquias &nbsp;·&nbsp; Gerado em ${new Date().toLocaleString('pt-BR')} &nbsp;·&nbsp; Registro #${e(x.id||'')}<\/div>
+<script>window.onload=function(){window.print();}<\/script><\/body><\/html>`;
+  const w=window.open('','_blank');if(w){w.document.write(html);w.document.close();}else alert('Permita pop-ups para gerar documentos.');
+};
+
+window.jurGerarRequerimento=async function(id){
+  if(typeof showToast==='function')showToast('Gerando requerimento...');
+  const x=await _getDoc(id);
+  if(!x){if(typeof showToast==='function')showToast('Processo não encontrado',true);return;}
+  const e=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const hoje=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+  const slB={aguardando:'Aguardando análise',aprovado:'Aprovado',negado:'Negado',recurso:'Em recurso'};
+  const html=_docHead('Requerimento INSS — '+e(x.paciente_nome||''))+
+`<h1>Requerimento de Benefício Previdenciário<\/h1>
+<p class="subtitle">Instituto Nacional do Seguro Social — INSS<\/p>
+
+<p><strong>Ao INSS \/ Agência Previdenciária<\/strong><\/p>
+
+<p class="section-title">Identificação do Requerente<\/p>
+<p><span class="lb">Nome:<\/span> ${e(x.paciente_nome||'—')}<\/p>
+<p><span class="lb">CPF:<\/span> ${e(x.paciente_cpf||'não informado')} &nbsp;·&nbsp; <span class="lb">NIT\/PIS:<\/span> ${e(x.nit_pis||'não informado')}<\/p>
+<p><span class="lb">Endereço:<\/span> ${e(x.paciente_endereco||'não informado')}, ${e(x.paciente_cidade||'')}<\/p>
+${x.numero_protocolo?'<p><span class="lb">Protocolo:<\/span> '+e(x.numero_protocolo)+'<\/p>':''}
+
+<p class="section-title">Benefício Requerido<\/p>
+<p>Vem o(a) REQUERENTE, respeitosamente perante Vossa Senhoria, solicitar a concessão\/revisão do seguinte benefício previdenciário:<\/p>
+<div class="indent">
+  <p><span class="lb">Tipo:<\/span> ${e(x.tipo_beneficio||'não especificado')}<\/p>
+  ${x.numero_beneficio?'<p><span class="lb">N.º do Benefício:<\/span> '+e(x.numero_beneficio)+'<\/p>':''}
+  ${x.data_entrada_inss?'<p><span class="lb">Data de entrada no INSS:<\/span> '+e(x.data_entrada_inss)+'<\/p>':''}
+  <p><span class="lb">Status atual:<\/span> ${e(slB[x.status_beneficio]||x.status_beneficio||'Aguardando')}<\/p>
+  ${x.data_decisao?'<p><span class="lb">Data da decisão:<\/span> '+e(x.data_decisao)+'<\/p>':''}
+<\/div>
+
+${x.diagnostico||x.historico_medico?`<p class="section-title">Fundamentação Médica<\/p>
+${x.diagnostico?'<p><span class="lb">Diagnóstico:<\/span> '+e(x.diagnostico)+(x.cid?' — CID: '+e(x.cid):'')+' <\/p>':''}
+${x.historico_medico?'<p><span class="lb">Histórico médico:<\/span> '+e(x.historico_medico)+'<\/p>':''}`:''}
+
+${x.andamento_processual?`<p class="section-title">Andamento Atual<\/p>
+<p>${e(x.andamento_processual)}<\/p>`:''}
+
+${x.advogado_nome?`<p class="section-title">Representação Legal<\/p>
+<p>O(A) requerente está representado(a) pelo(a) advogado(a) <strong>${e(x.advogado_nome)}<\/strong>, OAB ${e(x.advogado_oab||'')}${x.advogado_contato?', contato: '+e(x.advogado_contato):''}.<\/p>`:''}
+
+<p style="margin-top:16px">Termos em que pede deferimento.<\/p>
+<p>${e(x.paciente_cidade||'—')}, ${hoje}<\/p>
+
+<div class="assinatura">
+  <div class="ass-box"><div class="ass-line">${e(x.paciente_nome||'')}<br>CPF: ${e(x.paciente_cpf||'')}<br><em>Requerente<\/em><\/div><\/div>
+  ${x.advogado_nome?'<div class="ass-box"><div class="ass-line">'+e(x.advogado_nome)+'<br>OAB: '+e(x.advogado_oab||'')+'<br><em>Advogado(a)<\/em><\/div><\/div>':''}
+<\/div>
+<div class="rodape">Sistema Dr. Malaquias &nbsp;·&nbsp; Gerado em ${new Date().toLocaleString('pt-BR')} &nbsp;·&nbsp; Registro #${e(x.id||'')}<\/div>
+<script>window.onload=function(){window.print();}<\/script><\/body><\/html>`;
+  const w=window.open('','_blank');if(w){w.document.write(html);w.document.close();}else alert('Permita pop-ups para gerar documentos.');
+};
+
 })();
 </script>
 </body>
