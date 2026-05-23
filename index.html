@@ -1822,7 +1822,7 @@ tr:last-child td { border-bottom: none; }
           <h1 class="page-title">Atendimento Jurídico</h1>
           <p class="page-subtitle">Preencha as 6 etapas e clique em Salvar</p>
         </div>
-        <button class="btn-limpar" onclick="jurResetForm()"><i class="fas fa-redo"></i> Limpar</button>
+        <button class="btn-limpar" onclick="if(confirm('Limpar todos os campos?'))jurResetForm()"><i class="fas fa-redo"></i> Limpar</button>
       </div>
 
       <!-- Indicador de etapas -->
@@ -1919,8 +1919,14 @@ tr:last-child td { border-bottom: none; }
 
     <!-- ===== CADASTRADOS JURÍDICO ===== -->
     <div class="section" id="sec-juridico-cadastrados">
-      <h1 class="page-title">Cadastrados — Atendimento Jurídico</h1>
-      <p class="page-subtitle" style="margin-bottom:20px">Processos jurídicos registrados</p>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+        <div>
+          <h1 class="page-title">Cadastrados — Atendimento Jurídico</h1>
+          <p class="page-subtitle">Processos jurídicos registrados</p>
+        </div>
+        <button class="btn-primary" onclick="showSection('juridico',document.querySelector('[data-section=juridico]'))"><i class="fas fa-plus"></i> Novo Cadastro</button>
+      </div>
+      <input type="text" class="form-input" id="jur-search" placeholder="Buscar por nome ou CPF..." oninput="jurCadSearch(this.value)" style="max-width:340px;margin-bottom:16px">
 
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;border-bottom:1px solid var(--border-glass);padding-bottom:12px">
         <button class="jur-tab" id="jur-cad-tab-dash" onclick="showJurCadTab('dashboard',this)" style="display:none"><i class="fas fa-chart-bar"></i> Dashboard</button>
@@ -1950,7 +1956,7 @@ tr:last-child td { border-bottom: none; }
         <div class="chart-card">
           <div class="chart-title">Visão Geral — Todos os Processos</div>
           <div style="overflow-x:auto"><table class="data-table">
-            <thead><tr><th>Nome</th><th>CPF</th><th>Cidade</th><th>Diagnóstico</th><th>Status INSS</th><th>Advogado</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Nome</th><th>CPF</th><th>Cidade</th><th>Diagnóstico</th><th>Status INSS</th><th>Advogado</th><th>Próxima Data</th><th>Ações</th></tr></thead>
             <tbody id="jur-tbody-visao"></tbody>
           </table></div>
         </div>
@@ -12748,10 +12754,19 @@ window.jurSalvarWizard=async function(){
     projeto:PROJ,cadastrado_por:typeof currentUser!=='undefined'?currentUser?.id:null
   };
   if(!payload.paciente_nome){if(typeof showToast==='function')showToast('Informe o nome do paciente',true);return;}
+  /* Verificação de CPF duplicado */
+  if(payload.paciente_cpf){
+    const{data:_dup}=await sb.from('atendimentos_juridicos').select('id,paciente_nome').eq('projeto',PROJ).eq('paciente_cpf',payload.paciente_cpf).limit(1);
+    if(_dup&&_dup.length&&!confirm(`CPF já cadastrado para "${_dup[0].paciente_nome||'outro paciente'}". Cadastrar mesmo assim?`))return;
+  }
   const{error}=await sb.from('atendimentos_juridicos').insert(payload);
   if(error){console.error('[jur:wizard:save]',error.message);if(typeof showToast==='function')showToast('Erro ao salvar: '+error.message,true);return;}
   if(typeof showToast==='function')showToast('Atendimento jurídico salvo com sucesso!');
   jurResetForm();
+  /* Redireciona automaticamente para Cadastrados e recarrega */
+  const _navCad=document.querySelector('[data-section="juridico-cadastrados"]');
+  if(typeof showSection==='function')showSection('juridico-cadastrados',_navCad);
+  setTimeout(_jurCadLoad,150);
 };
 
 /* ---- MODAL EDIÇÃO ---- */
@@ -12816,8 +12831,14 @@ function _jurCadRender(){_rVg();_rEnt();_rApos();_rDad();_rSau();_rAdv();_rCtrl(
 
 function _rVg(){
   const tbody=document.getElementById('jur-tbody-visao');if(!tbody)return;
-  if(!_jurData.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento cadastrado</td></tr>';return;}
-  tbody.innerHTML=_jurData.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.paciente_cpf||'—')}</td><td>${_esc(x.paciente_cidade||'—')}</td><td>${_esc(x.diagnostico||'—')}</td><td>${_badge(x.status_beneficio)}</td><td>${_esc(x.advogado_nome||'—')}</td><td>${_acoes(x.id)}</td></tr>`).join('');
+  if(!_jurData.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento cadastrado</td></tr>';return;}
+  const today=new Date();today.setHours(0,0,0,0);
+  tbody.innerHTML=_jurData.map(x=>{
+    const nd=x.proxima_data?new Date(x.proxima_data+'T12:00:00'):null;
+    const diff=nd?Math.floor((nd-today)/86400000):null;
+    const rs=diff!==null&&diff<0?'style="background:rgba(239,68,68,.09)"':diff!==null&&diff<=7?'style="background:rgba(251,191,36,.09)"':'';
+    return `<tr ${rs}><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.paciente_cpf||'—')}</td><td>${_esc(x.paciente_cidade||'—')}</td><td>${_esc(x.diagnostico||'—')}</td><td>${_badge(x.status_beneficio)}</td><td>${_esc(x.advogado_nome||'—')}</td><td>${nd&&diff<0?'<span style="color:#ef4444;font-weight:600">':''}${_fmtD(x.proxima_data)}${nd&&diff<0?'</span>':''}</td><td>${_acoes(x.id)}</td></tr>`;
+  }).join('');
 }
 function _rEnt(){
   const tbody=document.getElementById('jur-tbody-entrada');if(!tbody)return;
@@ -12871,6 +12892,13 @@ window.showJurCadTab=function(tab,el){
   document.querySelectorAll('#sec-juridico-cadastrados .jur-panel').forEach(p=>p.style.display='none');
   const panel=document.getElementById('jur-cad-panel-'+tab);
   if(panel)panel.style.display='block';
+};
+
+window.jurCadSearch=function(v){
+  const q=(v||'').toLowerCase().trim();
+  document.querySelectorAll('#sec-juridico-cadastrados .data-table tbody tr').forEach(tr=>{
+    tr.style.display=(!q||tr.textContent.toLowerCase().includes(q))?'':'none';
+  });
 };
 
 /* ---- INIT ---- */
