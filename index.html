@@ -1377,7 +1377,10 @@ tr:last-child td { border-bottom: none; }
         <i class="fas fa-gavel"></i> Atendimento Jurídico
       </div>
       <div class="nav-item" data-section="juridico-cadastrados" onclick="showSection('juridico-cadastrados', this)">
-        <i class="fas fa-list-alt"></i> Cadastrados
+        <i class="fas fa-list-alt"></i> Cadastrados <span id="jur-nav-badge" style="display:none;background:var(--accent);color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px;vertical-align:middle"></span>
+      </div>
+      <div class="nav-item" data-section="juridico-retornos" onclick="showSection('juridico-retornos', this)">
+        <i class="fas fa-history"></i> Retornos
       </div>
     </div>
 
@@ -1825,6 +1828,14 @@ tr:last-child td { border-bottom: none; }
         <button class="btn-limpar" onclick="if(confirm('Limpar todos os campos?'))jurResetForm()"><i class="fas fa-redo"></i> Limpar</button>
       </div>
 
+      <!-- Aviso de rascunho -->
+      <div id="jur-draft-notice" style="display:none;align-items:center;gap:12px;padding:10px 16px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.4);border-radius:8px;margin-bottom:16px;flex-wrap:wrap">
+        <i class="fas fa-save" style="color:#d97706"></i>
+        <span style="color:var(--text-primary);font-size:14px">Rascunho salvo: <strong data-draft-name></strong></span>
+        <button class="btn-primary" style="padding:4px 12px;font-size:12px" onclick="jurDraftRestore()"><i class="fas fa-undo"></i> Restaurar</button>
+        <button class="btn-limpar" style="padding:4px 12px;font-size:12px" onclick="jurDraftDiscard()">Descartar</button>
+      </div>
+
       <!-- Indicador de etapas -->
       <div style="display:flex;align-items:flex-start;margin-bottom:28px;overflow-x:auto;padding-bottom:4px">
         <div class="jur-step active" id="jur-si-1"><div class="jur-step-num">1</div><div class="jur-step-lbl">Dados do<br>Paciente</div></div>
@@ -1926,7 +1937,21 @@ tr:last-child td { border-bottom: none; }
         </div>
         <button class="btn-primary" onclick="showSection('juridico',document.querySelector('[data-section=juridico]'))"><i class="fas fa-plus"></i> Novo Cadastro</button>
       </div>
-      <input type="text" class="form-input" id="jur-search" placeholder="Buscar por nome ou CPF..." oninput="jurCadSearch(this.value)" style="max-width:340px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+        <input type="text" class="form-input" id="jur-search" placeholder="Buscar por nome ou CPF..." oninput="jurCadSearch(this.value)" style="flex:1;min-width:180px;max-width:280px">
+        <select class="form-input" id="jur-status-filter" onchange="jurStatusFilter(this.value)" style="max-width:195px">
+          <option value="">Todos os status</option>
+          <option value="aguardando">Aguardando INSS</option>
+          <option value="aprovado">Aprovado</option>
+          <option value="negado">Negado</option>
+          <option value="recurso">Em Recurso</option>
+          <option value="em_andamento">Em Andamento</option>
+          <option value="concluido">Concluído</option>
+          <option value="arquivado">Arquivado</option>
+        </select>
+        <span id="jur-counter" style="font-size:13px;color:var(--text-muted);white-space:nowrap;min-width:80px"></span>
+        <button class="btn-limpar" onclick="jurExportCSV()" title="Exportar lista atual como CSV"><i class="fas fa-download"></i> CSV</button>
+      </div>
 
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;border-bottom:1px solid var(--border-glass);padding-bottom:12px">
         <button class="jur-tab" id="jur-cad-tab-dash" onclick="showJurCadTab('dashboard',this)" style="display:none"><i class="fas fa-chart-bar"></i> Dashboard</button>
@@ -2029,7 +2054,120 @@ tr:last-child td { border-bottom: none; }
       </div>
     </div>
 
+
+    <!-- ===== RETORNOS JURÍDICO ===== -->
+    <div class="section" id="sec-juridico-retornos">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+        <div>
+          <h1 class="page-title">Retornos — Atendimento Jurídico</h1>
+          <p class="page-subtitle">Acompanhamento de visitas de retorno dos processos jurídicos</p>
+        </div>
+        <button class="btn-primary" onclick="retNovoAbrir()"><i class="fas fa-plus"></i> Novo Retorno</button>
+      </div>
+
+      <!-- Controles -->
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+        <input type="text" class="form-input" id="ret-search" placeholder="Buscar por nome, CPF ou andamento..." oninput="retSearch(this.value)" style="flex:1;min-width:200px;max-width:340px">
+        <select class="form-input" id="ret-status-filter" onchange="retStatusFilter(this.value)" style="max-width:195px">
+          <option value="">Todos os status INSS</option>
+          <option value="aguardando">Aguardando</option>
+          <option value="aprovado">Aprovado</option>
+          <option value="negado">Negado</option>
+          <option value="recurso">Em Recurso</option>
+        </select>
+        <span id="ret-counter" style="font-size:13px;color:var(--text-muted);white-space:nowrap;min-width:80px"></span>
+        <button class="btn-limpar" onclick="retExportCSV()" title="Exportar CSV"><i class="fas fa-download"></i> CSV</button>
+      </div>
+
+      <!-- Tabela -->
+      <div class="chart-card">
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border)">
+                <th style="text-align:left;padding:10px 12px;font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Paciente</th>
+                <th style="text-align:left;padding:10px 12px;font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em">CPF</th>
+                <th style="text-align:left;padding:10px 12px;font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Data Retorno</th>
+                <th style="text-align:left;padding:10px 12px;font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Status INSS</th>
+                <th style="text-align:left;padding:10px 12px;font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Andamento</th>
+                <th style="text-align:left;padding:10px 12px;font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Próxima Data</th>
+                <th style="text-align:left;padding:10px 12px;font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="ret-tbody">
+              <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum retorno cadastrado</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="ret-pagination"></div>
+      </div>
+    </div>
+
   </main>
+</div>
+
+<!-- MODAL: Retorno Jurídico -->
+<div id="modal-retorno-jur" onclick="if(event.target===this)retFechar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto">
+  <div style="background:var(--card-bg,#1a2332);border:1px solid var(--border-glass);border-radius:16px;width:100%;max-width:580px;padding:28px 32px;margin:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <h2 id="ret-modal-title" style="font-size:18px;font-weight:700;margin:0;color:var(--text-primary)">Novo Retorno Jurídico</h2>
+      <button onclick="retFechar()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-muted);line-height:1">×</button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <!-- Paciente -->
+      <div>
+        <label class="form-label">Paciente / Processo <span style="color:#fb7185">*</span></label>
+        <select id="ret-atendimento-id" class="form-input" style="width:100%"><option value="">— Selecione o paciente —</option></select>
+      </div>
+      <!-- Datas -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label class="form-label">Data do Retorno</label>
+          <input type="date" id="ret-data-retorno" class="form-input">
+        </div>
+        <div>
+          <label class="form-label">Próxima Data</label>
+          <input type="date" id="ret-proxima-data" class="form-input">
+        </div>
+      </div>
+      <!-- Status -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label class="form-label">Status INSS Atual</label>
+          <select id="ret-status-beneficio" class="form-input">
+            <option value="aguardando">Aguardando</option>
+            <option value="aprovado">Aprovado</option>
+            <option value="negado">Negado</option>
+            <option value="recurso">Em Recurso</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Status Processo</label>
+          <select id="ret-status-processo" class="form-input">
+            <option value="em_andamento">Em Andamento</option>
+            <option value="concluido">Concluído</option>
+            <option value="arquivado">Arquivado</option>
+          </select>
+        </div>
+      </div>
+      <!-- Andamento -->
+      <div>
+        <label class="form-label">Andamento / O que aconteceu</label>
+        <textarea id="ret-andamento" class="form-input" rows="3" placeholder="Descreva o que ocorreu no retorno..." style="resize:vertical;width:100%"></textarea>
+      </div>
+      <!-- Observações -->
+      <div>
+        <label class="form-label">Observações</label>
+        <textarea id="ret-observacoes" class="form-input" rows="2" placeholder="Observações adicionais..." style="resize:vertical;width:100%"></textarea>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;display:flex;gap:12px;justify-content:flex-end">
+      <button class="btn-limpar" onclick="retFechar()"><i class="fas fa-times"></i> Cancelar</button>
+      <button class="btn-primary" onclick="retSalvar()"><i class="fas fa-save"></i> Salvar Retorno</button>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL: Atendimento Jurídico -->
@@ -12527,178 +12665,33 @@ if(!_arInit()){const _t=setInterval(()=>{if(_arInit())clearInterval(_t);},600);s
 </style>
 
 <script>
-/* ============================================================
-   ATENDIMENTO JURÍDICO — Dr. Malaquias (fibromialgia)
-   ============================================================ */
-(function(){
-  'use strict';
-  let _jurData=[],_jurEditId=null;
-  const _esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  const _fmtD=d=>{if(!d)return'—';try{return new Date(d+'T12:00:00').toLocaleDateString('pt-BR');}catch(e){return d;}};
-  const _sLbl={aguardando:'Aguardando',aprovado:'Aprovado',negado:'Negado',recurso:'Em Recurso',em_andamento:'Em Andamento',concluido:'Concluído',arquivado:'Arquivado'};
-  const _badge=s=>`<span class="jur-badge ${_esc(s||'')}">${_esc(_sLbl[s]||s||'—')}</span>`;
-  const _isAdm=()=>typeof currentProfile!=='undefined'&&currentProfile?.papel==='admin';
-  const _btn=(id)=>{const del=_isAdm()?`<button class="btn-limpar" style="padding:3px 10px;font-size:12px;margin-right:4px" onclick="jurExcluir('${_esc(id)}')"><i class="fas fa-trash"></i></button>`:'';return `${del}<button class="btn-primary" style="padding:3px 10px;font-size:12px" onclick="jurAbrir('${_esc(id)}')"><i class="fas fa-pencil-alt"></i></button>`;};
-
-  async function _jurLoad(){
-    if(typeof sb==='undefined'||typeof PROJ==='undefined')return;
-    const ids=['visao','entrada','aposentadoria','dados-paciente','saude','advogado','controle'];
-    ids.forEach(t=>{const el=document.getElementById('jur-tbody-'+t);if(el)el.innerHTML='<tr><td colspan="99" style="text-align:center;padding:20px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></td></tr>';});
-    const{data,error}=await sb.from('atendimentos_juridicos').select('*').eq('projeto',PROJ).order('criado_em',{ascending:false});
-    if(error){console.error('[jur:load]',error.message);return;}
-    _jurData=data||[];_jurRender();
-  }
-
-  function _jurRender(){_rVg();_rEnt();_rApos();_rDad();_rSau();_rAdv();_rCtrl();}
-
-  function _rVg(){
-    const d=_jurData,kpis=document.getElementById('jur-kpis'),tbody=document.getElementById('jur-tbody-visao');
-    if(kpis){
-      const ag=d.filter(x=>x.status_beneficio==='aguardando').length,ap=d.filter(x=>x.status_beneficio==='aprovado').length,
-            neg=d.filter(x=>x.status_beneficio==='negado').length,rec=d.filter(x=>x.status_beneficio==='recurso').length;
-      kpis.innerHTML=`<div class="kpi-card"><div class="kpi-icon"><i class="fas fa-folder-open"></i></div><div class="kpi-value">${d.length}</div><div class="kpi-label">Total Processos</div></div>
-        <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-clock"></i></div><div class="kpi-value">${ag}</div><div class="kpi-label">Aguardando INSS</div></div>
-        <div class="kpi-card" style="border-color:rgba(74,222,128,.3)"><div class="kpi-icon"><i class="fas fa-check-circle" style="color:#16a34a"></i></div><div class="kpi-value" style="color:#16a34a">${ap}</div><div class="kpi-label">Aprovados</div></div>
-        <div class="kpi-card" style="border-color:rgba(239,68,68,.3)"><div class="kpi-icon"><i class="fas fa-times-circle" style="color:#dc2626"></i></div><div class="kpi-value" style="color:#dc2626">${neg}</div><div class="kpi-label">Negados</div></div>
-        <div class="kpi-card" style="border-color:rgba(139,92,246,.3)"><div class="kpi-icon"><i class="fas fa-redo" style="color:#7c3aed"></i></div><div class="kpi-value" style="color:#7c3aed">${rec}</div><div class="kpi-label">Em Recurso</div></div>`;
-    }
-    if(!tbody)return;
-    if(!d.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento jurídico cadastrado</td></tr>';return;}
-    tbody.innerHTML=d.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.paciente_cpf||'—')}</td><td>${_esc(x.paciente_cidade||'—')}</td><td>${_esc(x.diagnostico||'—')}</td><td>${_badge(x.status_beneficio)}</td><td>${_esc(x.advogado_nome||'—')}</td><td style="white-space:nowrap">${_btn(x.id)}</td></tr>`).join('');
-  }
-  function _rEnt(){
-    const tbody=document.getElementById('jur-tbody-entrada');if(!tbody)return;
-    if(!_jurData.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento jurídico cadastrado</td></tr>';return;}
-    tbody.innerHTML=_jurData.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_fmtD(x.data_entrada)}</td><td>${_esc(x.origem||'—')}</td><td>${_esc(x.numero_protocolo||'—')}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(x.observacoes_entrada||'')}">${_esc(x.observacoes_entrada||'—')}</td><td style="white-space:nowrap">${_btn(x.id)}</td></tr>`).join('');
-  }
-  function _rApos(){
-    const tbody=document.getElementById('jur-tbody-aposentadoria');if(!tbody)return;
-    if(!_jurData.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento jurídico cadastrado</td></tr>';return;}
-    tbody.innerHTML=_jurData.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.tipo_beneficio||'—')}</td><td>${_esc(x.nit_pis||'—')}</td><td>${_esc(x.numero_beneficio||'—')}</td><td>${_fmtD(x.data_entrada_inss)}</td><td>${_badge(x.status_beneficio)}</td><td>${_fmtD(x.data_decisao)}</td><td style="white-space:nowrap">${_btn(x.id)}</td></tr>`).join('');
-  }
-  function _rDad(){
-    const tbody=document.getElementById('jur-tbody-dados-paciente');if(!tbody)return;
-    if(!_jurData.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento jurídico cadastrado</td></tr>';return;}
-    tbody.innerHTML=_jurData.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.paciente_cpf||'—')}</td><td>${_esc(x.paciente_endereco||'—')}</td><td>${_esc(x.paciente_cidade||'—')}</td><td>${_esc(x.diagnostico||'—')}</td><td style="white-space:nowrap">${_btn(x.id)}</td></tr>`).join('');
-  }
-  function _rSau(){
-    const tbody=document.getElementById('jur-tbody-saude');if(!tbody)return;
-    if(!_jurData.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento jurídico cadastrado</td></tr>';return;}
-    tbody.innerHTML=_jurData.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.diagnostico||'—')}</td><td>${_esc(x.cid||'—')}</td><td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(x.historico_medico||'')}">${_esc(x.historico_medico||'—')}</td><td style="white-space:nowrap">${_btn(x.id)}</td></tr>`).join('');
-  }
-  function _rAdv(){
-    const tbody=document.getElementById('jur-tbody-advogado');if(!tbody)return;
-    if(!_jurData.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento jurídico cadastrado</td></tr>';return;}
-    tbody.innerHTML=_jurData.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.advogado_nome||'—')}</td><td>${_esc(x.advogado_oab||'—')}</td><td>${_esc(x.advogado_contato||'—')}</td><td style="white-space:nowrap">${_btn(x.id)}</td></tr>`).join('');
-  }
-  function _rCtrl(){
-    const tbody=document.getElementById('jur-tbody-controle');if(!tbody)return;
-    if(!_jurData.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento jurídico cadastrado</td></tr>';return;}
-    tbody.innerHTML=_jurData.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(x.andamento_processual||'')}">${_esc(x.andamento_processual||'—')}</td><td>${_fmtD(x.proxima_data)}</td><td>${_badge(x.status_processo)}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(x.observacoes_controle||'')}">${_esc(x.observacoes_controle||'—')}</td><td style="white-space:nowrap">${_btn(x.id)}</td></tr>`).join('');
-  }
-
-  window.showJurTab=function(tab,el){
-    document.querySelectorAll('.jur-tab').forEach(b=>b.classList.remove('active'));
-    if(el)el.classList.add('active');
-    document.querySelectorAll('.jur-panel').forEach(p=>p.style.display='none');
-    const panel=document.getElementById('jur-panel-'+tab);
-    if(panel)panel.style.display='block';
-  };
-
-  window.jurAbrir=function(id){
-    _jurEditId=id||null;
-    const c=id?_jurData.find(d=>d.id===id):null,v=f=>c?(c[f]||''):'';
-    const modal=document.getElementById('modal-juridico');if(!modal)return;
-    modal.querySelector('#jur-modal-title').textContent=id?'Editar Atendimento Jurídico':'Novo Atendimento Jurídico';
-    ['paciente_nome','paciente_cpf','paciente_endereco','paciente_cidade',
-     'data_entrada','origem','numero_protocolo','observacoes_entrada',
-     'tipo_beneficio','nit_pis','numero_beneficio','data_entrada_inss','data_decisao',
-     'diagnostico','cid','historico_medico',
-     'advogado_nome','advogado_oab','advogado_contato',
-     'andamento_processual','proxima_data','observacoes_controle']
-    .forEach(f=>{const el=modal.querySelector('#jf-'+f);if(el)el.value=v(f);});
-    const ss=modal.querySelector('#jf-status_beneficio');if(ss)ss.value=v('status_beneficio')||'aguardando';
-    const sp=modal.querySelector('#jf-status_processo');if(sp)sp.value=v('status_processo')||'em_andamento';
-    modal.style.display='flex';
-  };
-
-  window.jurFechar=function(){
-    const m=document.getElementById('modal-juridico');if(m)m.style.display='none';
-    _jurEditId=null;
-  };
-
-  window.jurSalvar=async function(){
-    if(typeof sb==='undefined')return;
-    const modal=document.getElementById('modal-juridico');if(!modal)return;
-    const g=id=>{const el=modal.querySelector('#jf-'+id);return el?el.value.trim():null;};
-    const payload={
-      paciente_nome:g('paciente_nome'),paciente_cpf:g('paciente_cpf'),
-      paciente_endereco:g('paciente_endereco'),paciente_cidade:g('paciente_cidade'),
-      data_entrada:g('data_entrada')||null,origem:g('origem'),
-      numero_protocolo:g('numero_protocolo'),observacoes_entrada:g('observacoes_entrada'),
-      tipo_beneficio:g('tipo_beneficio'),nit_pis:g('nit_pis'),
-      numero_beneficio:g('numero_beneficio'),data_entrada_inss:g('data_entrada_inss')||null,
-      status_beneficio:g('status_beneficio')||'aguardando',data_decisao:g('data_decisao')||null,
-      diagnostico:g('diagnostico'),cid:g('cid'),historico_medico:g('historico_medico'),
-      advogado_nome:g('advogado_nome'),advogado_oab:g('advogado_oab'),advogado_contato:g('advogado_contato'),
-      andamento_processual:g('andamento_processual'),proxima_data:g('proxima_data')||null,
-      status_processo:g('status_processo')||'em_andamento',observacoes_controle:g('observacoes_controle'),
-      projeto:PROJ
-    };
-    if(!payload.paciente_nome){if(typeof showToast==='function')showToast('Informe o nome do paciente',true);return;}
-    let error;
-    if(_jurEditId){
-      payload.atualizado_em=new Date().toISOString();
-      ({error}=await sb.from('atendimentos_juridicos').update(payload).eq('id',_jurEditId));
-    }else{
-      payload.cadastrado_por=typeof currentUser!=='undefined'?currentUser?.id:null;
-      ({error}=await sb.from('atendimentos_juridicos').insert(payload));
-    }
-    if(error){console.error('[jur:save]',error.message);if(typeof showToast==='function')showToast('Erro ao salvar: '+error.message,true);return;}
-    if(typeof showToast==='function')showToast(_jurEditId?'Atendimento atualizado!':'Atendimento cadastrado!');
-    jurFechar();_jurLoad();
-  };
-
-  window.jurExcluir=async function(id){
-    if(!_isAdm())return;
-    if(!confirm('Excluir este atendimento jurídico? Esta ação não pode ser desfeita.'))return;
-    const{error}=await sb.from('atendimentos_juridicos').delete().eq('id',id);
-    if(error){if(typeof showToast==='function')showToast('Erro ao excluir',true);return;}
-    if(typeof showToast==='function')showToast('Atendimento excluído.');
-    _jurData=_jurData.filter(x=>x.id!==id);_jurRender();
-  };
-
-  function _jurInit(){
-    const nav=document.getElementById('nav-juridico-section');
-    if(nav&&nav.style.display==='none')nav.style.display='block';
-    if(!window.showSection._jurHk){
-      const _p=window.showSection;
-      window.showSection=function(id,el){_p.call(this,id,el);if(id==='juridico')setTimeout(_jurLoad,80);};
-      window.showSection._jurHk=true;
-    }
-  }
-
-  if(typeof currentProfile!=='undefined'&&currentProfile)_jurInit();
-  window.addEventListener('malaquias:profile-ready',_jurInit,{once:true});
-  setTimeout(()=>{if(typeof currentProfile!=='undefined'&&currentProfile)_jurInit();},2500);
-})();
-</script>
-
-<script>
-/* ---- JURIDICO WIZARD + CADASTRADOS ---- */
+/* ---- JURIDICO WIZARD + CADASTRADOS (v3) ---- */
 (function(){
 'use strict';
+
+/* ---- STATE ---- */
 let _jurData=[],_jurEditId=null,_jurStep=1;
-const _JUR_STEPS=6;
+let _jurSearch='',_jurStatusFilter='',_jurPage=1,_jurSortCol='criado_em',_jurSortAsc=false;
+const _JUR_STEPS=6,_JUR_PG=25;
+
+/* ---- UTILS ---- */
 const _esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const _fmtD=d=>{if(!d)return'—';try{return new Date(d+'T12:00:00').toLocaleDateString('pt-BR');}catch(e){return d;}};
 const _sLbl={aguardando:'Aguardando',aprovado:'Aprovado',negado:'Negado',recurso:'Em Recurso',em_andamento:'Em Andamento',concluido:'Concluído',arquivado:'Arquivado'};
 const _badge=s=>`<span class="jur-badge ${_esc(s||'')}">${_esc(_sLbl[s]||s||'—')}</span>`;
 const _isAdm=()=>typeof currentProfile!=='undefined'&&currentProfile?.papel==='admin';
-const _btn=id=>{const del=_isAdm()?`<button class="btn-limpar" style="padding:3px 10px;font-size:12px;margin-right:4px" onclick="jurAbrir('${_esc(id)}')"><i class="fas fa-pencil-alt"></i></button>`:'';return `${del}<button class="btn-limpar" style="padding:3px 10px;font-size:12px" onclick="jurAbrir('${_esc(id)}')"><i class="fas fa-pencil-alt"></i></button>`;};
-const _acoes=id=>`<div style="display:flex;gap:4px">${_isAdm()?`<button class="btn-limpar" style="padding:3px 10px;font-size:12px" onclick="jurExcluir('${_esc(id)}')"><i class="fas fa-trash"></i></button>`:''}<button class="btn-primary" style="padding:3px 10px;font-size:12px" onclick="jurAbrir('${_esc(id)}')"><i class="fas fa-pencil-alt"></i></button></div>`;
+const _acoes=id=>`<div style="display:flex;gap:4px">${_isAdm()?`<button class="btn-limpar" style="padding:3px 8px;font-size:12px" onclick="jurExcluir('${_esc(id)}')" title="Excluir"><i class="fas fa-trash"></i></button>`:''}<button class="btn-limpar" style="padding:3px 8px;font-size:12px" onclick="jurPrint('${_esc(id)}')" title="Imprimir processo"><i class="fas fa-print"></i></button><button class="btn-primary" style="padding:3px 8px;font-size:12px" onclick="jurAbrir('${_esc(id)}')" title="Editar"><i class="fas fa-pencil-alt"></i></button></div>`;
 
-/* ---- WIZARD ---- */
+/* ---- FILTRO DE DADOS ---- */
+function _jurGetFiltered(){
+  let d=[..._jurData];
+  if(_jurSearch){const q=_jurSearch.toLowerCase();d=d.filter(x=>(x.paciente_nome||'').toLowerCase().includes(q)||(x.paciente_cpf||'').toLowerCase().includes(q)||(x.diagnostico||'').toLowerCase().includes(q));}
+  if(_jurStatusFilter)d=d.filter(x=>x.status_beneficio===_jurStatusFilter||x.status_processo===_jurStatusFilter);
+  d.sort((a,b)=>{const av=String(a[_jurSortCol]||''),bv=String(b[_jurSortCol]||'');return _jurSortAsc?av.localeCompare(bv,'pt'):bv.localeCompare(av,'pt');});
+  return d;
+}
+
+/* ═══════════════════ WIZARD ═══════════════════ */
 function _jurGoToStep(n){
   document.getElementById('jur-step-'+_jurStep).style.display='none';
   const si=document.getElementById('jur-si-'+_jurStep);
@@ -12711,24 +12704,18 @@ function _jurGoToStep(n){
   if(prev)prev.style.display=n===1?'none':'inline-flex';
   if(next)next.style.display=n===_JUR_STEPS?'none':'inline-flex';
   if(salvar)salvar.style.display=n===_JUR_STEPS?'inline-flex':'none';
+  jurDraftSave();
 }
-
 window.jurNextStep=function(){
   if(_jurStep===1&&!(document.getElementById('jf-paciente_nome')?.value?.trim())){if(typeof showToast==='function')showToast('Informe o nome do paciente',true);return;}
   if(_jurStep<_JUR_STEPS)_jurGoToStep(_jurStep+1);
 };
 window.jurPrevStep=function(){if(_jurStep>1)_jurGoToStep(_jurStep-1);};
-
 window.jurResetForm=function(){
-  ['paciente_nome','paciente_cpf','paciente_endereco','paciente_cidade',
-   'data_entrada','origem','numero_protocolo','observacoes_entrada',
-   'tipo_beneficio','nit_pis','numero_beneficio','data_entrada_inss','data_decisao',
-   'diagnostico','cid','historico_medico','advogado_nome','advogado_oab','advogado_contato',
-   'andamento_processual','proxima_data','observacoes_controle']
+  ['paciente_nome','paciente_cpf','paciente_endereco','paciente_cidade','data_entrada','origem','numero_protocolo','observacoes_entrada','tipo_beneficio','nit_pis','numero_beneficio','data_entrada_inss','data_decisao','diagnostico','cid','historico_medico','advogado_nome','advogado_oab','advogado_contato','andamento_processual','proxima_data','observacoes_controle']
   .forEach(f=>{const el=document.getElementById('jf-'+f);if(el)el.value='';});
   const sb_s=document.getElementById('jf-status_beneficio');if(sb_s)sb_s.value='aguardando';
   const sp_s=document.getElementById('jf-status_processo');if(sp_s)sp_s.value='em_andamento';
-  /* Reset step indicators */
   for(let i=1;i<=_JUR_STEPS;i++){const si=document.getElementById('jur-si-'+i);if(si){si.classList.remove('active','done');}}
   for(let i=1;i<_JUR_STEPS;i++){const l=document.getElementById('jur-sl-'+i);if(l)l.className='jur-step-line';}
   _jurStep=1;
@@ -12737,8 +12724,43 @@ window.jurResetForm=function(){
   const si1=document.getElementById('jur-si-1');if(si1)si1.classList.add('active');
   const prev=document.getElementById('jur-btn-prev'),next=document.getElementById('jur-btn-next'),salvar=document.getElementById('jur-btn-salvar');
   if(prev)prev.style.display='none';if(next)next.style.display='inline-flex';if(salvar)salvar.style.display='none';
+  try{if(typeof PROJ!=='undefined')localStorage.removeItem('jur_draft_'+PROJ);}catch(e){}
+  const nb=document.getElementById('jur-draft-notice');if(nb)nb.style.display='none';
 };
 
+/* ---- RASCUNHO AUTO-SAVE ---- */
+window.jurDraftSave=function(){
+  try{
+    if(typeof PROJ==='undefined')return;
+    const g=id=>{const el=document.getElementById('jf-'+id);return el?el.value:'';};
+    const draft={paciente_nome:g('paciente_nome'),paciente_cpf:g('paciente_cpf'),paciente_endereco:g('paciente_endereco'),paciente_cidade:g('paciente_cidade'),data_entrada:g('data_entrada'),origem:g('origem'),numero_protocolo:g('numero_protocolo'),observacoes_entrada:g('observacoes_entrada'),tipo_beneficio:g('tipo_beneficio'),nit_pis:g('nit_pis'),numero_beneficio:g('numero_beneficio'),data_entrada_inss:g('data_entrada_inss'),status_beneficio:g('status_beneficio'),data_decisao:g('data_decisao'),diagnostico:g('diagnostico'),cid:g('cid'),historico_medico:g('historico_medico'),advogado_nome:g('advogado_nome'),advogado_oab:g('advogado_oab'),advogado_contato:g('advogado_contato'),andamento_processual:g('andamento_processual'),proxima_data:g('proxima_data'),status_processo:g('status_processo'),observacoes_controle:g('observacoes_controle')};
+    if(draft.paciente_nome)localStorage.setItem('jur_draft_'+PROJ,JSON.stringify(draft));
+  }catch(e){}
+};
+function _jurDraftCheck(){
+  try{
+    if(typeof PROJ==='undefined')return;
+    const raw=localStorage.getItem('jur_draft_'+PROJ);if(!raw)return;
+    const draft=JSON.parse(raw);if(!draft||!draft.paciente_nome)return;
+    window._jurDraftData=draft;
+    const nb=document.getElementById('jur-draft-notice');
+    if(nb){const nm=nb.querySelector('[data-draft-name]');if(nm)nm.textContent=draft.paciente_nome;nb.style.display='flex';}
+  }catch(e){}
+}
+window.jurDraftRestore=function(){
+  const draft=window._jurDraftData;if(!draft)return;
+  const s=f=>{const el=document.getElementById('jf-'+f);if(el&&draft[f])el.value=draft[f];};
+  ['paciente_nome','paciente_cpf','paciente_endereco','paciente_cidade','data_entrada','origem','numero_protocolo','observacoes_entrada','tipo_beneficio','nit_pis','numero_beneficio','data_entrada_inss','status_beneficio','data_decisao','diagnostico','cid','historico_medico','advogado_nome','advogado_oab','advogado_contato','andamento_processual','proxima_data','status_processo','observacoes_controle'].forEach(s);
+  const nb=document.getElementById('jur-draft-notice');if(nb)nb.style.display='none';
+  if(typeof showToast==='function')showToast('Rascunho restaurado!');
+};
+window.jurDraftDiscard=function(){
+  try{if(typeof PROJ!=='undefined')localStorage.removeItem('jur_draft_'+PROJ);}catch(e){}
+  const nb=document.getElementById('jur-draft-notice');if(nb)nb.style.display='none';
+  window._jurDraftData=null;
+};
+
+/* ---- SALVAR WIZARD ---- */
 window.jurSalvarWizard=async function(){
   if(typeof sb==='undefined')return;
   const g=id=>{const el=document.getElementById('jf-'+id);return el?el.value.trim():null;};
@@ -12754,32 +12776,28 @@ window.jurSalvarWizard=async function(){
     projeto:PROJ,cadastrado_por:typeof currentUser!=='undefined'?currentUser?.id:null
   };
   if(!payload.paciente_nome){if(typeof showToast==='function')showToast('Informe o nome do paciente',true);return;}
-  /* Verificação de CPF duplicado */
   if(payload.paciente_cpf){
     const{data:_dup}=await sb.from('atendimentos_juridicos').select('id,paciente_nome').eq('projeto',PROJ).eq('paciente_cpf',payload.paciente_cpf).limit(1);
     if(_dup&&_dup.length&&!confirm(`CPF já cadastrado para "${_dup[0].paciente_nome||'outro paciente'}". Cadastrar mesmo assim?`))return;
   }
+  const btn=document.getElementById('jur-btn-salvar');if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Salvando...';}
   const{error}=await sb.from('atendimentos_juridicos').insert(payload);
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-save"></i> Salvar';}
   if(error){console.error('[jur:wizard:save]',error.message);if(typeof showToast==='function')showToast('Erro ao salvar: '+error.message,true);return;}
   if(typeof showToast==='function')showToast('Atendimento jurídico salvo com sucesso!');
   jurResetForm();
-  /* Redireciona automaticamente para Cadastrados e recarrega */
   const _navCad=document.querySelector('[data-section="juridico-cadastrados"]');
   if(typeof showSection==='function')showSection('juridico-cadastrados',_navCad);
   setTimeout(_jurCadLoad,150);
 };
 
-/* ---- MODAL EDIÇÃO ---- */
+/* ═══════════════════ MODAL EDIÇÃO ═══════════════════ */
 window.jurAbrir=function(id){
   _jurEditId=id||null;
   const c=id?_jurData.find(d=>d.id===id):null,v=f=>c?(c[f]||''):'';
   const modal=document.getElementById('modal-juridico');if(!modal)return;
   modal.querySelector('#jur-modal-title').textContent=id?'Editar Atendimento Jurídico':'Novo Atendimento Jurídico';
-  ['paciente_nome','paciente_cpf','paciente_endereco','paciente_cidade',
-   'data_entrada','origem','numero_protocolo','observacoes_entrada',
-   'tipo_beneficio','nit_pis','numero_beneficio','data_entrada_inss','data_decisao',
-   'diagnostico','cid','historico_medico','advogado_nome','advogado_oab','advogado_contato',
-   'andamento_processual','proxima_data','observacoes_controle']
+  ['paciente_nome','paciente_cpf','paciente_endereco','paciente_cidade','data_entrada','origem','numero_protocolo','observacoes_entrada','tipo_beneficio','nit_pis','numero_beneficio','data_entrada_inss','data_decisao','diagnostico','cid','historico_medico','advogado_nome','advogado_oab','advogado_contato','andamento_processual','proxima_data','observacoes_controle']
   .forEach(f=>{const el=modal.querySelector('#jf-'+f);if(el)el.value=v(f);});
   const ss=modal.querySelector('#jf-status_beneficio');if(ss)ss.value=v('status_beneficio')||'aguardando';
   const sp=modal.querySelector('#jf-status_processo');if(sp)sp.value=v('status_processo')||'em_andamento';
@@ -12807,7 +12825,6 @@ window.jurSalvar=async function(){
   if(typeof showToast==='function')showToast('Atendimento atualizado!');
   jurFechar();_jurCadLoad();
 };
-
 window.jurExcluir=async function(id){
   if(!_isAdm())return;
   if(!confirm('Excluir este atendimento jurídico? Ação irreversível.'))return;
@@ -12817,75 +12834,150 @@ window.jurExcluir=async function(id){
   _jurData=_jurData.filter(x=>x.id!==id);_jurCadRender();
 };
 
-/* ---- CADASTRADOS ---- */
+/* ═══════════════════ PRINT INDIVIDUAL ═══════════════════ */
+window.jurPrint=function(id){
+  const x=_jurData.find(d=>d.id===id);if(!x){if(typeof showToast==='function')showToast('Processo não encontrado',true);return;}
+  const e=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const row=(l,v)=>v?`<tr><td class="lb">${e(l)}</td><td>${e(v)}</td></tr>`:'';
+  const sl={aguardando:'Aguardando',aprovado:'Aprovado ✓',negado:'Negado ✗',recurso:'Em Recurso',em_andamento:'Em Andamento',concluido:'Concluído ✓',arquivado:'Arquivado'};
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Processo — ${e(x.paciente_nome||'')}</title>
+<style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;margin:0;padding:28px}
+h1{color:#1e40af;font-size:18px;margin:0 0 4px}p.sub{color:#6b7280;font-size:12px;margin:0 0 20px}
+h3{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#6b7280;margin:16px 0 5px;border-bottom:1px solid #e5e7eb;padding-bottom:3px}
+table{width:100%;border-collapse:collapse}tr:nth-child(even)td{background:#f9fafb}
+td{padding:5px 10px;vertical-align:top}td.lb{font-weight:600;color:#374151;width:38%;white-space:nowrap}
+.ft{margin-top:20px;font-size:11px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:8px}
+@media print{body{padding:1cm}@page{margin:1cm}}</style></head>
+<body><h1>Processo Jurídico</h1>
+<p class="sub">Sistema Dr. Malaquias &nbsp;·&nbsp; Gerado em ${new Date().toLocaleString('pt-BR')}</p>
+<h3>Dados do Paciente</h3><table>${row('Nome',x.paciente_nome)}${row('CPF',x.paciente_cpf)}${row('Endereço',x.paciente_endereco)}${row('Cidade',x.paciente_cidade)}</table>
+<h3>Entrada</h3><table>${row('Data de Entrada',x.data_entrada)}${row('Origem',x.origem)}${row('Protocolo',x.numero_protocolo)}${row('Observações',x.observacoes_entrada)}</table>
+<h3>Aposentadoria / Benefício</h3><table>${row('Tipo de Benefício',x.tipo_beneficio)}${row('NIT / PIS',x.nit_pis)}${row('Número do Benefício',x.numero_beneficio)}${row('Entrada no INSS',x.data_entrada_inss)}${row('Status',sl[x.status_beneficio]||x.status_beneficio)}${row('Data da Decisão',x.data_decisao)}</table>
+<h3>Saúde</h3><table>${row('Diagnóstico',x.diagnostico)}${row('CID',x.cid)}${row('Histórico Médico',x.historico_medico)}</table>
+<h3>Advogado</h3><table>${row('Nome',x.advogado_nome)}${row('OAB',x.advogado_oab)}${row('Contato',x.advogado_contato)}</table>
+<h3>Controle do Processo</h3><table>${row('Andamento',x.andamento_processual)}${row('Próxima Data',x.proxima_data)}${row('Status',sl[x.status_processo]||x.status_processo)}${row('Observações',x.observacoes_controle)}</table>
+<div class="ft">Registro #${e(x.id||'')} &nbsp;·&nbsp; Sistema Dr. Malaquias</div>
+<script>window.onload=function(){window.print();}<\/script></body></html>`;
+  const w=window.open('','_blank');if(w){w.document.write(html);w.document.close();}else alert('Permita pop-ups para imprimir.');
+};
+
+/* ═══════════════════ EXPORT CSV ═══════════════════ */
+window.jurExportCSV=function(){
+  const fd=_jurGetFiltered();
+  if(!fd.length){if(typeof showToast==='function')showToast('Nenhum dado para exportar',true);return;}
+  const cols=['paciente_nome','paciente_cpf','paciente_cidade','paciente_endereco','data_entrada','origem','numero_protocolo','tipo_beneficio','nit_pis','numero_beneficio','data_entrada_inss','status_beneficio','data_decisao','diagnostico','cid','advogado_nome','advogado_oab','advogado_contato','proxima_data','status_processo','andamento_processual','observacoes_controle','criado_em'];
+  const hdrs=['Nome','CPF','Cidade','Endereço','Data Entrada','Origem','Protocolo','Tipo Benefício','NIT/PIS','Nº Benefício','Entrada INSS','Status INSS','Data Decisão','Diagnóstico','CID','Advogado','OAB','Contato Advogado','Próxima Data','Status Processo','Andamento','Observações','Cadastrado em'];
+  const q=v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`;
+  const csv=[hdrs.map(q).join(','),...fd.map(r=>cols.map(c=>q(r[c]||'')).join(','))].join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download=`juridico_${typeof PROJ!=='undefined'?PROJ:'dr_malaquias'}_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);
+  if(typeof showToast==='function')showToast(`${fd.length} registro${fd.length!==1?'s':''} exportado${fd.length!==1?'s':''}`);
+};
+
+/* ═══════════════════ CADASTRADOS: LOAD & RENDER ═══════════════════ */
 async function _jurCadLoad(){
   if(typeof sb==='undefined'||typeof PROJ==='undefined')return;
-  const ids=['visao','entrada','aposentadoria','dados-paciente','saude','advogado','controle','dashboard'];
-  ids.forEach(t=>{const el=document.getElementById('jur-tbody-'+t);if(el)el.innerHTML='<tr><td colspan="99" style="text-align:center;padding:20px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></td></tr>';});
+  const panels=['visao','entrada','aposentadoria','dados-paciente','saude','advogado','controle','dashboard'];
+  panels.forEach(t=>{const el=document.getElementById('jur-tbody-'+t);if(el)el.innerHTML='<tr><td colspan="99" style="text-align:center;padding:20px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></td></tr>';});
   const{data,error}=await sb.from('atendimentos_juridicos').select('*').eq('projeto',PROJ).order('criado_em',{ascending:false});
   if(error){console.error('[jur:cad:load]',error.message);return;}
-  _jurData=data||[];_jurCadRender();
+  _jurData=data||[];_jurPage=1;_jurCadRender();
 }
 
-function _jurCadRender(){_rVg();_rEnt();_rApos();_rDad();_rSau();_rAdv();_rCtrl();_rDash();}
+function _jurCadRender(){
+  const fd=_jurGetFiltered();
+  const start=(_jurPage-1)*_JUR_PG;
+  const pg=fd.slice(start,start+_JUR_PG);
+  _rVg(pg,fd.length);_rEnt(pg,fd.length);_rApos(pg,fd.length);_rDad(pg,fd.length);_rSau(pg,fd.length);_rAdv(pg,fd.length);_rCtrl(pg,fd.length);_rDash();
+  /* Contador */
+  const ctr=document.getElementById('jur-counter');
+  if(ctr)ctr.textContent=fd.length===_jurData.length?`${fd.length} processo${fd.length!==1?'s':''}`:`${fd.length} de ${_jurData.length}`;
+  /* Paginação */
+  const tp=Math.ceil(fd.length/_JUR_PG)||1;
+  ['visao','entrada','aposentadoria','dados-paciente','saude','advogado','controle'].forEach(t=>{
+    const el=document.getElementById('jur-pg-'+t);if(!el)return;
+    el.innerHTML=tp<=1?'':`<div style="display:flex;align-items:center;gap:8px;margin-top:12px;justify-content:flex-end"><button class="btn-limpar" style="padding:4px 12px" ${_jurPage<=1?'disabled':''} onclick="jurPage(${_jurPage-1})"><i class="fas fa-chevron-left"></i></button><span style="font-size:13px;color:var(--text-muted);min-width:70px;text-align:center">Pág. ${_jurPage} / ${tp}</span><button class="btn-limpar" style="padding:4px 12px" ${_jurPage>=tp?'disabled':''} onclick="jurPage(${_jurPage+1})"><i class="fas fa-chevron-right"></i></button></div>`;
+  });
+  /* Badge sidebar */
+  const bdg=document.getElementById('jur-nav-badge');
+  if(bdg){bdg.textContent=_jurData.length||'';bdg.style.display=_jurData.length?'inline-block':'none';}
+}
 
-function _rVg(){
+/* ---- RENDER HELPERS ---- */
+const _si=col=>_jurSortCol===col?(_jurSortAsc?'<i class="fas fa-sort-up" style="margin-left:3px;font-size:10px"></i>':'<i class="fas fa-sort-down" style="margin-left:3px;font-size:10px"></i>'):'<i class="fas fa-sort" style="margin-left:3px;font-size:10px;opacity:.3"></i>';
+const _th=(col,lbl)=>`<th style="cursor:pointer;white-space:nowrap;user-select:none" onclick="jurSortBy('${col}')">${lbl}${_si(col)}</th>`;
+const _em=(total,cols)=>`<tr><td colspan="${cols}" style="text-align:center;padding:24px;color:var(--text-muted)">${total===0?'Nenhum atendimento cadastrado':'Nenhum resultado para os filtros aplicados'}</td></tr>`;
+
+function _rVg(d,total){
   const tbody=document.getElementById('jur-tbody-visao');if(!tbody)return;
-  if(!_jurData.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento cadastrado</td></tr>';return;}
+  tbody.closest('table').querySelector('thead tr').innerHTML=`${_th('paciente_nome','Nome')}${_th('paciente_cpf','CPF')}${_th('paciente_cidade','Cidade')}${_th('diagnostico','Diagnóstico')}${_th('status_beneficio','Status INSS')}${_th('advogado_nome','Advogado')}${_th('proxima_data','Próxima Data')}<th>Ações</th>`;
+  if(!d.length){tbody.innerHTML=_em(total,8);return;}
   const today=new Date();today.setHours(0,0,0,0);
-  tbody.innerHTML=_jurData.map(x=>{
+  tbody.innerHTML=d.map(x=>{
+    const nd=x.proxima_data?new Date(x.proxima_data+'T12:00:00'):null;
+    const diff=nd?Math.floor((nd-today)/86400000):null;
+    const rs=diff!==null&&diff<0?'style="background:rgba(239,68,68,.09)"':diff!==null&&diff<=7?'style="background:rgba(251,191,36,.09)"':'';
+    const ttip=diff!==null?(diff<0?` title="${Math.abs(diff)} dia${Math.abs(diff)!==1?'s':''} atrasado"`:`title="${diff} dia${diff!==1?'s':''} restante${diff!==1?'s':''}"`):'';
+    return `<tr ${rs}><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.paciente_cpf||'—')}</td><td>${_esc(x.paciente_cidade||'—')}</td><td>${_esc(x.diagnostico||'—')}</td><td>${_badge(x.status_beneficio)}</td><td>${_esc(x.advogado_nome||'—')}</td><td${ttip}>${nd&&diff<0?'<span style="color:#ef4444;font-weight:600">':''}${_fmtD(x.proxima_data)}${nd&&diff<0?'</span>':''}</td><td>${_acoes(x.id)}</td></tr>`;
+  }).join('');
+}
+function _rEnt(d,total){
+  const tbody=document.getElementById('jur-tbody-entrada');if(!tbody)return;
+  if(!d.length){tbody.innerHTML=_em(total,6);return;}
+  tbody.innerHTML=d.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_fmtD(x.data_entrada)}</td><td>${_esc(x.origem||'—')}</td><td>${_esc(x.numero_protocolo||'—')}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(x.observacoes_entrada||'')}">${_esc(x.observacoes_entrada||'—')}</td><td>${_acoes(x.id)}</td></tr>`).join('');
+}
+function _rApos(d,total){
+  const tbody=document.getElementById('jur-tbody-aposentadoria');if(!tbody)return;
+  if(!d.length){tbody.innerHTML=_em(total,8);return;}
+  tbody.innerHTML=d.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.tipo_beneficio||'—')}</td><td>${_esc(x.nit_pis||'—')}</td><td>${_esc(x.numero_beneficio||'—')}</td><td>${_fmtD(x.data_entrada_inss)}</td><td>${_badge(x.status_beneficio)}</td><td>${_fmtD(x.data_decisao)}</td><td>${_acoes(x.id)}</td></tr>`).join('');
+}
+function _rDad(d,total){
+  const tbody=document.getElementById('jur-tbody-dados-paciente');if(!tbody)return;
+  if(!d.length){tbody.innerHTML=_em(total,6);return;}
+  tbody.innerHTML=d.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.paciente_cpf||'—')}</td><td>${_esc(x.paciente_endereco||'—')}</td><td>${_esc(x.paciente_cidade||'—')}</td><td>${_esc(x.diagnostico||'—')}</td><td>${_acoes(x.id)}</td></tr>`).join('');
+}
+function _rSau(d,total){
+  const tbody=document.getElementById('jur-tbody-saude');if(!tbody)return;
+  if(!d.length){tbody.innerHTML=_em(total,5);return;}
+  tbody.innerHTML=d.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.diagnostico||'—')}</td><td>${_esc(x.cid||'—')}</td><td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(x.historico_medico||'')}">${_esc(x.historico_medico||'—')}</td><td>${_acoes(x.id)}</td></tr>`).join('');
+}
+function _rAdv(d,total){
+  const tbody=document.getElementById('jur-tbody-advogado');if(!tbody)return;
+  if(!d.length){tbody.innerHTML=_em(total,5);return;}
+  tbody.innerHTML=d.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.advogado_nome||'—')}</td><td>${_esc(x.advogado_oab||'—')}</td><td>${_esc(x.advogado_contato||'—')}</td><td>${_acoes(x.id)}</td></tr>`).join('');
+}
+function _rCtrl(d,total){
+  const tbody=document.getElementById('jur-tbody-controle');if(!tbody)return;
+  if(!d.length){tbody.innerHTML=_em(total,6);return;}
+  tbody.innerHTML=d.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(x.andamento_processual||'')}">${_esc(x.andamento_processual||'—')}</td><td>${_fmtD(x.proxima_data)}</td><td>${_badge(x.status_processo)}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(x.observacoes_controle||'')}">${_esc(x.observacoes_controle||'—')}</td><td>${_acoes(x.id)}</td></tr>`).join('');
+}
+function _rDash(){
+  const d=_jurData,kpis=document.getElementById('jur-kpis'),tbody=document.getElementById('jur-tbody-dashboard');
+  const today=new Date();today.setHours(0,0,0,0);
+  if(kpis){
+    const ag=d.filter(x=>x.status_beneficio==='aguardando').length,ap=d.filter(x=>x.status_beneficio==='aprovado').length,
+          neg=d.filter(x=>x.status_beneficio==='negado').length,rec=d.filter(x=>x.status_beneficio==='recurso').length;
+    const urg=d.filter(x=>{if(!x.proxima_data)return false;const nd=new Date(x.proxima_data+'T12:00:00');const diff=Math.floor((nd-today)/86400000);return diff>=0&&diff<=7;}).length;
+    kpis.innerHTML=`<div class="kpi-card"><div class="kpi-icon"><i class="fas fa-folder-open"></i></div><div class="kpi-value">${d.length}</div><div class="kpi-label">Total</div></div>
+      <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-clock"></i></div><div class="kpi-value">${ag}</div><div class="kpi-label">Aguardando</div></div>
+      <div class="kpi-card" style="border-color:rgba(74,222,128,.3)"><div class="kpi-icon"><i class="fas fa-check-circle" style="color:#16a34a"></i></div><div class="kpi-value" style="color:#16a34a">${ap}</div><div class="kpi-label">Aprovados</div></div>
+      <div class="kpi-card" style="border-color:rgba(239,68,68,.3)"><div class="kpi-icon"><i class="fas fa-times-circle" style="color:#dc2626"></i></div><div class="kpi-value" style="color:#dc2626">${neg}</div><div class="kpi-label">Negados</div></div>
+      <div class="kpi-card" style="border-color:rgba(139,92,246,.3)"><div class="kpi-icon"><i class="fas fa-redo" style="color:#7c3aed"></i></div><div class="kpi-value" style="color:#7c3aed">${rec}</div><div class="kpi-label">Em Recurso</div></div>
+      <div class="kpi-card" style="border-color:rgba(251,191,36,.3)"><div class="kpi-icon"><i class="fas fa-exclamation-triangle" style="color:#d97706"></i></div><div class="kpi-value" style="color:#d97706">${urg}</div><div class="kpi-label">Prazo ≤7 dias</div></div>`;
+  }
+  if(!tbody)return;
+  if(!d.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento cadastrado</td></tr>';return;}
+  tbody.innerHTML=d.map(x=>{
     const nd=x.proxima_data?new Date(x.proxima_data+'T12:00:00'):null;
     const diff=nd?Math.floor((nd-today)/86400000):null;
     const rs=diff!==null&&diff<0?'style="background:rgba(239,68,68,.09)"':diff!==null&&diff<=7?'style="background:rgba(251,191,36,.09)"':'';
     return `<tr ${rs}><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.paciente_cpf||'—')}</td><td>${_esc(x.paciente_cidade||'—')}</td><td>${_esc(x.diagnostico||'—')}</td><td>${_badge(x.status_beneficio)}</td><td>${_esc(x.advogado_nome||'—')}</td><td>${nd&&diff<0?'<span style="color:#ef4444;font-weight:600">':''}${_fmtD(x.proxima_data)}${nd&&diff<0?'</span>':''}</td><td>${_acoes(x.id)}</td></tr>`;
   }).join('');
 }
-function _rEnt(){
-  const tbody=document.getElementById('jur-tbody-entrada');if(!tbody)return;
-  if(!_jurData.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento cadastrado</td></tr>';return;}
-  tbody.innerHTML=_jurData.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_fmtD(x.data_entrada)}</td><td>${_esc(x.origem||'—')}</td><td>${_esc(x.numero_protocolo||'—')}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(x.observacoes_entrada||'')}">${_esc(x.observacoes_entrada||'—')}</td><td>${_acoes(x.id)}</td></tr>`).join('');
-}
-function _rApos(){
-  const tbody=document.getElementById('jur-tbody-aposentadoria');if(!tbody)return;
-  if(!_jurData.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento cadastrado</td></tr>';return;}
-  tbody.innerHTML=_jurData.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.tipo_beneficio||'—')}</td><td>${_esc(x.nit_pis||'—')}</td><td>${_esc(x.numero_beneficio||'—')}</td><td>${_fmtD(x.data_entrada_inss)}</td><td>${_badge(x.status_beneficio)}</td><td>${_fmtD(x.data_decisao)}</td><td>${_acoes(x.id)}</td></tr>`).join('');
-}
-function _rDad(){
-  const tbody=document.getElementById('jur-tbody-dados-paciente');if(!tbody)return;
-  if(!_jurData.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento cadastrado</td></tr>';return;}
-  tbody.innerHTML=_jurData.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.paciente_cpf||'—')}</td><td>${_esc(x.paciente_endereco||'—')}</td><td>${_esc(x.paciente_cidade||'—')}</td><td>${_esc(x.diagnostico||'—')}</td><td>${_acoes(x.id)}</td></tr>`).join('');
-}
-function _rSau(){
-  const tbody=document.getElementById('jur-tbody-saude');if(!tbody)return;
-  if(!_jurData.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento cadastrado</td></tr>';return;}
-  tbody.innerHTML=_jurData.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.diagnostico||'—')}</td><td>${_esc(x.cid||'—')}</td><td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(x.historico_medico||'')}">${_esc(x.historico_medico||'—')}</td><td>${_acoes(x.id)}</td></tr>`).join('');
-}
-function _rAdv(){
-  const tbody=document.getElementById('jur-tbody-advogado');if(!tbody)return;
-  if(!_jurData.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento cadastrado</td></tr>';return;}
-  tbody.innerHTML=_jurData.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.advogado_nome||'—')}</td><td>${_esc(x.advogado_oab||'—')}</td><td>${_esc(x.advogado_contato||'—')}</td><td>${_acoes(x.id)}</td></tr>`).join('');
-}
-function _rCtrl(){
-  const tbody=document.getElementById('jur-tbody-controle');if(!tbody)return;
-  if(!_jurData.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento cadastrado</td></tr>';return;}
-  tbody.innerHTML=_jurData.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(x.andamento_processual||'')}">${_esc(x.andamento_processual||'—')}</td><td>${_fmtD(x.proxima_data)}</td><td>${_badge(x.status_processo)}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(x.observacoes_controle||'')}">${_esc(x.observacoes_controle||'—')}</td><td>${_acoes(x.id)}</td></tr>`).join('');
-}
-function _rDash(){
-  const d=_jurData,kpis=document.getElementById('jur-kpis'),tbody=document.getElementById('jur-tbody-dashboard');
-  if(kpis){
-    const ag=d.filter(x=>x.status_beneficio==='aguardando').length,ap=d.filter(x=>x.status_beneficio==='aprovado').length,
-          neg=d.filter(x=>x.status_beneficio==='negado').length,rec=d.filter(x=>x.status_beneficio==='recurso').length;
-    kpis.innerHTML=`<div class="kpi-card"><div class="kpi-icon"><i class="fas fa-folder-open"></i></div><div class="kpi-value">${d.length}</div><div class="kpi-label">Total Processos</div></div>
-      <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-clock"></i></div><div class="kpi-value">${ag}</div><div class="kpi-label">Aguardando INSS</div></div>
-      <div class="kpi-card" style="border-color:rgba(74,222,128,.3)"><div class="kpi-icon"><i class="fas fa-check-circle" style="color:#16a34a"></i></div><div class="kpi-value" style="color:#16a34a">${ap}</div><div class="kpi-label">Aprovados</div></div>
-      <div class="kpi-card" style="border-color:rgba(239,68,68,.3)"><div class="kpi-icon"><i class="fas fa-times-circle" style="color:#dc2626"></i></div><div class="kpi-value" style="color:#dc2626">${neg}</div><div class="kpi-label">Negados</div></div>
-      <div class="kpi-card" style="border-color:rgba(139,92,246,.3)"><div class="kpi-icon"><i class="fas fa-redo" style="color:#7c3aed"></i></div><div class="kpi-value" style="color:#7c3aed">${rec}</div><div class="kpi-label">Em Recurso</div></div>`;
-  }
-  if(!tbody)return;
-  if(!d.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento cadastrado</td></tr>';return;}
-  tbody.innerHTML=d.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.paciente_cpf||'—')}</td><td>${_esc(x.paciente_cidade||'—')}</td><td>${_esc(x.diagnostico||'—')}</td><td>${_badge(x.status_beneficio)}</td><td>${_esc(x.advogado_nome||'—')}</td><td>${_fmtD(x.proxima_data)}</td><td>${_acoes(x.id)}</td></tr>`).join('');
-}
 
+/* ═══════════════════ CONTROLES CADASTRADOS ═══════════════════ */
 window.showJurCadTab=function(tab,el){
   document.querySelectorAll('#sec-juridico-cadastrados .jur-tab').forEach(b=>b.classList.remove('active'));
   if(el)el.classList.add('active');
@@ -12893,39 +12985,208 @@ window.showJurCadTab=function(tab,el){
   const panel=document.getElementById('jur-cad-panel-'+tab);
   if(panel)panel.style.display='block';
 };
+window.jurCadSearch=function(v){_jurSearch=(v||'').trim();_jurPage=1;_jurCadRender();};
+window.jurStatusFilter=function(v){_jurStatusFilter=v||'';_jurPage=1;_jurCadRender();};
+window.jurPage=function(n){_jurPage=n;_jurCadRender();};
+window.jurSortBy=function(col){if(_jurSortCol===col)_jurSortAsc=!_jurSortAsc;else{_jurSortCol=col;_jurSortAsc=true;}_jurPage=1;_jurCadRender();};
 
-window.jurCadSearch=function(v){
-  const q=(v||'').toLowerCase().trim();
-  document.querySelectorAll('#sec-juridico-cadastrados .data-table tbody tr').forEach(tr=>{
-    tr.style.display=(!q||tr.textContent.toLowerCase().includes(q))?'':'none';
-  });
-};
-
-/* ---- INIT ---- */
+/* ═══════════════════ INIT ═══════════════════ */
 function _jurInit(){
   const nav=document.getElementById('nav-juridico-section');
   if(nav&&nav.style.display==='none')nav.style.display='block';
-  /* Dashboard tab: só admins */
-  if(_isAdm()){
-    const dt=document.getElementById('jur-cad-tab-dash');
-    if(dt){dt.style.display='inline-flex';}
-  }
-  /* Hook showSection */
+  if(_isAdm()){const dt=document.getElementById('jur-cad-tab-dash');if(dt)dt.style.display='inline-flex';}
+  /* Inject pagination divs */
+  ['visao','entrada','aposentadoria','dados-paciente','saude','advogado','controle'].forEach(t=>{
+    if(!document.getElementById('jur-pg-'+t)){
+      const el=document.getElementById('jur-tbody-'+t);
+      if(el){const pg=document.createElement('div');pg.id='jur-pg-'+t;el.closest('.chart-card').appendChild(pg);}
+    }
+  });
   if(!window.showSection._jurHk2){
     const _p=window.showSection;
     window.showSection=function(id,el){
       _p.call(this,id,el);
       if(id==='juridico-cadastrados')setTimeout(_jurCadLoad,80);
+      if(id==='juridico')setTimeout(_jurDraftCheck,100);
     };
     window.showSection._jurHk2=true;
   }
 }
-
 if(typeof currentProfile!=='undefined'&&currentProfile)_jurInit();
 window.addEventListener('malaquias:profile-ready',_jurInit,{once:true});
 setTimeout(()=>{if(typeof currentProfile!=='undefined'&&currentProfile)_jurInit();},2500);
 })();
 </script>
 
+<script>
+/* ---- JURIDICO RETORNOS (v1) ---- */
+(function(){
+'use strict';
+
+let _retData=[],_retSearch='',_retStatusFilter='',_retPage=1,_retSortCol='criado_em',_retSortAsc=false;
+const _RET_PG=25;
+
+const _escR=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const _fmtDR=d=>{if(!d)return'—';try{return new Date(d+'T12:00:00').toLocaleDateString('pt-BR');}catch(e){return d;}};
+const _sLblR={aguardando:'Aguardando',aprovado:'Aprovado',negado:'Negado',recurso:'Em Recurso',em_andamento:'Em Andamento',concluido:'Concluído',arquivado:'Arquivado'};
+const _badgeR=s=>`<span class="jur-badge ${_escR(s||'')}">${_escR(_sLblR[s]||s||'—')}</span>`;
+const _isAdmR=()=>typeof currentProfile!=='undefined'&&currentProfile?.papel==='admin';
+
+/* ---- FILTRO ---- */
+function _retGetFiltered(){
+  let d=[..._retData];
+  if(_retSearch){const q=_retSearch.toLowerCase();d=d.filter(x=>(x.paciente_nome||'').toLowerCase().includes(q)||(x.paciente_cpf||'').toLowerCase().includes(q)||(x.andamento||'').toLowerCase().includes(q));}
+  if(_retStatusFilter)d=d.filter(x=>x.status_beneficio_atual===_retStatusFilter);
+  d.sort((a,b)=>{const av=String(a[_retSortCol]||''),bv=String(b[_retSortCol]||'');return _retSortAsc?av.localeCompare(bv,'pt'):bv.localeCompare(av,'pt');});
+  return d;
+}
+
+/* ---- LOAD ---- */
+async function _retLoad(){
+  if(typeof sb==='undefined'||typeof PROJ==='undefined')return;
+  const tbody=document.getElementById('ret-tbody');
+  if(tbody)tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></td></tr>';
+  const{data,error}=await sb.from('retornos_juridicos').select('*').eq('projeto',PROJ).order('criado_em',{ascending:false});
+  if(error){console.error('[ret:load]',error.message);if(typeof showToast==='function')showToast('Erro ao carregar retornos',true);return;}
+  _retData=data||[];_retPage=1;_retRender();
+}
+
+/* ---- RENDER ---- */
+function _retRender(){
+  const fd=_retGetFiltered();
+  const start=(_retPage-1)*_RET_PG;
+  const pg=fd.slice(start,start+_RET_PG);
+  const tbody=document.getElementById('ret-tbody');
+  if(!tbody)return;
+  const today=new Date();today.setHours(0,0,0,0);
+  if(!pg.length){
+    tbody.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">${_retData.length===0?'Nenhum retorno cadastrado':'Nenhum resultado para os filtros aplicados'}</td></tr>`;
+  }else{
+    tbody.innerHTML=pg.map(x=>{
+      const nd=x.proxima_data?new Date(x.proxima_data+'T12:00:00'):null;
+      const diff=nd?Math.floor((nd-today)/86400000):null;
+      const rs=diff!==null&&diff<0?'style="background:rgba(239,68,68,.09)"':diff!==null&&diff<=7?'style="background:rgba(251,191,36,.09)"':'';
+      const ndHtml=nd&&diff<0?`<span style="color:#ef4444;font-weight:600">${_fmtDR(x.proxima_data)}</span>`:_fmtDR(x.proxima_data);
+      const acoes=`<div style="display:flex;gap:4px">${_isAdmR()?`<button class="btn-limpar" style="padding:3px 8px;font-size:12px" onclick="retExcluir('${_escR(x.id)}')" title="Excluir"><i class="fas fa-trash"></i></button>`:''}<button class="btn-primary" style="padding:3px 8px;font-size:12px" onclick="retAbrir('${_escR(x.id)}')" title="Editar"><i class="fas fa-pencil-alt"></i></button></div>`;
+      return `<tr ${rs}><td>${_escR(x.paciente_nome||'—')}</td><td>${_escR(x.paciente_cpf||'—')}</td><td>${_fmtDR(x.data_retorno)}</td><td>${_badgeR(x.status_beneficio_atual)}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_escR(x.andamento||'')}">${_escR(x.andamento||'—')}</td><td>${ndHtml}</td><td>${acoes}</td></tr>`;
+    }).join('');
+  }
+  /* Contador */
+  const ctr=document.getElementById('ret-counter');
+  if(ctr)ctr.textContent=fd.length===_retData.length?`${fd.length} retorno${fd.length!==1?'s':''}`:`${fd.length} de ${_retData.length}`;
+  /* Paginação */
+  const tp=Math.ceil(fd.length/_RET_PG)||1;
+  const pgEl=document.getElementById('ret-pagination');
+  if(pgEl)pgEl.innerHTML=tp<=1?'':`<div style="display:flex;align-items:center;gap:8px;margin-top:12px;justify-content:flex-end"><button class="btn-limpar" style="padding:4px 12px" ${_retPage<=1?'disabled':''} onclick="retPage(${_retPage-1})"><i class="fas fa-chevron-left"></i></button><span style="font-size:13px;color:var(--text-muted);min-width:70px;text-align:center">Pág. ${_retPage} / ${tp}</span><button class="btn-limpar" style="padding:4px 12px" ${_retPage>=tp?'disabled':''} onclick="retPage(${_retPage+1})"><i class="fas fa-chevron-right"></i></button></div>`;
+}
+
+/* ---- CONTROLES ---- */
+window.retSearch=function(v){_retSearch=(v||'').trim();_retPage=1;_retRender();};
+window.retStatusFilter=function(v){_retStatusFilter=v||'';_retPage=1;_retRender();};
+window.retPage=function(n){_retPage=n;_retRender();};
+
+/* ---- MODAL: NOVO / EDITAR ---- */
+window.retNovoAbrir=async function(){
+  if(typeof sb==='undefined'||typeof PROJ==='undefined')return;
+  const modal=document.getElementById('modal-retorno-jur');if(!modal)return;
+  const{data}=await sb.from('atendimentos_juridicos').select('id,paciente_nome,paciente_cpf,status_beneficio,status_processo').eq('projeto',PROJ).order('paciente_nome');
+  const sel=modal.querySelector('#ret-atendimento-id');
+  if(sel&&data)sel.innerHTML='<option value="">— Selecione o paciente —</option>'+data.map(x=>`<option value="${_escR(x.id)}" data-nome="${_escR(x.paciente_nome||'')}" data-cpf="${_escR(x.paciente_cpf||'')}">${_escR(x.paciente_nome||'')}${x.paciente_cpf?' - '+x.paciente_cpf:''}</option>`).join('');
+  ['ret-data-retorno','ret-andamento','ret-proxima-data','ret-observacoes'].forEach(id=>{const el=modal.querySelector('#'+id);if(el)el.value='';});
+  const rsb=modal.querySelector('#ret-status-beneficio');if(rsb)rsb.value='aguardando';
+  const rsp=modal.querySelector('#ret-status-processo');if(rsp)rsp.value='em_andamento';
+  modal.querySelector('#ret-modal-title').textContent='Novo Retorno Jurídico';
+  modal.dataset.editId='';
+  modal.style.display='flex';
+};
+window.retAbrir=async function(id){
+  const x=_retData.find(d=>d.id===id);if(!x)return;
+  await retNovoAbrir();
+  const modal=document.getElementById('modal-retorno-jur');if(!modal)return;
+  const sel=modal.querySelector('#ret-atendimento-id');if(sel)sel.value=x.atendimento_id||'';
+  const s=(fid,val)=>{const el=modal.querySelector('#'+fid);if(el&&val)el.value=val;};
+  s('ret-data-retorno',x.data_retorno);s('ret-andamento',x.andamento);s('ret-proxima-data',x.proxima_data);s('ret-observacoes',x.observacoes);
+  const rsb=modal.querySelector('#ret-status-beneficio');if(rsb)rsb.value=x.status_beneficio_atual||'aguardando';
+  const rsp=modal.querySelector('#ret-status-processo');if(rsp)rsp.value=x.status_processo_atual||'em_andamento';
+  modal.querySelector('#ret-modal-title').textContent='Editar Retorno Jurídico';
+  modal.dataset.editId=id;
+};
+window.retFechar=function(){const m=document.getElementById('modal-retorno-jur');if(m)m.style.display='none';};
+
+/* ---- SALVAR ---- */
+window.retSalvar=async function(){
+  if(typeof sb==='undefined')return;
+  const modal=document.getElementById('modal-retorno-jur');if(!modal)return;
+  const g=fid=>{const el=modal.querySelector('#'+fid);return el?el.value.trim():null;};
+  const sel=modal.querySelector('#ret-atendimento-id');
+  const atendId=sel?sel.value:'';
+  if(!atendId){if(typeof showToast==='function')showToast('Selecione o paciente',true);return;}
+  const opt=sel?sel.options[sel.selectedIndex]:null;
+  const payload={
+    atendimento_id:atendId,
+    paciente_nome:opt?.dataset.nome||'',
+    paciente_cpf:opt?.dataset.cpf||'',
+    data_retorno:g('ret-data-retorno')||null,
+    status_beneficio_atual:g('ret-status-beneficio')||'aguardando',
+    status_processo_atual:g('ret-status-processo')||'em_andamento',
+    andamento:g('ret-andamento'),
+    proxima_data:g('ret-proxima-data')||null,
+    observacoes:g('ret-observacoes'),
+    projeto:PROJ,
+    cadastrado_por:typeof currentUser!=='undefined'?currentUser?.id:null
+  };
+  const editId=modal.dataset.editId;
+  let error;
+  if(editId){
+    ({error}=await sb.from('retornos_juridicos').update({...payload,atualizado_em:new Date().toISOString()}).eq('id',editId));
+  }else{
+    ({error}=await sb.from('retornos_juridicos').insert(payload));
+  }
+  if(error){console.error('[ret:save]',error.message);if(typeof showToast==='function')showToast('Erro ao salvar: '+error.message,true);return;}
+  if(typeof showToast==='function')showToast(editId?'Retorno atualizado!':'Retorno registrado com sucesso!');
+  retFechar();_retLoad();
+};
+
+/* ---- EXCLUIR ---- */
+window.retExcluir=async function(id){
+  if(!_isAdmR())return;
+  if(!confirm('Excluir este retorno? Ação irreversível.'))return;
+  const{error}=await sb.from('retornos_juridicos').delete().eq('id',id);
+  if(error){if(typeof showToast==='function')showToast('Erro ao excluir',true);return;}
+  _retData=_retData.filter(x=>x.id!==id);_retRender();
+  if(typeof showToast==='function')showToast('Retorno excluído.');
+};
+
+/* ---- EXPORT CSV ---- */
+window.retExportCSV=function(){
+  const fd=_retGetFiltered();
+  if(!fd.length){if(typeof showToast==='function')showToast('Nenhum dado para exportar',true);return;}
+  const cols=['paciente_nome','paciente_cpf','data_retorno','status_beneficio_atual','status_processo_atual','andamento','proxima_data','observacoes','criado_em'];
+  const hdrs=['Paciente','CPF','Data Retorno','Status INSS','Status Processo','Andamento','Próxima Data','Observações','Cadastrado em'];
+  const q=v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`;
+  const csv=[hdrs.map(q).join(','),...fd.map(r=>cols.map(c=>q(r[c]||'')).join(','))].join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download=`retornos_juridicos_${typeof PROJ!=='undefined'?PROJ:''}_ ${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);
+  if(typeof showToast==='function')showToast(`${fd.length} retorno${fd.length!==1?'s':''} exportado${fd.length!==1?'s':''}`);
+};
+
+/* ---- INIT ---- */
+function _retInit(){
+  if(!window.showSection._retHk){
+    const _p=window.showSection;
+    window.showSection=function(id,el){
+      _p.call(this,id,el);
+      if(id==='juridico-retornos')setTimeout(_retLoad,80);
+    };
+    window.showSection._retHk=true;
+  }
+}
+if(typeof currentProfile!=='undefined'&&currentProfile)_retInit();
+window.addEventListener('malaquias:profile-ready',_retInit,{once:true});
+setTimeout(()=>{if(typeof currentProfile!=='undefined'&&currentProfile)_retInit();},3500);
+})();
+</script>
 </body>
 </html>
