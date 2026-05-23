@@ -12673,6 +12673,7 @@ if(!_arInit()){const _t=setInterval(()=>{if(_arInit())clearInterval(_t);},600);s
 let _jurData=[],_jurEditId=null,_jurStep=1;
 let _jurSearch='',_jurStatusFilter='',_jurPage=1,_jurSortCol='criado_em',_jurSortAsc=false;
 const _JUR_STEPS=6,_JUR_PG=25;
+let _jurProfMap={};
 
 /* ---- UTILS ---- */
 const _esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -12883,7 +12884,12 @@ async function _jurCadLoad(){
   panels.forEach(t=>{const el=document.getElementById('jur-tbody-'+t);if(el)el.innerHTML='<tr><td colspan="99" style="text-align:center;padding:20px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></td></tr>';});
   const{data,error}=await sb.from('atendimentos_juridicos').select('*').eq('projeto',PROJ).order('criado_em',{ascending:false});
   if(error){console.error('[jur:cad:load]',error.message);return;}
-  _jurData=data||[];_jurPage=1;_jurCadRender();
+  _jurData=data||[];window._jurDocCache=_jurData;
+  if(_isAdm()){
+    const{data:_profs}=await sb.from('profiles').select('id,nome_ponto,numero_ponto').eq('projeto',PROJ);
+    _jurProfMap={};(_profs||[]).forEach(p=>{if(p&&p.id)_jurProfMap[p.id]=p;});
+  }
+  _jurPage=1;_jurCadRender();
 }
 
 function _jurCadRender(){
@@ -12913,15 +12919,15 @@ const _em=(total,cols)=>`<tr><td colspan="${cols}" style="text-align:center;padd
 
 function _rVg(d,total){
   const tbody=document.getElementById('jur-tbody-visao');if(!tbody)return;
-  tbody.closest('table').querySelector('thead tr').innerHTML=`${_th('paciente_nome','Nome')}${_th('paciente_cpf','CPF')}${_th('paciente_cidade','Cidade')}${_th('diagnostico','Diagnóstico')}${_th('status_beneficio','Status INSS')}${_th('advogado_nome','Advogado')}${_th('proxima_data','Próxima Data')}<th>Ações</th>`;
-  if(!d.length){tbody.innerHTML=_em(total,8);return;}
+  tbody.closest('table').querySelector('thead tr').innerHTML=`${_th('paciente_nome','Nome')}${_th('paciente_cpf','CPF')}${_th('paciente_cidade','Cidade')}${_th('diagnostico','Diagnóstico')}${_th('status_beneficio','Status INSS')}${_th('advogado_nome','Advogado')}${_th('proxima_data','Próxima Data')}${_isAdm()?'<th style="white-space:nowrap;font-size:11px">Ponto</th>':''}<th>Ações</th>`;
+  if(!d.length){tbody.innerHTML=_em(total,_isAdm()?9:8);return;}
   const today=new Date();today.setHours(0,0,0,0);
   tbody.innerHTML=d.map(x=>{
     const nd=x.proxima_data?new Date(x.proxima_data+'T12:00:00'):null;
     const diff=nd?Math.floor((nd-today)/86400000):null;
     const rs=diff!==null&&diff<0?'style="background:rgba(239,68,68,.09)"':diff!==null&&diff<=7?'style="background:rgba(251,191,36,.09)"':'';
     const ttip=diff!==null?(diff<0?` title="${Math.abs(diff)} dia${Math.abs(diff)!==1?'s':''} atrasado"`:`title="${diff} dia${diff!==1?'s':''} restante${diff!==1?'s':''}"`):'';
-    return `<tr ${rs}><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.paciente_cpf||'—')}</td><td>${_esc(x.paciente_cidade||'—')}</td><td>${_esc(x.diagnostico||'—')}</td><td>${_badge(x.status_beneficio)}</td><td>${_esc(x.advogado_nome||'—')}</td><td${ttip}>${nd&&diff<0?'<span style="color:#ef4444;font-weight:600">':''}${_fmtD(x.proxima_data)}${nd&&diff<0?'</span>':''}</td><td>${_acoes(x.id)}</td></tr>`;
+    return `<tr ${rs}><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.paciente_cpf||'—')}</td><td>${_esc(x.paciente_cidade||'—')}</td><td>${_esc(x.diagnostico||'—')}</td><td>${_badge(x.status_beneficio)}</td><td>${_esc(x.advogado_nome||'—')}</td><td${ttip}>${nd&&diff<0?'<span style="color:#ef4444;font-weight:600">':''}${_fmtD(x.proxima_data)}${nd&&diff<0?'</span>':''}</td>${_isAdm()?`<td style="text-align:center">${(()=>{const _p=_jurProfMap[x.cadastrado_por||''];return _p?`<span style="font-size:11px;background:rgba(0,230,118,.13);color:var(--accent);padding:2px 7px;border-radius:8px;font-weight:700;white-space:nowrap">P${_esc(String(_p.numero_ponto||'?'))}</span>`:'—';})()}</td>`:''}<td>${_acoes(x.id)}</td></tr>`;
   }).join('');
 }
 function _rEnt(d,total){
