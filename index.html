@@ -1371,6 +1371,13 @@ tr:last-child td { border-bottom: none; }
       </div>
     </div>
 
+    <div class="nav-section" id="nav-juridico-section" style="display:none">
+      <div class="nav-section-title">Jurídico</div>
+      <div class="nav-item" data-section="juridico" onclick="showSection('juridico', this)">
+        <i class="fas fa-gavel"></i> Atendimento Jurídico
+      </div>
+    </div>
+
     <div class="nav-section" id="nav-admin-section" style="display:none">
       <div class="nav-section-title">Administração</div>
       <div class="nav-item" data-section="analytics" onclick="showSection('analytics', this)">
@@ -1805,7 +1812,175 @@ tr:last-child td { border-bottom: none; }
       </div>
     </div>
 
+    <!-- ===== ATENDIMENTO JURÍDICO ===== -->
+    <div class="section" id="sec-juridico">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+        <div>
+          <h1 class="page-title">Atendimento Jurídico</h1>
+          <p class="page-subtitle">Gestão de processos jurídicos dos pacientes</p>
+        </div>
+        <button class="btn-primary" onclick="jurAbrir(null)"><i class="fas fa-plus"></i> Novo Atendimento</button>
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;border-bottom:1px solid var(--border-glass);padding-bottom:12px">
+        <button class="jur-tab active" onclick="showJurTab('visao-geral',this)"><i class="fas fa-chart-bar"></i> Visão Geral</button>
+        <button class="jur-tab" onclick="showJurTab('entrada',this)"><i class="fas fa-door-open"></i> Entrada</button>
+        <button class="jur-tab" onclick="showJurTab('aposentadoria',this)"><i class="fas fa-hand-holding-usd"></i> Aposentadoria</button>
+        <button class="jur-tab" onclick="showJurTab('dados-paciente',this)"><i class="fas fa-user-circle"></i> Dados do Paciente</button>
+        <button class="jur-tab" onclick="showJurTab('saude',this)"><i class="fas fa-heartbeat"></i> Saúde</button>
+        <button class="jur-tab" onclick="showJurTab('advogado',this)"><i class="fas fa-balance-scale"></i> Advogado</button>
+        <button class="jur-tab" onclick="showJurTab('controle',this)"><i class="fas fa-tasks"></i> Controle</button>
+      </div>
+
+      <div id="jur-panel-visao-geral" class="jur-panel">
+        <div id="jur-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px"></div>
+        <div class="chart-card">
+          <div class="chart-title">Análise Jurídica — Todos os Processos</div>
+          <div style="overflow-x:auto"><table class="data-table">
+            <thead><tr><th>Nome</th><th>CPF</th><th>Cidade</th><th>Diagnóstico</th><th>Status INSS</th><th>Advogado</th><th>Ações</th></tr></thead>
+            <tbody id="jur-tbody-visao"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div id="jur-panel-entrada" class="jur-panel" style="display:none">
+        <div class="chart-card">
+          <div class="chart-title">Entrada — Origem do Processo</div>
+          <div style="overflow-x:auto"><table class="data-table">
+            <thead><tr><th>Nome</th><th>Data de Entrada</th><th>Origem</th><th>Protocolo</th><th>Observações</th><th>Ações</th></tr></thead>
+            <tbody id="jur-tbody-entrada"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div id="jur-panel-aposentadoria" class="jur-panel" style="display:none">
+        <div class="chart-card">
+          <div class="chart-title">Aposentadoria — Benefícios e Status INSS</div>
+          <div style="overflow-x:auto"><table class="data-table">
+            <thead><tr><th>Nome</th><th>Tipo Benefício</th><th>NIT/PIS</th><th>Nº Benefício</th><th>Entrada INSS</th><th>Status</th><th>Data Decisão</th><th>Ações</th></tr></thead>
+            <tbody id="jur-tbody-aposentadoria"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div id="jur-panel-dados-paciente" class="jur-panel" style="display:none">
+        <div class="chart-card">
+          <div class="chart-title">Dados do Paciente</div>
+          <div style="overflow-x:auto"><table class="data-table">
+            <thead><tr><th>Nome</th><th>CPF</th><th>Endereço</th><th>Cidade</th><th>Diagnóstico</th><th>Ações</th></tr></thead>
+            <tbody id="jur-tbody-dados-paciente"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div id="jur-panel-saude" class="jur-panel" style="display:none">
+        <div class="chart-card">
+          <div class="chart-title">Saúde — Diagnóstico e Histórico</div>
+          <div style="overflow-x:auto"><table class="data-table">
+            <thead><tr><th>Nome</th><th>Diagnóstico</th><th>CID</th><th>Histórico Médico</th><th>Ações</th></tr></thead>
+            <tbody id="jur-tbody-saude"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div id="jur-panel-advogado" class="jur-panel" style="display:none">
+        <div class="chart-card">
+          <div class="chart-title">Advogado — Responsável pelo Processo</div>
+          <div style="overflow-x:auto"><table class="data-table">
+            <thead><tr><th>Paciente</th><th>Advogado</th><th>OAB</th><th>Contato</th><th>Ações</th></tr></thead>
+            <tbody id="jur-tbody-advogado"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div id="jur-panel-controle" class="jur-panel" style="display:none">
+        <div class="chart-card">
+          <div class="chart-title">Controle — Andamento Processual</div>
+          <div style="overflow-x:auto"><table class="data-table">
+            <thead><tr><th>Nome</th><th>Andamento</th><th>Próxima Data</th><th>Status</th><th>Observações</th><th>Ações</th></tr></thead>
+            <tbody id="jur-tbody-controle"></tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+
   </main>
+</div>
+
+<!-- MODAL: Atendimento Jurídico -->
+<div id="modal-juridico" onclick="if(event.target===this)jurFechar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto">
+  <div class="jur-modal-box" style="background:var(--card-bg,#1a2332);border:1px solid var(--border-glass);border-radius:16px;width:100%;max-width:720px;padding:28px 32px;margin:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+      <h2 id="jur-modal-title" style="font-size:18px;font-weight:700;margin:0;color:var(--text-primary)">Novo Atendimento Jurídico</h2>
+      <button onclick="jurFechar()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-muted);line-height:1">×</button>
+    </div>
+
+    <div class="jur-sec-header"><i class="fas fa-user-circle"></i> Dados do Paciente</div>
+    <div class="jur-form-grid">
+      <div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" id="jf-paciente_nome" placeholder="Nome completo do paciente"></div>
+      <div class="form-group"><label class="form-label">CPF</label><input type="text" class="form-input" id="jf-paciente_cpf" placeholder="000.000.000-00"></div>
+      <div class="form-group"><label class="form-label">Endereço</label><input type="text" class="form-input" id="jf-paciente_endereco" placeholder="Rua, número, bairro"></div>
+      <div class="form-group"><label class="form-label">Cidade</label><input type="text" class="form-input" id="jf-paciente_cidade" placeholder="Cidade"></div>
+    </div>
+
+    <div class="jur-sec-header"><i class="fas fa-door-open"></i> Entrada</div>
+    <div class="jur-form-grid">
+      <div class="form-group"><label class="form-label">Data de Entrada</label><input type="date" class="form-input" id="jf-data_entrada"></div>
+      <div class="form-group"><label class="form-label">Origem</label><input type="text" class="form-input" id="jf-origem" placeholder="Ex: Encaminhamento médico"></div>
+      <div class="form-group"><label class="form-label">Número de Protocolo</label><input type="text" class="form-input" id="jf-numero_protocolo" placeholder="Protocolo"></div>
+      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Observações</label><textarea class="form-input" id="jf-observacoes_entrada" rows="2" placeholder="Observações de entrada" style="resize:vertical"></textarea></div>
+    </div>
+
+    <div class="jur-sec-header"><i class="fas fa-hand-holding-usd"></i> Aposentadoria</div>
+    <div class="jur-form-grid">
+      <div class="form-group"><label class="form-label">Tipo de Benefício</label><input type="text" class="form-input" id="jf-tipo_beneficio" placeholder="Ex: Aposentadoria por Invalidez"></div>
+      <div class="form-group"><label class="form-label">NIT / PIS</label><input type="text" class="form-input" id="jf-nit_pis" placeholder="NIT ou PIS"></div>
+      <div class="form-group"><label class="form-label">Nº do Benefício</label><input type="text" class="form-input" id="jf-numero_beneficio" placeholder="Número do benefício"></div>
+      <div class="form-group"><label class="form-label">Data de Entrada no INSS</label><input type="date" class="form-input" id="jf-data_entrada_inss"></div>
+      <div class="form-group"><label class="form-label">Status do Benefício</label>
+        <select class="form-input" id="jf-status_beneficio">
+          <option value="aguardando">Aguardando</option>
+          <option value="aprovado">Aprovado</option>
+          <option value="negado">Negado</option>
+          <option value="recurso">Em Recurso</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Data da Decisão</label><input type="date" class="form-input" id="jf-data_decisao"></div>
+    </div>
+
+    <div class="jur-sec-header"><i class="fas fa-heartbeat"></i> Saúde</div>
+    <div class="jur-form-grid">
+      <div class="form-group"><label class="form-label">Diagnóstico</label><input type="text" class="form-input" id="jf-diagnostico" placeholder="Diagnóstico principal"></div>
+      <div class="form-group"><label class="form-label">CID</label><input type="text" class="form-input" id="jf-cid" placeholder="Ex: M79.7"></div>
+      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Histórico Médico</label><textarea class="form-input" id="jf-historico_medico" rows="2" placeholder="Histórico de saúde relevante" style="resize:vertical"></textarea></div>
+    </div>
+
+    <div class="jur-sec-header"><i class="fas fa-balance-scale"></i> Advogado</div>
+    <div class="jur-form-grid">
+      <div class="form-group"><label class="form-label">Nome do Advogado</label><input type="text" class="form-input" id="jf-advogado_nome" placeholder="Nome do advogado"></div>
+      <div class="form-group"><label class="form-label">OAB</label><input type="text" class="form-input" id="jf-advogado_oab" placeholder="OAB/SP 000000"></div>
+      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Contato</label><input type="text" class="form-input" id="jf-advogado_contato" placeholder="Telefone ou e-mail do advogado"></div>
+    </div>
+
+    <div class="jur-sec-header"><i class="fas fa-tasks"></i> Controle</div>
+    <div class="jur-form-grid">
+      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Andamento Processual</label><textarea class="form-input" id="jf-andamento_processual" rows="2" placeholder="Descreva o andamento atual do processo" style="resize:vertical"></textarea></div>
+      <div class="form-group"><label class="form-label">Próxima Data</label><input type="date" class="form-input" id="jf-proxima_data"></div>
+      <div class="form-group"><label class="form-label">Status do Processo</label>
+        <select class="form-input" id="jf-status_processo">
+          <option value="em_andamento">Em Andamento</option>
+          <option value="concluido">Concluído</option>
+          <option value="arquivado">Arquivado</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Observações</label><textarea class="form-input" id="jf-observacoes_controle" rows="2" placeholder="Observações do controle processual" style="resize:vertical"></textarea></div>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:24px;padding-top:16px;border-top:1px solid var(--border-glass)">
+      <button class="btn-limpar" onclick="jurFechar()">Cancelar</button>
+      <button class="btn-primary" onclick="jurSalvar()"><i class="fas fa-save"></i> Salvar</button>
+    </div>
+  </div>
 </div>
 
 <!-- TOAST STACK -->
@@ -12194,6 +12369,181 @@ function _arInit(){
 
 if(!_arInit()){const _t=setInterval(()=>{if(_arInit())clearInterval(_t);},600);setTimeout(()=>clearInterval(_t),30000);window.addEventListener('malaquias:profile-ready',function(){_arInit();},{once:true});}
 
+})();
+</script>
+
+<style>
+.jur-tab{padding:6px 14px;border-radius:8px;border:1px solid var(--border-glass);background:transparent;color:var(--text-secondary);font-size:12.5px;cursor:pointer;transition:all .18s;display:inline-flex;align-items:center;gap:6px;font-family:inherit;}
+.jur-tab:hover{background:var(--hover-bg);color:var(--text-primary);}
+.jur-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.jur-badge{padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;display:inline-block;}
+.jur-badge.aguardando{background:rgba(251,191,36,.15);color:#f59e0b;}
+.jur-badge.aprovado{background:rgba(74,222,128,.15);color:#16a34a;}
+.jur-badge.negado{background:rgba(239,68,68,.15);color:#dc2626;}
+.jur-badge.recurso{background:rgba(139,92,246,.15);color:#7c3aed;}
+.jur-badge.em_andamento{background:rgba(59,130,246,.15);color:#2563eb;}
+.jur-badge.concluido{background:rgba(74,222,128,.15);color:#16a34a;}
+.jur-badge.arquivado{background:rgba(156,163,175,.15);color:#6b7280;}
+.jur-sec-header{font-size:12px;font-weight:700;color:var(--accent);margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border-glass);text-transform:uppercase;letter-spacing:.06em;}
+.jur-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:600px){.jur-form-grid{grid-template-columns:1fr;}}
+</style>
+
+<script>
+/* ============================================================
+   ATENDIMENTO JURÍDICO — Dr. Malaquias (fibromialgia)
+   ============================================================ */
+(function(){
+  'use strict';
+  let _jurData=[],_jurEditId=null;
+  const _esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const _fmtD=d=>{if(!d)return'—';try{return new Date(d+'T12:00:00').toLocaleDateString('pt-BR');}catch(e){return d;}};
+  const _sLbl={aguardando:'Aguardando',aprovado:'Aprovado',negado:'Negado',recurso:'Em Recurso',em_andamento:'Em Andamento',concluido:'Concluído',arquivado:'Arquivado'};
+  const _badge=s=>`<span class="jur-badge ${_esc(s||'')}">${_esc(_sLbl[s]||s||'—')}</span>`;
+  const _isAdm=()=>typeof currentProfile!=='undefined'&&currentProfile?.papel==='admin';
+  const _btn=(id)=>{const del=_isAdm()?`<button class="btn-limpar" style="padding:3px 10px;font-size:12px;margin-right:4px" onclick="jurExcluir('${_esc(id)}')"><i class="fas fa-trash"></i></button>`:'';return `${del}<button class="btn-primary" style="padding:3px 10px;font-size:12px" onclick="jurAbrir('${_esc(id)}')"><i class="fas fa-pencil-alt"></i></button>`;};
+
+  async function _jurLoad(){
+    if(typeof sb==='undefined'||typeof PROJ==='undefined')return;
+    const ids=['visao','entrada','aposentadoria','dados-paciente','saude','advogado','controle'];
+    ids.forEach(t=>{const el=document.getElementById('jur-tbody-'+t);if(el)el.innerHTML='<tr><td colspan="99" style="text-align:center;padding:20px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></td></tr>';});
+    const{data,error}=await sb.from('atendimentos_juridicos').select('*').eq('projeto',PROJ).order('criado_em',{ascending:false});
+    if(error){console.error('[jur:load]',error.message);return;}
+    _jurData=data||[];_jurRender();
+  }
+
+  function _jurRender(){_rVg();_rEnt();_rApos();_rDad();_rSau();_rAdv();_rCtrl();}
+
+  function _rVg(){
+    const d=_jurData,kpis=document.getElementById('jur-kpis'),tbody=document.getElementById('jur-tbody-visao');
+    if(kpis){
+      const ag=d.filter(x=>x.status_beneficio==='aguardando').length,ap=d.filter(x=>x.status_beneficio==='aprovado').length,
+            neg=d.filter(x=>x.status_beneficio==='negado').length,rec=d.filter(x=>x.status_beneficio==='recurso').length;
+      kpis.innerHTML=`<div class="kpi-card"><div class="kpi-icon"><i class="fas fa-folder-open"></i></div><div class="kpi-value">${d.length}</div><div class="kpi-label">Total Processos</div></div>
+        <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-clock"></i></div><div class="kpi-value">${ag}</div><div class="kpi-label">Aguardando INSS</div></div>
+        <div class="kpi-card" style="border-color:rgba(74,222,128,.3)"><div class="kpi-icon"><i class="fas fa-check-circle" style="color:#16a34a"></i></div><div class="kpi-value" style="color:#16a34a">${ap}</div><div class="kpi-label">Aprovados</div></div>
+        <div class="kpi-card" style="border-color:rgba(239,68,68,.3)"><div class="kpi-icon"><i class="fas fa-times-circle" style="color:#dc2626"></i></div><div class="kpi-value" style="color:#dc2626">${neg}</div><div class="kpi-label">Negados</div></div>
+        <div class="kpi-card" style="border-color:rgba(139,92,246,.3)"><div class="kpi-icon"><i class="fas fa-redo" style="color:#7c3aed"></i></div><div class="kpi-value" style="color:#7c3aed">${rec}</div><div class="kpi-label">Em Recurso</div></div>`;
+    }
+    if(!tbody)return;
+    if(!d.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento jurídico cadastrado</td></tr>';return;}
+    tbody.innerHTML=d.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.paciente_cpf||'—')}</td><td>${_esc(x.paciente_cidade||'—')}</td><td>${_esc(x.diagnostico||'—')}</td><td>${_badge(x.status_beneficio)}</td><td>${_esc(x.advogado_nome||'—')}</td><td style="white-space:nowrap">${_btn(x.id)}</td></tr>`).join('');
+  }
+  function _rEnt(){
+    const tbody=document.getElementById('jur-tbody-entrada');if(!tbody)return;
+    if(!_jurData.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento jurídico cadastrado</td></tr>';return;}
+    tbody.innerHTML=_jurData.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_fmtD(x.data_entrada)}</td><td>${_esc(x.origem||'—')}</td><td>${_esc(x.numero_protocolo||'—')}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(x.observacoes_entrada||'')}">${_esc(x.observacoes_entrada||'—')}</td><td style="white-space:nowrap">${_btn(x.id)}</td></tr>`).join('');
+  }
+  function _rApos(){
+    const tbody=document.getElementById('jur-tbody-aposentadoria');if(!tbody)return;
+    if(!_jurData.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento jurídico cadastrado</td></tr>';return;}
+    tbody.innerHTML=_jurData.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.tipo_beneficio||'—')}</td><td>${_esc(x.nit_pis||'—')}</td><td>${_esc(x.numero_beneficio||'—')}</td><td>${_fmtD(x.data_entrada_inss)}</td><td>${_badge(x.status_beneficio)}</td><td>${_fmtD(x.data_decisao)}</td><td style="white-space:nowrap">${_btn(x.id)}</td></tr>`).join('');
+  }
+  function _rDad(){
+    const tbody=document.getElementById('jur-tbody-dados-paciente');if(!tbody)return;
+    if(!_jurData.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento jurídico cadastrado</td></tr>';return;}
+    tbody.innerHTML=_jurData.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.paciente_cpf||'—')}</td><td>${_esc(x.paciente_endereco||'—')}</td><td>${_esc(x.paciente_cidade||'—')}</td><td>${_esc(x.diagnostico||'—')}</td><td style="white-space:nowrap">${_btn(x.id)}</td></tr>`).join('');
+  }
+  function _rSau(){
+    const tbody=document.getElementById('jur-tbody-saude');if(!tbody)return;
+    if(!_jurData.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento jurídico cadastrado</td></tr>';return;}
+    tbody.innerHTML=_jurData.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.diagnostico||'—')}</td><td>${_esc(x.cid||'—')}</td><td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(x.historico_medico||'')}">${_esc(x.historico_medico||'—')}</td><td style="white-space:nowrap">${_btn(x.id)}</td></tr>`).join('');
+  }
+  function _rAdv(){
+    const tbody=document.getElementById('jur-tbody-advogado');if(!tbody)return;
+    if(!_jurData.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento jurídico cadastrado</td></tr>';return;}
+    tbody.innerHTML=_jurData.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.advogado_nome||'—')}</td><td>${_esc(x.advogado_oab||'—')}</td><td>${_esc(x.advogado_contato||'—')}</td><td style="white-space:nowrap">${_btn(x.id)}</td></tr>`).join('');
+  }
+  function _rCtrl(){
+    const tbody=document.getElementById('jur-tbody-controle');if(!tbody)return;
+    if(!_jurData.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum atendimento jurídico cadastrado</td></tr>';return;}
+    tbody.innerHTML=_jurData.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(x.andamento_processual||'')}">${_esc(x.andamento_processual||'—')}</td><td>${_fmtD(x.proxima_data)}</td><td>${_badge(x.status_processo)}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(x.observacoes_controle||'')}">${_esc(x.observacoes_controle||'—')}</td><td style="white-space:nowrap">${_btn(x.id)}</td></tr>`).join('');
+  }
+
+  window.showJurTab=function(tab,el){
+    document.querySelectorAll('.jur-tab').forEach(b=>b.classList.remove('active'));
+    if(el)el.classList.add('active');
+    document.querySelectorAll('.jur-panel').forEach(p=>p.style.display='none');
+    const panel=document.getElementById('jur-panel-'+tab);
+    if(panel)panel.style.display='block';
+  };
+
+  window.jurAbrir=function(id){
+    _jurEditId=id||null;
+    const c=id?_jurData.find(d=>d.id===id):null,v=f=>c?(c[f]||''):'';
+    const modal=document.getElementById('modal-juridico');if(!modal)return;
+    modal.querySelector('#jur-modal-title').textContent=id?'Editar Atendimento Jurídico':'Novo Atendimento Jurídico';
+    ['paciente_nome','paciente_cpf','paciente_endereco','paciente_cidade',
+     'data_entrada','origem','numero_protocolo','observacoes_entrada',
+     'tipo_beneficio','nit_pis','numero_beneficio','data_entrada_inss','data_decisao',
+     'diagnostico','cid','historico_medico',
+     'advogado_nome','advogado_oab','advogado_contato',
+     'andamento_processual','proxima_data','observacoes_controle']
+    .forEach(f=>{const el=modal.querySelector('#jf-'+f);if(el)el.value=v(f);});
+    const ss=modal.querySelector('#jf-status_beneficio');if(ss)ss.value=v('status_beneficio')||'aguardando';
+    const sp=modal.querySelector('#jf-status_processo');if(sp)sp.value=v('status_processo')||'em_andamento';
+    modal.style.display='flex';
+  };
+
+  window.jurFechar=function(){
+    const m=document.getElementById('modal-juridico');if(m)m.style.display='none';
+    _jurEditId=null;
+  };
+
+  window.jurSalvar=async function(){
+    if(typeof sb==='undefined')return;
+    const modal=document.getElementById('modal-juridico');if(!modal)return;
+    const g=id=>{const el=modal.querySelector('#jf-'+id);return el?el.value.trim():null;};
+    const payload={
+      paciente_nome:g('paciente_nome'),paciente_cpf:g('paciente_cpf'),
+      paciente_endereco:g('paciente_endereco'),paciente_cidade:g('paciente_cidade'),
+      data_entrada:g('data_entrada')||null,origem:g('origem'),
+      numero_protocolo:g('numero_protocolo'),observacoes_entrada:g('observacoes_entrada'),
+      tipo_beneficio:g('tipo_beneficio'),nit_pis:g('nit_pis'),
+      numero_beneficio:g('numero_beneficio'),data_entrada_inss:g('data_entrada_inss')||null,
+      status_beneficio:g('status_beneficio')||'aguardando',data_decisao:g('data_decisao')||null,
+      diagnostico:g('diagnostico'),cid:g('cid'),historico_medico:g('historico_medico'),
+      advogado_nome:g('advogado_nome'),advogado_oab:g('advogado_oab'),advogado_contato:g('advogado_contato'),
+      andamento_processual:g('andamento_processual'),proxima_data:g('proxima_data')||null,
+      status_processo:g('status_processo')||'em_andamento',observacoes_controle:g('observacoes_controle'),
+      projeto:PROJ
+    };
+    if(!payload.paciente_nome){if(typeof showToast==='function')showToast('Informe o nome do paciente',true);return;}
+    let error;
+    if(_jurEditId){
+      payload.atualizado_em=new Date().toISOString();
+      ({error}=await sb.from('atendimentos_juridicos').update(payload).eq('id',_jurEditId));
+    }else{
+      payload.cadastrado_por=typeof currentUser!=='undefined'?currentUser?.id:null;
+      ({error}=await sb.from('atendimentos_juridicos').insert(payload));
+    }
+    if(error){console.error('[jur:save]',error.message);if(typeof showToast==='function')showToast('Erro ao salvar: '+error.message,true);return;}
+    if(typeof showToast==='function')showToast(_jurEditId?'Atendimento atualizado!':'Atendimento cadastrado!');
+    jurFechar();_jurLoad();
+  };
+
+  window.jurExcluir=async function(id){
+    if(!_isAdm())return;
+    if(!confirm('Excluir este atendimento jurídico? Esta ação não pode ser desfeita.'))return;
+    const{error}=await sb.from('atendimentos_juridicos').delete().eq('id',id);
+    if(error){if(typeof showToast==='function')showToast('Erro ao excluir',true);return;}
+    if(typeof showToast==='function')showToast('Atendimento excluído.');
+    _jurData=_jurData.filter(x=>x.id!==id);_jurRender();
+  };
+
+  function _jurInit(){
+    const nav=document.getElementById('nav-juridico-section');
+    if(nav&&nav.style.display==='none')nav.style.display='block';
+    if(!window.showSection._jurHk){
+      const _p=window.showSection;
+      window.showSection=function(id,el){_p.call(this,id,el);if(id==='juridico')setTimeout(_jurLoad,80);};
+      window.showSection._jurHk=true;
+    }
+  }
+
+  if(typeof currentProfile!=='undefined'&&currentProfile)_jurInit();
+  window.addEventListener('malaquias:profile-ready',_jurInit,{once:true});
+  setTimeout(()=>{if(typeof currentProfile!=='undefined'&&currentProfile)_jurInit();},2500);
 })();
 </script>
 
