@@ -1382,6 +1382,9 @@ tr:last-child td { border-bottom: none; }
       <div class="nav-item" data-section="juridico-retornos" onclick="showSection('juridico-retornos', this)">
         <i class="fas fa-history"></i> Retorno Jurídico
       </div>
+      <div class="nav-item" data-section="juridico-analytics" onclick="showSection('juridico-analytics', this)">
+        <i class="fas fa-chart-line"></i> Analytics Jurídico
+      </div>
     </div>
 
     <div class="nav-section" id="nav-admin-section" style="display:none">
@@ -2100,6 +2103,76 @@ tr:last-child td { border-bottom: none; }
           </table>
         </div>
         <div id="ret-pagination"></div>
+      </div>
+    </div>
+
+    <!-- ===== ANALYTICS JURÍDICO ===== -->
+    <div class="section" id="sec-juridico-analytics">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+        <div>
+          <h1 class="page-title">Analytics — Atendimento Jurídico</h1>
+          <p class="page-subtitle">Indicadores e relatórios dos processos jurídicos</p>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-limpar" onclick="jurAnExportCSV()" title="Exportar CSV"><i class="fas fa-download"></i> CSV</button>
+          <button class="btn-limpar" onclick="jurAnPrint()" title="Imprimir relatório"><i class="fas fa-print"></i> Imprimir</button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px">
+        <div class="kpi-card"><div class="kpi-label" style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em"><i class="fas fa-folder-open"></i> Total</div><div class="kpi-value" id="jan-kpi-total" style="font-size:28px;font-weight:700;color:var(--accent);margin-top:4px">—</div></div>
+        <div class="kpi-card"><div class="kpi-label" style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em"><i class="fas fa-check-circle" style="color:#16a34a"></i> Aprovados</div><div class="kpi-value" id="jan-kpi-aprov" style="font-size:28px;font-weight:700;color:#16a34a;margin-top:4px">—</div></div>
+        <div class="kpi-card"><div class="kpi-label" style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em"><i class="fas fa-hourglass-half" style="color:#f59e0b"></i> Aguardando</div><div class="kpi-value" id="jan-kpi-aguard" style="font-size:28px;font-weight:700;color:#f59e0b;margin-top:4px">—</div></div>
+        <div class="kpi-card"><div class="kpi-label" style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em"><i class="fas fa-times-circle" style="color:#ef4444"></i> Negados</div><div class="kpi-value" id="jan-kpi-neg" style="font-size:28px;font-weight:700;color:#ef4444;margin-top:4px">—</div></div>
+        <div class="kpi-card"><div class="kpi-label" style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em"><i class="fas fa-redo" style="color:#7c3aed"></i> Em Recurso</div><div class="kpi-value" id="jan-kpi-recurso" style="font-size:28px;font-weight:700;color:#7c3aed;margin-top:4px">—</div></div>
+        <div class="kpi-card"><div class="kpi-label" style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em"><i class="fas fa-calendar-day"></i> Prazos 7d</div><div class="kpi-value" id="jan-kpi-prazo" style="font-size:28px;font-weight:700;color:var(--accent);margin-top:4px">—</div></div>
+      </div>
+
+      <!-- Charts row 1 -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:16px">
+        <div class="chart-card">
+          <div class="chart-title"><i class="fas fa-chart-pie"></i> Status do Benefício INSS</div>
+          <div style="position:relative;height:240px;margin-top:12px"><canvas id="jan-chart-status"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title"><i class="fas fa-tasks"></i> Status do Processo</div>
+          <div style="position:relative;height:240px;margin-top:12px"><canvas id="jan-chart-processo"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Charts row 2 -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:16px">
+        <div class="chart-card">
+          <div class="chart-title"><i class="fas fa-id-badge"></i> Tipo de Benefício</div>
+          <div style="position:relative;height:240px;margin-top:12px"><canvas id="jan-chart-tipo"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title"><i class="fas fa-chart-line"></i> Cadastros por Mês (últimos 12)</div>
+          <div style="position:relative;height:240px;margin-top:12px"><canvas id="jan-chart-temporal"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Tops -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:16px">
+        <div class="chart-card">
+          <div class="chart-title"><i class="fas fa-user-tie"></i> Top Advogados</div>
+          <div id="jan-top-advs" style="margin-top:10px;font-size:13px"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title"><i class="fas fa-route"></i> Top Origens</div>
+          <div id="jan-top-origens" style="margin-top:10px;font-size:13px"></div>
+        </div>
+        <div class="chart-card" id="jan-top-pontos-card">
+          <div class="chart-title"><i class="fas fa-map-marker-alt"></i> Top Pontos (cadastradores)</div>
+          <div id="jan-top-pontos" style="margin-top:10px;font-size:13px"></div>
+        </div>
+      </div>
+
+      <!-- Prazos próximos -->
+      <div class="chart-card">
+        <div class="chart-title"><i class="fas fa-calendar-alt"></i> Próximos 30 dias — prazos a vencer</div>
+        <div id="jan-prazos-lista" style="margin-top:12px"></div>
       </div>
     </div>
 
@@ -13418,6 +13491,122 @@ ${x.advogado_nome?`<p class="section-title">Representação Legal<\/p>
 <div class="rodape">Sistema Dr. Malaquias &nbsp;·&nbsp; Gerado em ${new Date().toLocaleString('pt-BR')} &nbsp;·&nbsp; Registro #${e(x.id||'')}<\/div>
 <script>window.onload=function(){window.print();}<\/script><\/body><\/html>`;
   const w=window.open('','_blank');if(w){w.document.write(html);w.document.close();}else alert('Permita pop-ups para gerar documentos.');
+};
+
+})();
+</script>
+
+<script>
+/* ---- JURIDICO ANALYTICS (v1) ---- */
+(function(){
+'use strict';
+
+let _janData=[],_janCharts={},_janProfMap={};
+
+function _janFmt(d){if(!d)return'—';try{return new Date(d+'T12:00:00').toLocaleDateString('pt-BR');}catch(e){return d;}}
+function _janEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function _janIsAdm(){return typeof currentProfile!=='undefined'&&currentProfile?.papel==='admin';}
+
+async function _janLoad(){
+  if(typeof sb==='undefined'||typeof PROJ==='undefined')return;
+  const{data,error}=await sb.from('atendimentos_juridicos').select('id,status_beneficio,status_processo,tipo_beneficio,advogado_nome,origem,proxima_data,paciente_nome,cadastrado_por,criado_em').eq('projeto',PROJ).limit(5000);
+  if(error){console.error('[jan:load]',error.message);return;}
+  _janData=data||[];
+  /* Carrega profiles pra mostrar nome do ponto (admin only) */
+  if(_janIsAdm()){
+    const{data:profs}=await sb.from('profiles').select('id,nome,nome_ponto,numero_ponto').eq('projeto',PROJ);
+    _janProfMap={};(profs||[]).forEach(p=>{if(p&&p.id)_janProfMap[p.id]=p;});
+    const cardP=document.getElementById('jan-top-pontos-card');if(cardP)cardP.style.display='block';
+  }else{
+    const cardP=document.getElementById('jan-top-pontos-card');if(cardP)cardP.style.display='none';
+  }
+  _janRender();
+}
+
+function _janCount(arr,key){const c={};arr.forEach(x=>{const v=(x[key]||'—').toString().trim()||'—';c[v]=(c[v]||0)+1;});return c;}
+function _janTopN(map,n){return Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,n);}
+
+function _janRender(){
+  const d=_janData;
+  /* KPIs */
+  document.getElementById('jan-kpi-total').textContent=d.length;
+  document.getElementById('jan-kpi-aprov').textContent=d.filter(x=>x.status_beneficio==='aprovado').length;
+  document.getElementById('jan-kpi-aguard').textContent=d.filter(x=>x.status_beneficio==='aguardando').length;
+  document.getElementById('jan-kpi-neg').textContent=d.filter(x=>x.status_beneficio==='negado').length;
+  document.getElementById('jan-kpi-recurso').textContent=d.filter(x=>x.status_beneficio==='recurso').length;
+  /* Prazos próximos 7 dias */
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const em7=new Date(hoje);em7.setDate(em7.getDate()+7);
+  const prazo7=d.filter(x=>{if(!x.proxima_data)return false;const dt=new Date(x.proxima_data+'T12:00:00');return dt>=hoje&&dt<=em7;}).length;
+  document.getElementById('jan-kpi-prazo').textContent=prazo7;
+
+  /* Charts — destrói os antigos primeiro */
+  Object.values(_janCharts).forEach(c=>{try{c.destroy();}catch(e){}});
+  _janCharts={};
+
+  const lblStatus={aguardando:'Aguardando',aprovado:'Aprovado',negado:'Negado',recurso:'Em Recurso','—':'Sem status'};
+  const colStatus=['#f59e0b','#16a34a','#ef4444','#7c3aed','#6b7280'];
+  const cs=_janCount(d,'status_beneficio');
+  const csKeys=Object.keys(cs);
+  const ctxS=document.getElementById('jan-chart-status');
+  if(ctxS)_janCharts.status=new Chart(ctxS,{type:'doughnut',data:{labels:csKeys.map(k=>lblStatus[k]||k),datasets:[{data:csKeys.map(k=>cs[k]),backgroundColor:csKeys.map((k,i)=>colStatus[i%colStatus.length])}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:11}}}}}});
+
+  const lblProc={em_andamento:'Em Andamento',concluido:'Concluído',arquivado:'Arquivado','—':'Sem status'};
+  const colProc=['#2563eb','#16a34a','#6b7280','#94a3b8'];
+  const cp=_janCount(d,'status_processo');
+  const cpKeys=Object.keys(cp);
+  const ctxP=document.getElementById('jan-chart-processo');
+  if(ctxP)_janCharts.processo=new Chart(ctxP,{type:'doughnut',data:{labels:cpKeys.map(k=>lblProc[k]||k),datasets:[{data:cpKeys.map(k=>cp[k]),backgroundColor:cpKeys.map((k,i)=>colProc[i%colProc.length])}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:11}}}}}});
+
+  const ct=_janCount(d,'tipo_beneficio');
+  const ctTop=_janTopN(ct,8);
+  const ctxT=document.getElementById('jan-chart-tipo');
+  if(ctxT)_janCharts.tipo=new Chart(ctxT,{type:'bar',data:{labels:ctTop.map(e=>e[0]),datasets:[{data:ctTop.map(e=>e[1]),backgroundColor:'#00e676',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(148,163,184,.1)'}},y:{ticks:{color:'#94a3b8',font:{size:11}},grid:{display:false}}}}});
+
+  /* Temporal — últimos 12 meses */
+  const meses=[];const tot={};
+  const agora=new Date();
+  for(let i=11;i>=0;i--){const dt=new Date(agora.getFullYear(),agora.getMonth()-i,1);const k=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0');meses.push(k);tot[k]=0;}
+  d.forEach(x=>{if(!x.criado_em)return;const k=x.criado_em.substring(0,7);if(tot[k]!==undefined)tot[k]++;});
+  const labelsMes=meses.map(k=>{const[y,m]=k.split('-');return ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][parseInt(m)-1]+'/'+y.slice(2);});
+  const ctxL=document.getElementById('jan-chart-temporal');
+  if(ctxL)_janCharts.temp=new Chart(ctxL,{type:'line',data:{labels:labelsMes,datasets:[{data:meses.map(k=>tot[k]),borderColor:'#00e676',backgroundColor:'rgba(0,230,118,.15)',fill:true,tension:.3,pointRadius:3,pointBackgroundColor:'#00e676'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8',font:{size:10}},grid:{display:false}},y:{ticks:{color:'#94a3b8',stepSize:1},grid:{color:'rgba(148,163,184,.1)'},beginAtZero:true}}}});
+
+  /* Top tables */
+  const advs=_janTopN(_janCount(d,'advogado_nome'),10);
+  document.getElementById('jan-top-advs').innerHTML=advs.length?advs.map((e,i)=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border-glass)"><span><span style="color:var(--text-muted);font-size:11px;margin-right:6px">${i+1}.</span>${_janEsc(e[0])}</span><span style="font-weight:700;color:var(--accent)">${e[1]}</span></div>`).join(''):'<div style="color:var(--text-muted);text-align:center;padding:12px">Sem dados</div>';
+
+  const origens=_janTopN(_janCount(d,'origem'),10);
+  document.getElementById('jan-top-origens').innerHTML=origens.length?origens.map((e,i)=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border-glass)"><span><span style="color:var(--text-muted);font-size:11px;margin-right:6px">${i+1}.</span>${_janEsc(e[0])}</span><span style="font-weight:700;color:var(--accent)">${e[1]}</span></div>`).join(''):'<div style="color:var(--text-muted);text-align:center;padding:12px">Sem dados</div>';
+
+  if(_janIsAdm()){
+    const pc={};d.forEach(x=>{const k=x.cadastrado_por||'—';pc[k]=(pc[k]||0)+1;});
+    const pTop=_janTopN(pc,10);
+    document.getElementById('jan-top-pontos').innerHTML=pTop.length?pTop.map((e,i)=>{const p=_janProfMap[e[0]];const nome=p?(p.nome_ponto||p.nome||'P'+p.numero_ponto):'(desconhecido)';return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border-glass)"><span><span style="color:var(--text-muted);font-size:11px;margin-right:6px">${i+1}.</span>${_janEsc(nome)}</span><span style="font-weight:700;color:var(--accent)">${e[1]}</span></div>`;}).join(''):'<div style="color:var(--text-muted);text-align:center;padding:12px">Sem dados</div>';
+  }
+
+  /* Prazos próximos 30 dias */
+  const em30=new Date(hoje);em30.setDate(em30.getDate()+30);
+  const prazos=d.filter(x=>{if(!x.proxima_data)return false;const dt=new Date(x.proxima_data+'T12:00:00');return dt>=hoje&&dt<=em30;}).sort((a,b)=>a.proxima_data.localeCompare(b.proxima_data));
+  document.getElementById('jan-prazos-lista').innerHTML=prazos.length?`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="border-bottom:1px solid var(--border-glass)"><th style="text-align:left;padding:8px 6px;font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase">Paciente</th><th style="text-align:left;padding:8px 6px;font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase">Data</th><th style="text-align:left;padding:8px 6px;font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase">Dias</th><th style="text-align:left;padding:8px 6px;font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase">Status INSS</th></tr></thead><tbody>${prazos.map(x=>{const dt=new Date(x.proxima_data+'T12:00:00');const dias=Math.ceil((dt-hoje)/(86400000));const corDia=dias<=3?'#ef4444':dias<=7?'#f59e0b':'#16a34a';return `<tr style="border-bottom:1px solid var(--border-glass)"><td style="padding:8px 6px;font-size:13px">${_janEsc(x.paciente_nome||'—')}</td><td style="padding:8px 6px;font-size:13px">${_janFmt(x.proxima_data)}</td><td style="padding:8px 6px;font-size:12px;font-weight:700;color:${corDia}">${dias}d</td><td style="padding:8px 6px;font-size:12px">${_janEsc(lblStatus[x.status_beneficio]||x.status_beneficio||'—')}</td></tr>`;}).join('')}</tbody></table></div>`:'<div style="color:var(--text-muted);text-align:center;padding:20px">Nenhum prazo nos próximos 30 dias</div>';
+}
+
+window.jurAnExportCSV=function(){
+  if(!_janData.length){if(typeof showToast==='function')showToast('Nada a exportar',true);return;}
+  const head=['paciente_nome','status_beneficio','status_processo','tipo_beneficio','advogado_nome','origem','proxima_data','criado_em'];
+  const rows=[head.join(',')].concat(_janData.map(x=>head.map(h=>{const v=(x[h]||'').toString().replace(/"/g,'""');return /[",\n]/.test(v)?`"${v}"`:v;}).join(',')));
+  const csv='﻿'+rows.join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='analytics-juridico-'+PROJ+'-'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+};
+
+window.jurAnPrint=function(){window.print();};
+
+/* Hook em showSection — carrega lazy quando entra na aba */
+const _prevSS=window.showSection;
+window.showSection=function(id,el){
+  if(typeof _prevSS==='function')_prevSS.apply(this,arguments);
+  if(id==='juridico-analytics'||id==='sec-juridico-analytics')setTimeout(_janLoad,80);
 };
 
 })();
