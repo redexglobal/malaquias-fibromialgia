@@ -12763,13 +12763,15 @@ window.jurDraftDiscard=function(){
   window._jurDraftData=null;
 };
 
-/* ---- SALVAR WIZARD (single INSERT) ---- */
+/* ---- SALVAR WIZARD (single INSERT, bulletproof) ---- */
 window.jurSalvarWizard=async function(){
+  console.log('[jur:save v2] start');
   if(typeof sb==='undefined'){if(typeof showToast==='function')showToast('Sistema indisponível',true);return;}
   const g=id=>{const el=document.getElementById('jf-'+id);return el?el.value.trim():null;};
   const nome=g('paciente_nome');
   if(!nome){if(typeof showToast==='function')showToast('Informe o nome do paciente',true);return;}
   const btn=document.getElementById('jur-btn-salvar');
+  const resetBtn=()=>{if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-save"></i> Salvar';}};
   if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Salvando...';}
   const payload={
     paciente_nome:nome,paciente_cpf:g('paciente_cpf'),paciente_endereco:g('paciente_endereco'),paciente_cidade:g('paciente_cidade'),
@@ -12780,20 +12782,35 @@ window.jurSalvarWizard=async function(){
     advogado_nome:g('advogado_nome'),advogado_oab:g('advogado_oab'),advogado_contato:g('advogado_contato'),
     andamento_processual:g('andamento_processual'),proxima_data:g('proxima_data')||null,
     status_processo:g('status_processo')||'em_andamento',observacoes_controle:g('observacoes_controle'),
-    projeto:PROJ,cadastrado_por:typeof currentUser!=='undefined'?currentUser?.id:null
+    projeto:PROJ,cadastrado_por:typeof currentUser!=='undefined'&&currentUser?currentUser.id:null
   };
-  const{error}=await sb.from('atendimentos_juridicos').insert(payload);
-  if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-save"></i> Salvar';}
-  if(error){
-    console.error('[jur:wizard:save]',error.message);
-    if(typeof showToast==='function')showToast('Erro ao salvar: '+error.message,true);
+  console.log('[jur:save v2] payload',payload);
+  let err=null;
+  try{
+    const result=await Promise.race([
+      sb.from('atendimentos_juridicos').insert(payload),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('Timeout 20s — verifique conexão')),20000))
+    ]);
+    console.log('[jur:save v2] result',result);
+    err=result&&result.error?result.error:null;
+  }catch(e){
+    console.error('[jur:save v2] catch',e);
+    err={message:e&&e.message?e.message:'Erro desconhecido na conexão'};
+  }
+  resetBtn();
+  if(err){
+    console.error('[jur:save v2] erro:',err);
+    if(typeof showToast==='function')showToast('Erro ao salvar: '+(err.message||'desconhecido'),true);
     return;
   }
+  console.log('[jur:save v2] sucesso');
   if(typeof showToast==='function')showToast('Cadastro salvo com sucesso!');
-  jurResetForm();
-  const navCad=document.querySelector('[data-section="juridico-cadastrados"]');
-  if(typeof showSection==='function')showSection('juridico-cadastrados',navCad);
-  setTimeout(_jurCadLoad,150);
+  try{jurResetForm();}catch(e){console.error('[jur:save v2] reset',e);}
+  try{
+    const navCad=document.querySelector('[data-section="juridico-cadastrados"]');
+    if(typeof showSection==='function')showSection('juridico-cadastrados',navCad);
+    setTimeout(_jurCadLoad,150);
+  }catch(e){console.error('[jur:save v2] redirect',e);}
 };
 
 /* ═══════════════════ MODAL EDIÇÃO ═══════════════════ */
