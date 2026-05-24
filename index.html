@@ -2385,13 +2385,7 @@ async function doLogin() {
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entrando...';
   btn.disabled = true;
 
-  console.log('[LOGIN DEBUG]', {
-    rawEmail,
-    email,
-    emailLength: email.length,
-    passwordLength: pass.length,
-    supabaseUrl: typeof SUPABASE_URL !== 'undefined' ? SUPABASE_URL : '(inline)'
-  });
+  
 
   const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
 
@@ -2530,7 +2524,6 @@ function _contarPacientesUnicos(list) {
 }
 
 function updateKPIs() {
-  console.log('[DASH KPI ORIG] iniciando. project=', typeof currentProject!=='undefined'?currentProject:'(undef)', 'allPacientes.length=', (allPacientes||[]).length);
   const today = _todayBR();
   const weekAgo = _dateOffsetBR(-7);
 
@@ -2544,7 +2537,6 @@ function updateKPIs() {
   const dors = allPacientes.filter(p => p.nivel_dor).map(p => p.nivel_dor);
   const media = dors.length ? (dors.reduce((a,b) => a+b, 0) / dors.length).toFixed(1) : '—';
   document.getElementById('kpi-dor').textContent = media;
-  console.log('[DASH KPI ORIG] total=', total, 'hoje=', hoje, 'semana=', semana, 'media_dor=', media);
 }
 
 function updateTable() {
@@ -2596,7 +2588,6 @@ function getChartColors() {
 }
 
 function updateCharts() {
-  console.log('[DASH CHARTS] iniciando. project=', typeof currentProject!=='undefined'?currentProject:'(undef)', 'allPacientes.length=', (allPacientes||[]).length);
   const c = getChartColors();
   Chart.defaults.color = c.text;
 
@@ -2609,7 +2600,6 @@ function updateCharts() {
     const count = allPacientes.filter(p => _matchDayBR(p.criado_em,key)).length;
     last30.push({ label, count });
   }
-  console.log('[DASH G1] 30 dias buckets:', last30.reduce((s,d)=>s+d.count,0), 'total nos buckets');
 
   if (charts.weekly) charts.weekly.destroy();
   const ctx1 = document.getElementById('chart-weekly');
@@ -2648,7 +2638,6 @@ function updateCharts() {
     else if (p.nivel_dor <= 6) moderada++;
     else severa++;
   });
-  console.log('[DASH G2] distribuição dor: leve=', leve, 'moderada=', moderada, 'severa=', severa);
 
   if (charts.dor) charts.dor.destroy();
   const ctx2 = document.getElementById('chart-dor');
@@ -2684,13 +2673,11 @@ function updateCharts() {
 /* G3 — Top 10 Pontos com mais cadastros (barras horizontais) */
 async function updateTopPontosChart(c) {
   try {
-    console.log('[DASH G3] iniciando. project=', typeof currentProject!=='undefined'?currentProject:'(undef)');
     c = c || getChartColors();
     const ctx = document.getElementById('chart-top-pontos');
     if (!ctx) { console.warn('[DASH G3] canvas chart-top-pontos não encontrado'); return; }
     const view = (typeof currentProject !== 'undefined' && currentProject === 'oculos') ? 'v_pontos_oculos' : 'v_pontos_fibro';
     const { data, error } = await sb.from(view).select('nome_ponto,total_cadastros,numero_ponto').order('total_cadastros', { ascending: false }).limit(10);
-    console.log('[DASH G3] top pontos:', { error: error?.message || null, count: data?.length || 0, sample: data?.[0] });
     if (error) { console.error('[DASHBOARD G3]', error); return; }
     const rows = data || [];
     if (charts.topPontos) charts.topPontos.destroy();
@@ -2723,14 +2710,12 @@ async function updateTopPontosChart(c) {
 /* G4 — Cadastros por hora do dia (barras verticais) */
 async function updateHourlyChart(c) {
   try {
-    console.log('[DASH G4] iniciando. project=', typeof currentProject!=='undefined'?currentProject:'(undef)');
     c = c || getChartColors();
     const ctx = document.getElementById('chart-hourly');
     if (!ctx) { console.warn('[DASH G4] canvas chart-hourly não encontrado'); return; }
     const tabela = (typeof currentProject !== 'undefined' && currentProject === 'oculos') ? 'pacientes_oculos' : 'pacientes_fibro';
     const trinta = new Date(Date.now() - 30*86400000).toISOString();
     const { data, error } = await sb.from(tabela).select('criado_em').gte('criado_em', trinta);
-    console.log('[DASH G4] hora dia:', { error: error?.message || null, count: data?.length || 0, tabela });
     if (error) { console.error('[DASHBOARD G4]', error); return; }
     const porHora = Array(24).fill(0);
     (data || []).forEach(r => { if (r.criado_em) porHora[new Date(r.criado_em).getHours()]++; });
@@ -4393,7 +4378,6 @@ function _setupMainRealtime(table) {
       })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          console.log('[RT] Ouvindo:', table);
         }
       });
   } catch(e) { console.warn('_setupMainRealtime:', e); }
@@ -11007,7 +10991,6 @@ function _rnHistChartsFrom(data){
 
 function renderNataliaCardTotais(rows) {
   try {
-    console.log('[RN TOTAIS] calculando para', rows?.length, 'rows');
     if (!Array.isArray(rows) || !rows.length) {
       console.warn('[RN TOTAIS] rows vazia, abortando');
       return;
@@ -11031,14 +11014,12 @@ function renderNataliaCardTotais(rows) {
     if (elTot) elTot.textContent = sumTot.toLocaleString('pt-BR');
     if (elPct) elPct.textContent = pct.toLocaleString('pt-BR') + '%';
 
-    console.log('[RN TOTAIS] OK. pos=', sumPos, 'neg=', sumNeg, 'tot=', sumTot);
   } catch (e) {
     console.error('[RN TOTAIS ERROR]', e);
   }
 }
 
 function _rnHistPanel(hist){
-  console.log('[RN PANEL] renderizando', hist?.length, 'linhas');
   /* Card de totais (novo bloco — PARTE C) */
   renderNataliaCardTotais(hist);
   const el=document.getElementById('_rn-hist-kpis'); if(!el)return;
@@ -11084,12 +11065,10 @@ function _rnHistPanel(hist){
 
 async function _rnHistLoad(){
   try {
-    console.log('[RN HIST] iniciando query historico_natalia');
     const { data, error } = await sb
       .from('historico_natalia')
       .select('id,nome,positivos,negativos,neutros,atualizado_em')
       .order('id');
-    console.log('[RN HIST] resposta:', { error: error?.message || null, count: data?.length || 0, sample: data?.[0] });
     if (error) {
       console.error('[NATALIA HIST] query failed:', error);
       const tb = document.getElementById('_rn-hist-tbody');
@@ -11248,9 +11227,8 @@ window.showSection=function(id,el){
   if (id === _RN_SEC || id === 'relatorio-nat' || id === 'sec-relatorio-nat' || id === 'relatorio-natalia') {
     setTimeout(() => {
       try {
-        console.log('[RN FORCE] disparando renders. id=', id);
-        if (typeof _rnRender === 'function') { _rnRender(); console.log('[RN FORCE] _rnRender disparado'); }
-        if (typeof _rnHistLoad === 'function') { _rnHistLoad(); console.log('[RN FORCE] _rnHistLoad disparado'); }
+        if (typeof _rnRender === 'function') { _rnRender();  }
+        if (typeof _rnHistLoad === 'function') { _rnHistLoad();  }
       } catch (e) { console.error('[RN FORCE ERROR]', e); }
     }, 120);
   }
@@ -12759,7 +12737,6 @@ window.jurDraftDiscard=function(){
 
 /* ---- SALVAR WIZARD (single INSERT, bulletproof) ---- */
 window.jurSalvarWizard=async function(){
-  console.log('[jur:save v2] start');
   if(typeof sb==='undefined'){if(typeof showToast==='function')showToast('Sistema indisponível',true);return;}
   const g=id=>{const el=document.getElementById('jf-'+id);return el?el.value.trim():null;};
   const nome=g('paciente_nome');
@@ -12778,14 +12755,12 @@ window.jurSalvarWizard=async function(){
     status_processo:g('status_processo')||'em_andamento',observacoes_controle:g('observacoes_controle'),
     projeto:PROJ,cadastrado_por:typeof currentUser!=='undefined'&&currentUser?currentUser.id:null
   };
-  console.log('[jur:save v2] payload',payload);
   let err=null;
   try{
     const result=await Promise.race([
       sb.from('atendimentos_juridicos').insert(payload),
       new Promise((_,rej)=>setTimeout(()=>rej(new Error('Timeout 20s — verifique conexão')),20000))
     ]);
-    console.log('[jur:save v2] result',result);
     err=result&&result.error?result.error:null;
   }catch(e){
     console.error('[jur:save v2] catch',e);
@@ -12797,7 +12772,6 @@ window.jurSalvarWizard=async function(){
     if(typeof showToast==='function')showToast('Erro ao salvar: '+(err.message||'desconhecido'),true);
     return;
   }
-  console.log('[jur:save v2] sucesso');
   if(typeof showToast==='function')showToast('Cadastro salvo com sucesso!');
   try{jurResetForm();}catch(e){console.error('[jur:save v2] reset',e);}
   try{
