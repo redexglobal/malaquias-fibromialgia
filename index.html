@@ -1377,10 +1377,10 @@ tr:last-child td { border-bottom: none; }
         <i class="fas fa-gavel"></i> Atendimento Jurídico
       </div>
       <div class="nav-item" data-section="juridico-cadastrados" onclick="showSection('juridico-cadastrados', this)">
-        <i class="fas fa-list-alt"></i> Cadastrados <span id="jur-nav-badge" style="display:none;background:var(--accent);color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px;vertical-align:middle"></span>
+        <i class="fas fa-list-alt"></i> Cadastrados Jurídicos <span id="jur-nav-badge" style="display:none;background:var(--accent);color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px;vertical-align:middle"></span>
       </div>
       <div class="nav-item" data-section="juridico-retornos" onclick="showSection('juridico-retornos', this)">
-        <i class="fas fa-history"></i> Retornos
+        <i class="fas fa-history"></i> Retorno Jurídico
       </div>
     </div>
 
@@ -12710,7 +12710,7 @@ function _jurGoToStep(n){
 }
 window.jurNextStep=function(){
   if(_jurStep===1&&!(document.getElementById('jf-paciente_nome')?.value?.trim())){if(typeof showToast==='function')showToast('Informe o nome do paciente',true);return;}
-  if(_jurStep<_JUR_STEPS){_jurGoToStep(_jurStep+1);if(_jurStep===_JUR_STEPS)setTimeout(_jurAutoSavePartial,80);}
+  if(_jurStep<_JUR_STEPS)_jurGoToStep(_jurStep+1);
 };
 window.jurPrevStep=function(){if(_jurStep>1)_jurGoToStep(_jurStep-1);};
 window.jurResetForm=function(){
@@ -12763,59 +12763,16 @@ window.jurDraftDiscard=function(){
   window._jurDraftData=null;
 };
 
-/* ---- AUTO-SAVE ETAPA 5→6 ---- */
-async function _jurAutoSavePartial(){
-  if(typeof sb==='undefined'||typeof PROJ==='undefined')return;
-  if(_jurNewRecordId)return; /* já salvo */
+/* ---- SALVAR WIZARD (single INSERT) ---- */
+window.jurSalvarWizard=async function(){
+  if(typeof sb==='undefined'){if(typeof showToast==='function')showToast('Sistema indisponível',true);return;}
   const g=id=>{const el=document.getElementById('jf-'+id);return el?el.value.trim():null;};
-  const nome=g('paciente_nome');if(!nome)return;
-  /* Mostra salvando no título da etapa 6 */
-  const s6=document.getElementById('jur-step-6');
-  const ttl=s6?s6.querySelector('.chart-title'):null;
-  if(ttl)ttl.innerHTML='<i class="fas fa-spinner fa-spin" style="color:var(--accent)"></i> Salvando dados...';
+  const nome=g('paciente_nome');
+  if(!nome){if(typeof showToast==='function')showToast('Informe o nome do paciente',true);return;}
+  const btn=document.getElementById('jur-btn-salvar');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Salvando...';}
   const payload={
     paciente_nome:nome,paciente_cpf:g('paciente_cpf'),paciente_endereco:g('paciente_endereco'),paciente_cidade:g('paciente_cidade'),
-    data_entrada:g('data_entrada')||null,origem:g('origem'),numero_protocolo:g('numero_protocolo'),observacoes_entrada:g('observacoes_entrada'),
-    tipo_beneficio:g('tipo_beneficio'),nit_pis:g('nit_pis'),numero_beneficio:g('numero_beneficio'),data_entrada_inss:g('data_entrada_inss')||null,
-    status_beneficio:g('status_beneficio')||'aguardando',data_decisao:g('data_decisao')||null,
-    diagnostico:g('diagnostico'),cid:g('cid'),historico_medico:g('historico_medico'),
-    advogado_nome:g('advogado_nome'),advogado_oab:g('advogado_oab'),advogado_contato:g('advogado_contato'),
-    status_processo:'em_andamento',
-    projeto:PROJ,cadastrado_por:typeof currentUser!=='undefined'?currentUser?.id:null
-  };
-  const{data:ins,error}=await sb.from('atendimentos_juridicos').insert(payload).select('id').single();
-  if(error){
-    if(ttl)ttl.innerHTML='<i class="fas fa-tasks"></i> Etapa 6 — Controle';
-    if(typeof showToast==='function')showToast('Erro ao salvar: '+error.message,true);
-    return;
-  }
-  _jurNewRecordId=ins.id;
-  if(ttl)ttl.innerHTML='<i class="fas fa-check-circle" style="color:#16a34a"></i> Salvo! Adicione o controle processual (opcional)';
-  const btn=document.getElementById('jur-btn-salvar');
-  if(btn)btn.innerHTML='<i class="fas fa-arrow-right"></i> Concluir';
-  if(typeof showToast==='function')showToast('Cadastro salvo! Preencha o controle abaixo ou clique em Concluir.');
-}
-
-/* ---- SALVAR WIZARD ---- */
-window.jurSalvarWizard=async function(){
-  if(typeof sb==='undefined')return;
-  const g=id=>{const el=document.getElementById('jf-'+id);return el?el.value.trim():null;};
-  /* FASE 2: auto-save já fez INSERT, só atualiza controle (step 6) */
-  if(_jurNewRecordId){
-    const ctrl={andamento_processual:g('andamento_processual'),proxima_data:g('proxima_data')||null,status_processo:g('status_processo')||'em_andamento',observacoes_controle:g('observacoes_controle'),atualizado_em:new Date().toISOString()};
-    if(ctrl.andamento_processual||ctrl.proxima_data||ctrl.observacoes_controle){
-      const{error:eu}=await sb.from('atendimentos_juridicos').update(ctrl).eq('id',_jurNewRecordId);
-      if(eu){if(typeof showToast==='function')showToast('Erro ao salvar controle: '+eu.message,true);return;}
-    }
-    if(typeof showToast==='function')showToast('Cadastro concluído!');
-    jurResetForm();
-    const _nc=document.querySelector('[data-section="juridico-cadastrados"]');
-    if(typeof showSection==='function')showSection('juridico-cadastrados',_nc);
-    setTimeout(_jurCadLoad,150);return;
-  }
-  /* FASE 1 fallback: auto-save falhou, salva tudo agora */
-  const payload={
-    paciente_nome:g('paciente_nome'),paciente_cpf:g('paciente_cpf'),paciente_endereco:g('paciente_endereco'),paciente_cidade:g('paciente_cidade'),
     data_entrada:g('data_entrada')||null,origem:g('origem'),numero_protocolo:g('numero_protocolo'),observacoes_entrada:g('observacoes_entrada'),
     tipo_beneficio:g('tipo_beneficio'),nit_pis:g('nit_pis'),numero_beneficio:g('numero_beneficio'),data_entrada_inss:g('data_entrada_inss')||null,
     status_beneficio:g('status_beneficio')||'aguardando',data_decisao:g('data_decisao')||null,
@@ -12825,16 +12782,17 @@ window.jurSalvarWizard=async function(){
     status_processo:g('status_processo')||'em_andamento',observacoes_controle:g('observacoes_controle'),
     projeto:PROJ,cadastrado_por:typeof currentUser!=='undefined'?currentUser?.id:null
   };
-  if(!payload.paciente_nome){if(typeof showToast==='function')showToast('Informe o nome do paciente',true);return;}
-  const btn=document.getElementById('jur-btn-salvar');
-  if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Salvando...';}
   const{error}=await sb.from('atendimentos_juridicos').insert(payload);
-  if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-arrow-right"></i> Concluir';}
-  if(error){console.error('[jur:wizard:save]',error.message);if(typeof showToast==='function')showToast('Erro ao salvar: '+error.message,true);return;}
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-save"></i> Salvar';}
+  if(error){
+    console.error('[jur:wizard:save]',error.message);
+    if(typeof showToast==='function')showToast('Erro ao salvar: '+error.message,true);
+    return;
+  }
   if(typeof showToast==='function')showToast('Cadastro salvo com sucesso!');
   jurResetForm();
-  const _navCad=document.querySelector('[data-section="juridico-cadastrados"]');
-  if(typeof showSection==='function')showSection('juridico-cadastrados',_navCad);
+  const navCad=document.querySelector('[data-section="juridico-cadastrados"]');
+  if(typeof showSection==='function')showSection('juridico-cadastrados',navCad);
   setTimeout(_jurCadLoad,150);
 };
 
