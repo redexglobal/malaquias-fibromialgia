@@ -9773,14 +9773,11 @@ function syncFilterUI() {
 // ─── OVERWRITE updateKPIs WITH FILTERS + SPARKLINES + COUNTERS ─────
 const _origUpdateKPIs = window.updateKPIs;
 window.updateKPIs = function() {
-  console.log('[DASH KPI ADMIN] iniciando. project=', typeof currentProject!=='undefined'?currentProject:'(undef)', 'allPacientes.length=', (allPacientes||[]).length, 'AppFilters=', typeof AppFilters!=='undefined'?AppFilters:'(undef)');
   const today = _todayBR();
   const weekAgo = dateOffset(-7);
   const filtered = AppFilters.getFiltered(allPacientes);
   const todayPac = allPacientes.filter(p => _matchDayBR(p.criado_em,today));
   const weekPac  = allPacientes.filter(p => _dateBR(p.criado_em) >= weekAgo);
-  console.log('[DASH KPI ADMIN] filtered=', filtered.length, 'hoje=', todayPac.length, 'semana=', weekPac.length);
-
   // Previous period comparison
   const periodLen = AppFilters.dateFrom && AppFilters.dateTo
     ? Math.max(1, (new Date(AppFilters.dateTo) - new Date(AppFilters.dateFrom)) / 86400000)
@@ -11232,23 +11229,20 @@ window.showSection=function(id,el){
   if (id === 'dashboard' || id === 'sec-dashboard') {
     setTimeout(async () => {
       try {
-        console.log('[DASHBOARD FORCE] disparando loadData + updates');
         if (typeof loadData === 'function') await loadData();
         /* loadData já chama updateKPIs/updateTable/updateCharts ao final, mas chamamos de novo defensivamente
            pra cobrir o caso de algum override pular essas chamadas */
         if (typeof updateKPIs === 'function') updateKPIs();
         if (typeof updateCharts === 'function') updateCharts();
-        console.log('[DASHBOARD FORCE] OK');
-      } catch (e) { console.error('[DASHBOARD FORCE ERROR]', e); }
+      } catch (e) { console.error('[DASHBOARD]', e); }
     }, 100);
   }
   /* Trigger Cadastrados (admin pode trocar de aba e voltar — refresh garantido) */
   if (id === 'cadastros' || id === 'sec-cadastros') {
     setTimeout(() => {
       try {
-        console.log('[CADASTRADOS FORCE] disparando updateTable. cnt=', (window.allPacientes||[]).length);
         if (typeof updateTable === 'function') updateTable();
-      } catch (e) { console.error('[CADASTRADOS FORCE ERROR]', e); }
+      } catch (e) { console.error('[CADASTRADOS]', e); }
     }, 50);
   }
   if (id === _RN_SEC || id === 'relatorio-nat' || id === 'sec-relatorio-nat' || id === 'relatorio-natalia') {
