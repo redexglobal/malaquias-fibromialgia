@@ -1517,7 +1517,7 @@ tr:last-child td { border-bottom: none; }
             <span style="font-size:12px;color:var(--text-muted)" id="table-count">0 registros</span>
           </div>
           <div class="table-actions">
-            <input type="text" class="search-input" placeholder="Buscar paciente..." id="search-paciente" oninput="filterTable()">
+            <input type="text" class="search-input" placeholder="Buscar paciente..." id="search-paciente" oninput="window._filterDebounced()">
             <input type="date" class="search-input" id="search-data" title="Buscar por data de atendimento ou cadastro" oninput="filterTable()" style="max-width:175px">
             <button class="btn-sm" onclick="exportCSV()"><i class="fas fa-download"></i> CSV</button>
           </div>
@@ -2192,7 +2192,11 @@ tr:last-child td { border-bottom: none; }
           <p class="page-subtitle">Pacientes agendados para retorno — imprima e entregue à fisioterapeuta</p>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <label style="font-size:13px;color:var(--text-muted);white-space:nowrap">Data do retorno:</label>
+          <label style="font-size:13px;color:var(--text-muted);white-space:nowrap">Filtrar por:</label>
+          <select id="rd-modo" class="form-input" style="max-width:170px" onchange="window._rdLoad()">
+            <option value="proximo_retorno" selected>Data de retorno</option>
+            <option value="criado_em">Data de cadastro</option>
+          </select>
           <input type="date" id="rd-data" class="form-input" style="max-width:160px" onchange="window._rdLoad()">
           <button class="btn-limpar" onclick="window._rdToday()" title="Hoje"><i class="fas fa-calendar-day"></i> Hoje</button>
           <button class="btn-primary" onclick="window._rdPrint()" title="Imprimir relatório"><i class="fas fa-print"></i> Imprimir</button>
@@ -3242,6 +3246,16 @@ window._whatsValido = function(s){
   if(/^(\d)\1+$/.test(d)) return false;
   return true;
 };
+
+/* Debounce do filterTable — evita re-render a cada tecla na busca.
+   Importante pra escalar: com 50k cadastros, sem debounce trava o browser. */
+(function(){
+  let _t = null;
+  window._filterDebounced = function(){
+    if(_t) clearTimeout(_t);
+    _t = setTimeout(()=>{ if(typeof filterTable==='function') filterTable(); }, 220);
+  };
+})();
 
 /* Modal de CONFIRMACAO DUPLA pra DELETE de paciente.
    Pede digitar o nome exato. So executa o onConfirm se bater (case-insensitive, trim).
@@ -13897,8 +13911,11 @@ window._rdLoad=async function(){
   if(typeof sb==='undefined')return;
   const inp=document.getElementById('rd-data');
   const data=inp?.value||_rdTomorrowBR();
+  const modoSel=document.getElementById('rd-modo');
+  const modo=(modoSel?.value)||DATE_FIELD;
+  const labelModo=modo==='criado_em'?'Cadastrados em':'Retorno em';
   /* Header da impressão */
-  const hDt=document.getElementById('rd-doc-data');if(hDt)hDt.textContent='Retorno em: '+_rdFmt(data);
+  const hDt=document.getElementById('rd-doc-data');if(hDt)hDt.textContent=labelModo+': '+_rdFmt(data);
   const hPt=document.getElementById('rd-doc-ponto');
   const isAdm=_rdIsAdm();
   const nomePonto=(typeof currentProfile!=='undefined'&&currentProfile)
@@ -13906,8 +13923,14 @@ window._rdLoad=async function(){
     :'';
   if(hPt)hPt.textContent=isAdm?'Visão geral (todos os pontos)':('Ponto: '+nomePonto);
 
-  /* Query: paciente com proximo_retorno = data, filtrado pelo ponto (se não admin) */
-  let q=sb.from(TBL).select('id,nome,cpf,whatsapp,idade,sintomas,nivel_dor,pontos_dor,observacoes,medicacoes,precaucoes_clinicas,'+DATE_FIELD+',cadastrado_por,criado_em').eq(DATE_FIELD,data).order('nome',{ascending:true}).limit(500);
+  /* Query: filtra por proximo_retorno OU criado_em (modo selecionado). */
+  let q=sb.from(TBL).select('id,nome,cpf,whatsapp,idade,sintomas,nivel_dor,pontos_dor,observacoes,medicacoes,precaucoes_clinicas,'+DATE_FIELD+',cadastrado_por,criado_em').order('nome',{ascending:true}).limit(500);
+  if(modo==='criado_em'){
+    /* Range do dia inteiro (criado_em e timestamp) */
+    q=q.gte('criado_em',data+'T00:00:00').lte('criado_em',data+'T23:59:59');
+  } else {
+    q=q.eq(DATE_FIELD,data);
+  }
   if(!isAdm&&typeof currentUser!=='undefined'&&currentUser)q=q.eq('cadastrado_por',currentUser.id);
   const{data:rows,error}=await q;
   if(error){console.error('[rd:load]',error.message);document.getElementById('rd-lista').innerHTML='<div class="rd-vazio">Erro ao carregar: '+_rdEsc(error.message)+'</div>';return;}
@@ -13930,7 +13953,8 @@ window._rdLoad=async function(){
 
   const box=document.getElementById('rd-lista');if(!box)return;
   if(!lista.length){
-    box.innerHTML='<div class="rd-vazio"><i class="fas fa-calendar-times" style="font-size:36px;display:block;margin-bottom:10px;opacity:.4"></i>Nenhum paciente agendado para '+_rdFmtShort(data)+'.<br><small>'+(isAdm?'(em todo o sistema)':'(no seu ponto)')+'</small></div>';
+    const labelSem=modo==='criado_em'?'cadastrado em':'agendado para';
+    box.innerHTML='<div class="rd-vazio"><i class="fas fa-calendar-times" style="font-size:36px;display:block;margin-bottom:10px;opacity:.4"></i>Nenhum paciente '+labelSem+' '+_rdFmtShort(data)+'.<br><small>'+(isAdm?'(em todo o sistema)':'(no seu ponto)')+'</small></div>';
     return;
   }
   box.innerHTML=lista.map((r,i)=>{
