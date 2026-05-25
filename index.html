@@ -3189,6 +3189,17 @@ window._cpfValido = function(cpf){
   return true;
 };
 
+/* Helper: detecta WhatsApp invalido.
+   Aceita 10 digitos (fixo com DDD) ou 11 digitos (movel com DDD).
+   Rejeita todos digitos iguais (1111111111, 9999999999, etc). */
+window._whatsValido = function(s){
+  if(!s) return false;
+  const d = String(s).replace(/\D/g,'');
+  if(d.length < 10 || d.length > 11) return false;
+  if(/^(\d)\1+$/.test(d)) return false;
+  return true;
+};
+
 /* Helpers de TIMEZONE (America/Sao_Paulo - Brasilia UTC-3, sem DST).
    criado_em chega em UTC do Supabase; pra comparar com "hoje" no horario local
    do admin, sempre usar essas funcoes em vez de toISOString().split('T')[0]. */
@@ -5519,6 +5530,9 @@ function _stgValidate(s) {
     if(!nome?.value.trim()) return fail('Nome completo é obrigatório',nome);
     const whats=document.getElementById('s1-whats');
     if(!whats?.value.trim()) return fail('WhatsApp é obrigatório',whats);
+    if(!window._whatsValido(whats.value)){
+      return fail('WhatsApp inválido. Digite com DDD: (00) 00000-0000.',whats);
+    }
     const cpfEl=document.getElementById('s1-cpf');
     if(cpfEl?.value.trim()&&!window._cpfValido(cpfEl.value)){
       return fail('CPF inválido. Deixe em branco se o paciente não tiver, ou digite um CPF real.',cpfEl);
