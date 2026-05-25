@@ -1365,7 +1365,9 @@ tr:last-child td { border-bottom: none; }
       </div>
       <div class="nav-item" data-section="cadastros" onclick="showSection('cadastros', this)">
         <i class="fas fa-users"></i> Cadastrados
+        <span id="cad-new-badge" style="display:none;background:#ef4444;color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:2px 7px;margin-left:6px;vertical-align:middle;animation:_cadPulse 2s infinite"></span>
       </div>
+      <style>@keyframes _cadPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(1.1)}}</style>
       <div class="nav-item" data-section="novo" onclick="showSection('novo', this)">
         <i class="fas fa-plus-circle"></i> Novo Cadastro
       </div>
@@ -3397,10 +3399,37 @@ sb.channel('fibro-changes')
     if (currentProfile?.papel === 'admin') {
       const ev = payload.eventType;
       showToast(ev === 'UPDATE' ? 'Cadastro de paciente atualizado!' : ev === 'DELETE' ? 'Cadastro de paciente removido!' : 'Novo cadastro recebido!');
+      /* Badge no sidebar: incrementa contador de novos INSERTs */
+      if (ev === 'INSERT') {
+        window._cadNewCount = (window._cadNewCount || 0) + 1;
+        const b = document.getElementById('cad-new-badge');
+        if (b) {
+          /* So mostra se admin NAO esta atualmente na secao Cadastrados */
+          const secCad = document.getElementById('sec-cadastros');
+          const visivel = secCad && secCad.classList.contains('active');
+          if (!visivel) {
+            b.textContent = window._cadNewCount > 9 ? '9+' : String(window._cadNewCount);
+            b.style.display = 'inline-block';
+          }
+        }
+      }
       _natReloadDebounced();
     }
   })
   .subscribe();
+
+/* Zera badge quando admin entrar em Cadastrados */
+(function(){
+  const _prevSS = window.showSection;
+  window.showSection = function(id, el){
+    if (typeof _prevSS === 'function') _prevSS.apply(this, arguments);
+    if (id === 'cadastros' || id === 'sec-cadastros') {
+      window._cadNewCount = 0;
+      const b = document.getElementById('cad-new-badge');
+      if (b) { b.style.display = 'none'; b.textContent = ''; }
+    }
+  };
+})();
 
 // Enter key on login
 document.getElementById('login-password').addEventListener('keypress', e => {
@@ -5002,6 +5031,31 @@ window.doLogout = async function() {
   await sb.auth.signOut();
   location.reload();
 };
+
+/* ---- AUTO-LOGOUT por inatividade (4h sem interação) ---- */
+(function(){
+  const IDLE_MS = 4*60*60*1000; /* 4 horas */
+  let timer = null;
+  let warned = false;
+  function resetTimer(){
+    if(timer) clearTimeout(timer);
+    warned = false;
+    timer = setTimeout(()=>{
+      /* So aplica se ja entrou no app (tem sessao) */
+      if(typeof currentUser==='undefined'||!currentUser){return;}
+      if(typeof showToast==='function')showToast('Sessao encerrada por inatividade (4h)',true);
+      setTimeout(()=>{ try{ window.doLogout(); }catch(_){ location.reload(); } }, 1200);
+    }, IDLE_MS);
+  }
+  /* Eventos que indicam atividade do usuario */
+  ['mousedown','keydown','touchstart','pointermove','scroll'].forEach(ev=>{
+    window.addEventListener(ev, ()=>{ resetTimer(); }, {passive:true});
+  });
+  /* Inicia o timer quando o app carregar */
+  document.addEventListener('DOMContentLoaded', resetTimer);
+  /* Tambem dispara reset depois do enterApp (caso o DOM ja carregou antes) */
+  resetTimer();
+})();
 
 /* ---- Validação: se openPontoDetalhe não encontrar o overlay, mostra erro amigável ---- */
 const _dpOrig = window.openPontoDetalhe;
