@@ -5696,10 +5696,8 @@ function _stgValidate(s) {
     }
   }
   if(s===4){
-    if(proj!=='oculos'){
-      const ret=document.getElementById('s4-retorno');
-      if(!ret?.value) return fail('Informe a data do próximo retorno',ret);
-    }
+    /* proximo_retorno agora e OPCIONAL — pacientes que iniciam mas nao dao
+       continuidade ficam registrados sem data de retorno. */
   }
   return true;
 }
@@ -12363,7 +12361,8 @@ window._pEditOpen=function(recordId){
       <div class="_ped-grupo"><label class="_ped-label">CPF</label><input type="text" id="_ped-cpf" class="_ped-input" value="${esc(rec.cpf)}"></div>
       <div class="_ped-grupo"><label class="_ped-label">Idade</label><input type="number" id="_ped-idade" class="_ped-input" value="${esc(rec.idade)}"></div>
     </div>
-    <div class="_ped-grupo"><label class="_ped-label">WhatsApp</label><input type="text" id="_ped-whats" class="_ped-input" value="${esc(rec.whatsapp)}"></div>`;
+    <div class="_ped-grupo"><label class="_ped-label">WhatsApp</label><input type="text" id="_ped-whats" class="_ped-input" value="${esc(rec.whatsapp)}"></div>
+    <div class="_ped-grupo"><label class="_ped-label">Seção Eleitoral</label><input type="text" id="_ped-secao" class="_ped-input" value="${esc(rec.secao_eleitoral)}"></div>`;
 
   const corpoFibro=`
     <div class="_ped-grupo"><label class="_ped-label">Sintomas</label><textarea id="_ped-sintomas" rows="2" class="_ped-input">${esc(rec.sintomas)}</textarea></div>
@@ -12484,6 +12483,7 @@ async function _pEditSave(recordId,btnRef){
     cpf: txt('_ped-cpf'),
     idade: parseInt(val('_ped-idade'))||null,
     whatsapp: txt('_ped-whats'),
+    secao_eleitoral: txt('_ped-secao'),
     precaucoes_clinicas: txt('_ped-precaucoes'),
     observacoes: txt('_ped-obs'),
     nivel_melhora: (function(){ const v=val('_ped-melhora'); return v===''||v==null?null:parseInt(v); })(),
