@@ -3200,6 +3200,51 @@ window._whatsValido = function(s){
   return true;
 };
 
+/* Modal de CONFIRMACAO DUPLA pra DELETE de paciente.
+   Pede digitar o nome exato. So executa o onConfirm se bater (case-insensitive, trim).
+   Usado pra protejer DELETE acidental tanto pelo admin quanto pelo ponto. */
+window._delConfirm = function(nomeAlvo, onConfirm){
+  const nm = (nomeAlvo||'').trim();
+  if(!nm){ if(typeof showToast==='function') showToast('Nome do paciente nao identificado',true); return; }
+  let bg=document.getElementById('_delcfm-bg');
+  if(bg) bg.remove();
+  bg=document.createElement('div');
+  bg.id='_delcfm-bg';
+  bg.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10002;display:flex;align-items:center;justify-content:center;padding:16px;font-family:inherit';
+  bg.innerHTML='<div style="background:#1a0e0e;border:2px solid #dc2626;border-radius:14px;padding:24px;max-width:480px;width:100%;color:#fff;box-shadow:0 20px 60px rgba(0,0,0,0.7)">'+
+    '<div style="font-size:13px;text-transform:uppercase;letter-spacing:1.5px;color:#ef4444;font-weight:800;margin-bottom:6px">EXCLUSAO PERMANENTE</div>'+
+    '<div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:10px">Confirma exclusao de:</div>'+
+    '<div style="font-size:18px;font-weight:800;color:#fbbf24;padding:10px 14px;background:rgba(251,191,36,0.1);border-left:4px solid #fbbf24;border-radius:4px;margin-bottom:14px;word-break:break-word">'+nm.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</div>'+
+    '<div style="font-size:12px;color:#fca5a5;margin-bottom:6px;line-height:1.5">Esta acao apaga o paciente <strong>permanentemente</strong> do sistema.<br>Para confirmar, digite exatamente o nome acima:</div>'+
+    '<input id="_delcfm-input" type="text" autocomplete="off" placeholder="Digite o nome do paciente" style="width:100%;padding:11px 12px;background:#0e0707;border:1px solid #7f1d1d;border-radius:8px;color:#fff;font-size:14px;outline:none;margin-bottom:14px">'+
+    '<div style="display:flex;gap:10px">'+
+      '<button id="_delcfm-cancel" style="flex:1;padding:11px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer">Cancelar</button>'+
+      '<button id="_delcfm-ok" disabled style="flex:1;padding:11px;background:#7f1d1d;border:none;border-radius:8px;color:#888;font-size:13px;font-weight:700;cursor:not-allowed">Excluir paciente</button>'+
+    '</div>'+
+  '</div>';
+  document.body.appendChild(bg);
+  const input=document.getElementById('_delcfm-input');
+  const okBtn=document.getElementById('_delcfm-ok');
+  const cancelBtn=document.getElementById('_delcfm-cancel');
+  const close=()=>{ try{bg.remove();}catch(_){} };
+  input.addEventListener('input',()=>{
+    const ok=input.value.trim().toLowerCase()===nm.toLowerCase();
+    okBtn.disabled=!ok;
+    okBtn.style.background=ok?'#dc2626':'#7f1d1d';
+    okBtn.style.color=ok?'#fff':'#888';
+    okBtn.style.cursor=ok?'pointer':'not-allowed';
+  });
+  okBtn.addEventListener('click',async()=>{
+    if(okBtn.disabled)return;
+    okBtn.disabled=true;okBtn.textContent='Excluindo...';
+    try{ await onConfirm(); }catch(e){ if(typeof showToast==='function')showToast('Erro: '+(e?.message||e),true); }
+    close();
+  });
+  cancelBtn.addEventListener('click',close);
+  bg.addEventListener('click',e=>{ if(e.target===bg) close(); });
+  setTimeout(()=>input.focus(),50);
+};
+
 /* Helpers de TIMEZONE (America/Sao_Paulo - Brasilia UTC-3, sem DST).
    criado_em chega em UTC do Supabase; pra comparar com "hoje" no horario local
    do admin, sempre usar essas funcoes em vez de toISOString().split('T')[0]. */
@@ -8290,16 +8335,16 @@ window._emSave = async function() {
 };
 
 window._emConfirmDelete = (id, nome) => {
-  if (!confirm(`Excluir o cadastro de "${nome}"?\n\nEsta ação não pode ser desfeita.`)) return;
-  _emDoDelete(id);
+  window._delConfirm(nome, ()=>_emDoDelete(id));
 };
 
-window._emDelete = async function() {
+window._emDelete = function() {
   if (!_editId) return;
-  const nome = $('em-nome')?.value||'este cadastro';
-  if (!confirm(`Excluir o cadastro de "${nome}"?\n\nEsta ação não pode ser desfeita.`)) return;
-  _emDoDelete(_editId);
-  _emClose();
+  const nome = $('em-nome')?.value||'';
+  window._delConfirm(nome, async()=>{
+    await _emDoDelete(_editId);
+    _emClose();
+  });
 };
 
 async function _emDoDelete(id) {
@@ -12292,9 +12337,14 @@ window._pEditOpen=function(recordId){
       <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 12px;margin-bottom:18px;font-size:11px;color:var(--text-muted,#94a3b8);line-height:1.5">✏️ Você pode corrigir todos os dados deste registro, incluindo as datas e a medicação.</div>
       ${ident}
       ${proj==='oculos'?corpoOculos:corpoFibro}
-      <div style="display:flex;gap:10px;margin-top:18px">
-        <button id="_ped-btn-cancel" style="flex:1;padding:11px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:var(--text-muted,#94a3b8);font-size:13px;font-weight:600;cursor:pointer">Cancelar</button>
-        <button id="_ped-btn-save" style="flex:2;padding:11px;background:linear-gradient(135deg,#00e676,#00c853);border:none;border-radius:8px;color:#0a2416;font-size:13px;font-weight:700;cursor:pointer">💾 Salvar Alterações</button>
+      <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+        <button id="_ped-btn-cancel" style="flex:1;min-width:90px;padding:11px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:var(--text-muted,#94a3b8);font-size:13px;font-weight:600;cursor:pointer">Cancelar</button>
+        ${(()=>{
+          const adm=typeof currentProfile!=='undefined'&&currentProfile?.papel==='admin';
+          const own=typeof currentUser!=='undefined'&&currentUser&&rec.cadastrado_por===currentUser.id;
+          return (adm||own)?'<button id="_ped-btn-del" style="flex:1;min-width:90px;padding:11px;background:rgba(220,38,38,0.15);border:1px solid #dc2626;border-radius:8px;color:#fca5a5;font-size:13px;font-weight:700;cursor:pointer">🗑️ Excluir</button>':'';
+        })()}
+        <button id="_ped-btn-save" style="flex:2;min-width:140px;padding:11px;background:linear-gradient(135deg,#00e676,#00c853);border:none;border-radius:8px;color:#0a2416;font-size:13px;font-weight:700;cursor:pointer">💾 Salvar Alterações</button>
       </div>
     </div>`;
 
@@ -12302,6 +12352,26 @@ window._pEditOpen=function(recordId){
   document.getElementById('_ped-btn-cancel').addEventListener('click',_pEditClose);
   const saveBtn=document.getElementById('_ped-btn-save');
   saveBtn.addEventListener('click',()=>_pEditSave(recordId,saveBtn));
+  const delBtn=document.getElementById('_ped-btn-del');
+  if(delBtn){
+    delBtn.addEventListener('click',()=>{
+      const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
+      const tbl=proj==='oculos'?'pacientes_oculos':'pacientes_fibro';
+      window._delConfirm(rec.nome, async()=>{
+        const{error}=await sb.from(tbl).delete().eq('id',recordId);
+        if(error){ if(typeof showToast==='function')showToast('Erro ao excluir: '+error.message,true); return; }
+        if(Array.isArray(window.allPacientes)){
+          const idx=window.allPacientes.findIndex(p=>p.id===recordId);
+          if(idx>=0)window.allPacientes.splice(idx,1);
+        }
+        if(typeof showToast==='function')showToast('Cadastro excluído.');
+        _pEditClose();
+        if(typeof updateTable==='function')try{updateTable();}catch(_){}
+        if(typeof updateKPIs==='function')try{updateKPIs();}catch(_){}
+        if(typeof window._renderPacientesUnicos==='function')try{window._renderPacientesUnicos();}catch(_){}
+      });
+    });
+  }
   const dor=document.getElementById('_ped-dor'), dv=document.getElementById('_ped-dor-val');
   if(dor&&dv){ dor.addEventListener('input',()=>{ const v=parseInt(dor.value); dv.textContent=v; dv.style.color=v<=3?'#4ade80':v<=6?'#fbbf24':'#fb7185'; }); }
 };
