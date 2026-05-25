@@ -1374,6 +1374,9 @@ tr:last-child td { border-bottom: none; }
       <div class="nav-item" data-section="relatorio-dia" onclick="showSection('relatorio-dia', this)">
         <i class="fas fa-clipboard-list"></i> Retorno do Dia
       </div>
+      <div class="nav-item" data-section="calendario" onclick="showSection('calendario', this)">
+        <i class="fas fa-calendar-alt"></i> Calendário
+      </div>
     </div>
 
     <div class="nav-section" id="nav-juridico-section" style="display:none">
@@ -2209,6 +2212,44 @@ tr:last-child td { border-bottom: none; }
 
         <!-- Lista -->
         <div id="rd-lista" style="font-size:14px"></div>
+      </div>
+    </div>
+
+    <!-- ===== CALENDÁRIO DE RETORNOS ===== -->
+    <div class="section" id="sec-calendario">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+        <div>
+          <h1 class="page-title">Calendário de Retornos</h1>
+          <p class="page-subtitle">Visão mensal — clica num dia para ver os pacientes agendados</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn-limpar" onclick="window._calPrev()" title="Mês anterior"><i class="fas fa-chevron-left"></i></button>
+          <div id="cal-titulo" style="font-size:16px;font-weight:700;color:var(--accent);min-width:180px;text-align:center">—</div>
+          <button class="btn-limpar" onclick="window._calNext()" title="Próximo mês"><i class="fas fa-chevron-right"></i></button>
+          <button class="btn-limpar" onclick="window._calHoje()" title="Voltar pra hoje"><i class="fas fa-calendar-day"></i> Hoje</button>
+        </div>
+      </div>
+
+      <!-- Legenda -->
+      <div style="display:flex;gap:14px;font-size:11px;color:var(--text-muted);margin-bottom:10px;flex-wrap:wrap">
+        <div><span style="display:inline-block;width:10px;height:10px;background:#ef4444;border-radius:50%;margin-right:5px;vertical-align:middle"></span>Em até 3 dias</div>
+        <div><span style="display:inline-block;width:10px;height:10px;background:#f59e0b;border-radius:50%;margin-right:5px;vertical-align:middle"></span>4–7 dias</div>
+        <div><span style="display:inline-block;width:10px;height:10px;background:#00e676;border-radius:50%;margin-right:5px;vertical-align:middle"></span>Mais de 7 dias</div>
+        <div><span style="display:inline-block;width:10px;height:10px;background:#6b7280;border-radius:50%;margin-right:5px;vertical-align:middle"></span>Passado</div>
+      </div>
+
+      <!-- Grid calendário -->
+      <div class="chart-card" style="padding:14px">
+        <div id="cal-cabecalho-dias" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;text-align:center">
+          <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+        </div>
+        <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px"></div>
+      </div>
+
+      <!-- Painel lateral: dia selecionado -->
+      <div id="cal-painel" class="chart-card" style="margin-top:14px;display:none">
+        <div class="chart-title" id="cal-painel-titulo"><i class="fas fa-list"></i> Pacientes do dia</div>
+        <div id="cal-painel-lista" style="margin-top:10px;font-size:13px"></div>
       </div>
     </div>
 
@@ -13976,6 +14017,119 @@ window.showSection=function(id,el){
       const inp=document.getElementById('rd-data');
       if(inp&&!inp.value)inp.value=_rdTomorrowBR();
       window._rdLoad();
+    },60);
+  }
+};
+
+})();
+</script>
+
+<script>
+/* ---- CALENDÁRIO DE RETORNOS ---- */
+(function(){
+'use strict';
+
+const TBL = (typeof PROJ!=='undefined'&&PROJ==='oculos')?'pacientes_oculos':'pacientes_fibro';
+const DATE_FIELD = (typeof PROJ!=='undefined'&&PROJ==='oculos')?'data_entrega':'proximo_retorno';
+
+let _calRef = null;       /* primeiro dia do mês atualmente exibido */
+let _calData = {};        /* {YYYY-MM-DD: [pacientes]} */
+let _calLoadedKey = null; /* chave YYYY-MM atualmente carregada */
+
+function _cEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function _cIsAdm(){return typeof currentProfile!=='undefined'&&currentProfile?.papel==='admin';}
+function _cTodayBR(){return new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'});}
+function _cYMD(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+dd;}
+function _cMesNome(d){return ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][d.getMonth()]+' '+d.getFullYear();}
+
+async function _calLoad(){
+  if(typeof sb==='undefined')return;
+  if(!_calRef){const t=new Date(_cTodayBR()+'T12:00:00');_calRef=new Date(t.getFullYear(),t.getMonth(),1);}
+  const ano=_calRef.getFullYear(),mes=_calRef.getMonth();
+  const key=ano+'-'+String(mes+1).padStart(2,'0');
+  /* Primeiro dia do mês anterior e último do mês seguinte (pra preencher grid completo) */
+  const ini=new Date(ano,mes,1);
+  const fim=new Date(ano,mes+1,0); /* último dia do mês atual */
+  const iniStr=_cYMD(ini),fimStr=_cYMD(fim);
+  let q=sb.from(TBL).select('id,nome,whatsapp,cadastrado_por,'+DATE_FIELD).gte(DATE_FIELD,iniStr).lte(DATE_FIELD,fimStr).limit(2000);
+  if(!_cIsAdm()&&typeof currentUser!=='undefined'&&currentUser)q=q.eq('cadastrado_por',currentUser.id);
+  const{data,error}=await q;
+  if(error){console.error('[cal:load]',error.message);return;}
+  _calData={};
+  (data||[]).forEach(r=>{
+    const d=r[DATE_FIELD];if(!d)return;
+    if(!_calData[d])_calData[d]=[];
+    _calData[d].push(r);
+  });
+  _calLoadedKey=key;
+  _calRender();
+}
+
+function _calRender(){
+  if(!_calRef)return;
+  const ano=_calRef.getFullYear(),mes=_calRef.getMonth();
+  document.getElementById('cal-titulo').textContent=_cMesNome(_calRef);
+  const primeiroDia=new Date(ano,mes,1);
+  const ultDia=new Date(ano,mes+1,0).getDate();
+  const inicio=primeiroDia.getDay(); /* 0=dom .. 6=sab */
+  const hoje=_cTodayBR();
+  const grid=document.getElementById('cal-grid');
+  if(!grid)return;
+  let html='';
+  /* Espaços vazios antes do dia 1 */
+  for(let i=0;i<inicio;i++){html+='<div style="aspect-ratio:1;background:rgba(255,255,255,0.02);border-radius:8px"></div>';}
+  for(let d=1;d<=ultDia;d++){
+    const ymd=ano+'-'+String(mes+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const pacs=_calData[ymd]||[];
+    const cnt=pacs.length;
+    const ehHoje=ymd===hoje;
+    let cor='#6b7280',ring='';
+    if(cnt>0){
+      const diff=Math.floor((new Date(ymd+'T12:00:00')-new Date(hoje+'T12:00:00'))/86400000);
+      if(diff<0)cor='#6b7280';
+      else if(diff<=3)cor='#ef4444';
+      else if(diff<=7)cor='#f59e0b';
+      else cor='#00e676';
+    }
+    if(ehHoje)ring='box-shadow:0 0 0 2px var(--accent);';
+    const numCol=ehHoje?'var(--accent)':'var(--text-primary)';
+    html+=`<div onclick="window._calClickDia('${ymd}')" style="aspect-ratio:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:6px 4px;cursor:${cnt?'pointer':'default'};display:flex;flex-direction:column;align-items:center;justify-content:space-between;${ring}transition:transform .15s" ${cnt?'onmouseenter="this.style.transform=\'scale(1.05)\'" onmouseleave="this.style.transform=\'\'"':''}>
+      <div style="font-size:13px;font-weight:600;color:${numCol}">${d}</div>
+      ${cnt>0?`<div style="width:100%;display:flex;justify-content:center;align-items:center;gap:3px"><span style="background:${cor};color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;line-height:1.3">${cnt}</span></div>`:'<div></div>'}
+    </div>`;
+  }
+  grid.innerHTML=html;
+  /* Fecha painel se mudou de mês */
+  document.getElementById('cal-painel').style.display='none';
+}
+
+window._calPrev=function(){if(!_calRef){const t=new Date(_cTodayBR()+'T12:00:00');_calRef=new Date(t.getFullYear(),t.getMonth(),1);}_calRef=new Date(_calRef.getFullYear(),_calRef.getMonth()-1,1);_calLoad();};
+window._calNext=function(){if(!_calRef){const t=new Date(_cTodayBR()+'T12:00:00');_calRef=new Date(t.getFullYear(),t.getMonth(),1);}_calRef=new Date(_calRef.getFullYear(),_calRef.getMonth()+1,1);_calLoad();};
+window._calHoje=function(){const t=new Date(_cTodayBR()+'T12:00:00');_calRef=new Date(t.getFullYear(),t.getMonth(),1);_calLoad();};
+
+window._calClickDia=function(ymd){
+  const pacs=_calData[ymd]||[];
+  if(!pacs.length){document.getElementById('cal-painel').style.display='none';return;}
+  document.getElementById('cal-painel').style.display='block';
+  const dt=new Date(ymd+'T12:00:00');
+  const fmt=dt.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
+  document.getElementById('cal-painel-titulo').innerHTML='<i class="fas fa-list"></i> '+fmt+' — '+pacs.length+' paciente'+(pacs.length===1?'':'s');
+  const lista=pacs.map((r,i)=>{
+    const ponto=window._pNumMap?(window._pNumMap[r.cadastrado_por]?'P'+String(window._pNumMap[r.cadastrado_por]).padStart(2,'0'):''):'';
+    const pontoBadge=ponto?'<span style="background:rgba(0,230,118,.13);color:var(--accent);padding:2px 7px;border-radius:8px;font-size:10px;font-weight:700;margin-left:6px">'+ponto+'</span>':'';
+    return '<div style="padding:8px 10px;background:rgba(255,255,255,0.03);border-left:3px solid var(--accent);border-radius:4px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center"><div><strong>'+_cEsc(r.nome||'(sem nome)')+'</strong>'+pontoBadge+'</div><div style="font-size:11px;color:var(--text-muted)">'+_cEsc(r.whatsapp||'')+'</div></div>';
+  }).join('');
+  document.getElementById('cal-painel-lista').innerHTML=lista;
+};
+
+/* Hook em showSection */
+const _calPrevSS=window.showSection;
+window.showSection=function(id,el){
+  if(typeof _calPrevSS==='function')_calPrevSS.apply(this,arguments);
+  if(id==='calendario'||id==='sec-calendario'){
+    setTimeout(()=>{
+      if(!_calRef||!_calLoadedKey){const t=new Date(_cTodayBR()+'T12:00:00');_calRef=new Date(t.getFullYear(),t.getMonth(),1);}
+      _calLoad();
     },60);
   }
 };
