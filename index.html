@@ -2605,7 +2605,8 @@ function _contarPacientesUnicos(list) {
   const keys = new Set();
   (list || []).forEach(p => {
     const cpf = (p.cpf || '').replace(/\D/g, '');
-    const key = cpf ? ('cpf:' + cpf) : ('nw:' + ((p.nome||'').toLowerCase().trim()) + '|' + ((p.whatsapp||'').replace(/\D/g,'')));
+    const cpfOK = window._cpfValido && window._cpfValido(cpf);
+    const key = cpfOK ? ('cpf:' + cpf) : ('nw:' + ((p.nome||'').toLowerCase().trim()) + '|' + ((p.whatsapp||'').replace(/\D/g,'')));
     keys.add(key);
   });
   return keys.size;
@@ -3140,6 +3141,18 @@ window._escHtml = function(s){
     .replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;')
     .replace(/'/g,'&#39;');
+};
+
+/* Helper: detecta CPF claramente invalido/placeholder.
+   - Vazio/nao tem 11 digitos -> invalido
+   - Todos os digitos iguais (00000000000, 11111111111, ..., 99999999999) -> invalido
+   Usado pra dedup: CPFs invalidos nao agrupam pacientes (cai no fallback nome+whatsapp). */
+window._cpfValido = function(cpf){
+  if(!cpf) return false;
+  const d = String(cpf).replace(/\D/g,'');
+  if(d.length !== 11) return false;
+  if(/^(\d)\1{10}$/.test(d)) return false;
+  return true;
 };
 
 /* Helpers de TIMEZONE (America/Sao_Paulo - Brasilia UTC-3, sem DST).
@@ -4586,7 +4599,8 @@ window.updateTable = function() {
     const groupMap = new Map();
     list.forEach(p => {
       const cpf = (p.cpf || '').replace(/\D/g, '');
-      const key = cpf ? 'cpf:' + cpf : 'nw:' + ((p.nome||'').toLowerCase().trim()) + '|' + ((p.whatsapp||'').replace(/\D/g,''));
+      const cpfOK = window._cpfValido && window._cpfValido(cpf);
+      const key = cpfOK ? 'cpf:' + cpf : 'nw:' + ((p.nome||'').toLowerCase().trim()) + '|' + ((p.whatsapp||'').replace(/\D/g,''));
       if (!groupMap.has(key)) groupMap.set(key, {key, nome: p.nome||'—', idade: p.idade, whatsapp: p.whatsapp||'', visitas:[]});
       groupMap.get(key).visitas.push(p);
     });
@@ -5467,6 +5481,10 @@ function _stgValidate(s) {
     if(!nome?.value.trim()) return fail('Nome completo é obrigatório',nome);
     const whats=document.getElementById('s1-whats');
     if(!whats?.value.trim()) return fail('WhatsApp é obrigatório',whats);
+    const cpfEl=document.getElementById('s1-cpf');
+    if(cpfEl?.value.trim()&&!window._cpfValido(cpfEl.value)){
+      return fail('CPF inválido. Deixe em branco se o paciente não tiver, ou digite um CPF real.',cpfEl);
+    }
   }
   if(s===2){
     if(proj!=='oculos'){
@@ -8110,7 +8128,8 @@ window._renderCadastrosAgrupadoAdmin = function(records) {
   const groups = new Map();
   (records||[]).forEach(p => {
     const cpf = (p.cpf||'').replace(/\D/g,'');
-    const key = cpf ? 'cpf:'+cpf : 'nw:'+((p.nome||'').toLowerCase().trim())+'|'+((p.whatsapp||'').replace(/\D/g,''));
+    const cpfOK = window._cpfValido && window._cpfValido(cpf);
+    const key = cpfOK ? 'cpf:'+cpf : 'nw:'+((p.nome||'').toLowerCase().trim())+'|'+((p.whatsapp||'').replace(/\D/g,''));
     if (!groups.has(key)) groups.set(key, { key, paciente: p, visitas: [] });
     const g = groups.get(key);
     g.visitas.push(p);
@@ -11624,7 +11643,8 @@ function _puAgrupar(){
   const groups=new Map();
   list.forEach(p=>{
     const cpf=(p.cpf||'').replace(/\D/g,'');
-    const key=cpf
+    const cpfOK=window._cpfValido&&window._cpfValido(cpf);
+    const key=cpfOK
       ? 'cpf:'+cpf
       : 'nw:'+((p.nome||'').toLowerCase().trim())+'|'+((p.whatsapp||'').replace(/\D/g,''));
     if(!groups.has(key)) groups.set(key,{key, paciente:p, visitas:[]});
