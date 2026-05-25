@@ -1370,7 +1370,7 @@ tr:last-child td { border-bottom: none; }
         <i class="fas fa-plus-circle"></i> Novo Cadastro
       </div>
       <div class="nav-item" data-section="relatorio-dia" onclick="showSection('relatorio-dia', this)">
-        <i class="fas fa-clipboard-list"></i> Relatório do Dia
+        <i class="fas fa-clipboard-list"></i> Retorno do Dia
       </div>
     </div>
 
@@ -2183,7 +2183,7 @@ tr:last-child td { border-bottom: none; }
     <div class="section" id="sec-relatorio-dia">
       <div class="rd-screen-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
         <div>
-          <h1 class="page-title">Relatório do Dia</h1>
+          <h1 class="page-title">Retorno do Dia</h1>
           <p class="page-subtitle">Pacientes agendados para retorno — imprima e entregue à fisioterapeuta</p>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -13773,7 +13773,7 @@ window._rdPrint=function(){
   const total=document.getElementById('rd-doc-total')?.innerHTML||'';
   if(!lista||lista.includes('rd-vazio')){if(typeof showToast==='function')showToast('Nada para imprimir',true);return;}
   const ger=new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'});
-  const html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório do Dia — '+_rdFmtShort(data)+'</title>'+
+  const html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Retorno do Dia — '+_rdFmtShort(data)+'</title>'+
     '<style>'+
     '@page{margin:1.5cm;size:A4}'+
     '*{box-sizing:border-box}'+
