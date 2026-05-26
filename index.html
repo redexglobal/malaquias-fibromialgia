@@ -2667,7 +2667,9 @@ window._fetchCount = async function(tbl, filterFn){
 
 async function loadData() {
   const ownId = (currentProfile?.papel !== 'admin') ? currentUser.id : null;
+  console.log('[DIAG loadData] papel=', currentProfile?.papel, 'currentUser.id=', currentUser?.id, 'ownId=', ownId);
   allPacientes = await window._fetchAllRows('pacientes_fibro', ownId);
+  console.log('[DIAG loadData] allPacientes.length=', allPacientes?.length, 'primeiro=', allPacientes?.[0]?.nome, 'criado_em=', allPacientes?.[0]?.criado_em);
   updateKPIs();
   updateTable();
   updateCharts();
@@ -4773,6 +4775,7 @@ window.updateTable = function() {
   if (isPonto) {
     const search = (document.getElementById('search-paciente')?.value || '').toLowerCase();
     const list = window.allPacientes || [];
+    console.log('[DIAG updateTable PONTO] allPacientes.length=', list.length, 'search=', JSON.stringify(search), 'search-data=', document.getElementById('search-data')?.value);
 
     const groupMap = new Map();
     list.forEach(p => {
@@ -4792,6 +4795,7 @@ window.updateTable = function() {
     );
     const dataF = document.getElementById('search-data')?.value||'';
     if (dataF) groups = groups.filter(g=>g.visitas.some(v=>window._matchDataBusca(v,dataF)));
+    console.log('[DIAG updateTable PONTO] groups.length pos-filtro=', groups.length, 'dataF=', dataF);
 
     const cnt = document.getElementById('table-count');
     if (cnt) cnt.textContent = groups.length + ' paciente' + (groups.length !== 1 ? 's' : '');
