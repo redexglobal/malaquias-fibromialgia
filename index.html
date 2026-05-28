@@ -2565,10 +2565,9 @@ async function doLogout() {
       }
       try { enterApp(); }
       catch (e) {
+        /* Mensagem visivel removida a pedido do Vilson — assustava o usuario.
+           Erro fica so no console; F5 resolve. */
         console.error('[malaquias:boot:enterApp]', e);
-        /* Mostra erro discreto no login pra usuario saber que algo errado aconteceu */
-        const err = document.getElementById('login-error');
-        if (err) { err.textContent = 'Erro ao carregar. Atualize a pagina (F5).'; err.style.display = 'block'; }
       }
     }
   } catch (e) {
