@@ -7761,8 +7761,14 @@ function _updateRecordsCard(){
   all.forEach(p=>pontoCount[p.cadastrado_por]=(pontoCount[p.cadastrado_por]||0)+1);
   const topPonto=Object.entries(pontoCount).sort((a,b)=>b[1]-a[1])[0];
   const topNome=topPonto?((window._pMapGlobal||{})[topPonto[0]]||topPonto[0].substring(0,8))+' ('+topPonto[1]+')':'—';
-  /* Mais recente */
-  const recent=all.sort((a,b)=>b.criado_em?.localeCompare(a.criado_em||''))[0];
+  /* Mais recente — IMPORTANTE: nao usar all.sort() (muta allPacientes!).
+     Em vez disso, reduce pra achar o max em O(n) sem alocar/mutar. */
+  let recent=null;
+  for(let i=0;i<all.length;i++){
+    const p=all[i];
+    if(!p?.criado_em)continue;
+    if(!recent||p.criado_em>recent.criado_em)recent=p;
+  }
   const recentStr=recent?.nome||'—';
   el.innerHTML=`
     <div class="records-card">
@@ -13098,12 +13104,10 @@ function _arInit(){
 
   _updateTimestamp(); /* mostra agora */
 
-  window.addEventListener('focus',()=>_autoRefresh('focus'));
-  document.addEventListener('visibilitychange',()=>{
-    if(!document.hidden) _autoRefresh('visible');
-  });
-  if(_refreshInterval) clearInterval(_refreshInterval);
-  _refreshInterval=setInterval(()=>_autoRefresh('60s'),60000);
+  /* REMOVIDO: setInterval(_autoRefresh,60000) + focus/visibilitychange listeners
+     — DUPLICAVAM o startAutoRefresh() (linha ~10944) que ja faz isso com Page
+     Visibility API + guard _refreshRunning. Dois loadData() em paralelo a cada
+     60s era a fonte principal da trava 'Pagina sem resposta'. */
 
   return true;
 }
