@@ -2601,7 +2601,9 @@ function enterApp() {
   if (isAdmin) {
     document.getElementById('project-switch').style.display = 'block';
     document.getElementById('nav-admin-section').style.display = 'block';
-    document.getElementById('alerts-section').style.display = 'block';
+    /* alerts-section removido — antes acessava .style.display de null e dava
+       TypeError que abortava enterApp, sumindo com as abas do juridico
+       (IIFEs esperavam evento profile-ready que nunca chegava) */
   }
 
   const hora = new Date().getHours();
