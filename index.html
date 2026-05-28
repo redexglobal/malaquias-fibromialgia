@@ -3440,14 +3440,51 @@ async function updatePontos() {
 }
 
 // ============== REALTIME ==============
-/* Debounce do reload da Natalia: numa rajada de eventos, junta tudo numa
-   recarga so (apos 700ms de silencio) — evita tempestade de loadData
-   paginado e corrida entre cargas concorrentes. O toast continua por evento. */
+/* Realtime INCREMENTAL: ao inves de refetch completo do banco (loadData),
+   muta allPacientes localmente com payload.new/payload.old e re-renderiza
+   apenas widgets que dependem dele. Reduz CPU/rede drasticamente quando
+   varios pontos cadastram em paralelo. Toast continua por evento; render
+   eh debounced em 200ms pra agrupar rajada. */
 let _natReloadTimer = null;
-function _natReloadDebounced(){
+
+/* Aplica o evento realtime no allPacientes local — sem refetch. */
+window._applyRecordToLocal = function(eventType, newRow, oldRow){
+  if (!Array.isArray(window.allPacientes)) window.allPacientes = [];
+  if (eventType === 'INSERT' && newRow) {
+    if (!window.allPacientes.some(p => p.id === newRow.id)) window.allPacientes.unshift(newRow);
+  } else if (eventType === 'UPDATE' && newRow) {
+    const idx = window.allPacientes.findIndex(p => p.id === newRow.id);
+    if (idx >= 0) window.allPacientes[idx] = { ...window.allPacientes[idx], ...newRow };
+    else window.allPacientes.unshift(newRow);
+  } else if (eventType === 'DELETE' && (oldRow || newRow)) {
+    const target = oldRow || newRow;
+    const idx = window.allPacientes.findIndex(p => p.id === target.id);
+    if (idx >= 0) window.allPacientes.splice(idx, 1);
+  }
+};
+
+/* Re-render leve dos widgets que olham allPacientes — debounced, sem refetch. */
+window._renderLight = function(){
   clearTimeout(_natReloadTimer);
-  _natReloadTimer = setTimeout(()=>{ try{ loadData(); }catch(e){ console.warn('[malaquias:nat-reload]', e?.message||e); } }, 700);
-}
+  _natReloadTimer = setTimeout(() => {
+    try {
+      if (typeof updateKPIs === 'function') updateKPIs();
+      if (typeof updateTable === 'function') updateTable();
+      if (typeof updateCharts === 'function') updateCharts();
+      if (typeof currentProfile !== 'undefined' && currentProfile?.papel === 'admin') {
+        if (typeof updateAlerts === 'function') updateAlerts();
+        if (typeof updateRanking === 'function') updateRanking();
+        if (typeof updateRelatorios === 'function') updateRelatorios();
+        if (typeof updatePontos === 'function') updatePontos();
+        if (typeof _updatePulsoDia === 'function') _updatePulsoDia();
+        if (typeof _updateTimeline === 'function') _updateTimeline();
+        if (typeof _updateOfflineCard === 'function') _updateOfflineCard();
+        if (typeof _updateRecordsCard === 'function') _updateRecordsCard();
+      }
+    } catch(e){ console.warn('[malaquias:render-light]', e?.message||e); }
+  }, 200);
+};
+
 sb.channel('fibro-changes')
   .on('postgres_changes', { event: '*', schema: 'public', table: 'pacientes_fibro' }, payload => {
     /* Realtime liberado pra TODOS os admins (era restrito a natalia) */
@@ -3468,7 +3505,9 @@ sb.channel('fibro-changes')
           }
         }
       }
-      _natReloadDebounced();
+      /* Mutacao incremental + render leve em vez de loadData() cheio */
+      window._applyRecordToLocal(ev, payload.new, payload.old);
+      window._renderLight();
     }
   })
   .subscribe();
@@ -5851,15 +5890,21 @@ window._stgSave = async function() {
     ? ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
     : ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
 
-  let {error} = await sb.from(table).insert(payload);
+  /* QW1: .select().single() devolve a row com id/criado_em gerados pelo banco —
+     necessario pra mutar allPacientes local em vez de refazer loadData() inteiro */
+  let insertedRow = null;
+  let r1 = await sb.from(table).insert(payload).select().single();
+  let error = r1.error;
+  if (!error) insertedRow = r1.data;
 
   if(error && error.message && error.message.includes('column')) {
     /* Coluna nova não existe ainda — remove e tenta sem ela */
     const clean={...payload};
     newCols.forEach(c=>delete clean[c]);
-    const r2 = await sb.from(table).insert(clean);
+    const r2 = await sb.from(table).insert(clean).select().single();
     error = r2.error;
     if(!error) {
+      insertedRow = r2.data;
       _toast('Salvo (algumas colunas novas ainda não existem no banco)', false);
     }
   }
@@ -5871,7 +5916,15 @@ window._stgSave = async function() {
   _toast(proj==='oculos'?'Pedido cadastrado com sucesso!':'Paciente cadastrado com sucesso!');
   _stg=1;_dat={};
   buildNovoForm(proj);
-  if(typeof loadData==='function') loadData();
+  /* QW1: muta local + render leve em vez de loadData() cheio.
+     Realtime ja dispara pros outros clientes; guard de dedup em _applyRecordToLocal
+     evita duplicar quando o realtime do proprio cliente tambem chegar. */
+  if (insertedRow && typeof window._applyRecordToLocal === 'function') {
+    window._applyRecordToLocal('INSERT', insertedRow, null);
+    if (typeof window._renderLight === 'function') window._renderLight();
+  } else if (typeof loadData === 'function') {
+    loadData(); /* fallback legado pra oculos ou se helper indisponivel */
+  }
 };
 
 /* ---- Cor do slider de dor ---- */
@@ -11753,7 +11806,9 @@ function _rtInit(){
         const pr=window._profilesMap?.[p.cadastrado_por];
         const cadPor=pr?(pr.nome_ponto||pr.nome||'Colaborador'):'Colaborador';
         _rtToast(nome,'Fibromialgia',cadPor);
-        if(typeof window.loadData==='function') setTimeout(()=>window.loadData(),1000);
+        /* QW2: loadData() removido — canal 'fibro-changes' (linha ~3450) ja
+           aplica incremental via _applyRecordToLocal + _renderLight. Esse
+           canal eh so pro toast bonitao com nome do colaborador. */
       })
       .subscribe();
     _rtChannels.push(ch);
@@ -12316,12 +12371,18 @@ async function _salvarRetorno(key,btnRef){
     ? ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
     : ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
 
-  let {error}=await sb.from(table).insert(payload);
+  /* QW1: .select().single() pra mutar local em vez de loadData() cheio */
+  let insertedRow = null;
+  let r1 = await sb.from(table).insert(payload).select().single();
+  let error = r1.error;
+  if (!error) insertedRow = r1.data;
+
   if(error && error.message && error.message.includes('column')){
     const clean={...payload};
     newCols.forEach(c=>delete clean[c]);
-    const r2=await sb.from(table).insert(clean);
-    error=r2.error;
+    const r2 = await sb.from(table).insert(clean).select().single();
+    error = r2.error;
+    if (!error) insertedRow = r2.data;
   }
 
   if(btnRef){ btnRef.disabled=false; btnRef.textContent='✅ Registrar Retorno'; }
@@ -12337,8 +12398,13 @@ async function _salvarRetorno(key,btnRef){
   /* Fecha modal de histórico também — usuário vê a lista atualizada com nova contagem */
   const histBg=document.getElementById('_phist-bg');
   if(histBg) histBg.style.display='none';
-  /* Realtime já dispara updateKPIs, mas chamamos loadData direto pra garantir consistência local imediata */
-  if(typeof loadData==='function') try{ await loadData(); }catch(e){ console.warn('[malaquias:retorno-reload]',e?.message||e); }
+  /* QW1: muta local + render leve em vez de loadData() cheio (realtime cobre os outros clientes) */
+  if (insertedRow && typeof window._applyRecordToLocal === 'function') {
+    window._applyRecordToLocal('INSERT', insertedRow, null);
+    if (typeof window._renderLight === 'function') window._renderLight();
+  } else if (typeof loadData==='function') {
+    try{ await loadData(); }catch(e){ console.warn('[malaquias:retorno-reload]',e?.message||e); }
+  }
   if(typeof window._renderPacientesUnicos==='function') try{ window._renderPacientesUnicos(); }catch(e){ console.warn('[malaquias:retorno-render]',e?.message||e); }
 }
 
@@ -12553,9 +12619,11 @@ async function _pEditSave(recordId,btnRef){
   if(typeof showToast==='function') showToast('Registro atualizado! 🎉');
   _pEditClose();
   const histBg=document.getElementById('_phist-bg'); if(histBg) histBg.style.display='none';
-  if(typeof loadData==='function') try{ await loadData(); }catch(e){ console.warn('[malaquias:edit-reload]',e?.message||e); }
+  /* QW1: mutacao local ja feita acima — loadData() removido. _renderLight cobre KPIs/charts/admin widgets;
+     fallback pra updateTable se helper indisponivel (oculos ou cold init). */
+  if(typeof window._renderLight === 'function') window._renderLight();
+  else if(typeof window.updateTable==='function') try{ window.updateTable(); }catch(e){ console.warn('[malaquias:edit-table]',e?.message||e); }
   if(typeof window._renderPacientesUnicos==='function') try{ window._renderPacientesUnicos(); }catch(e){ console.warn('[malaquias:edit-render]',e?.message||e); }
-  if(typeof window.updateTable==='function') try{ window.updateTable(); }catch(e){ console.warn('[malaquias:edit-table]',e?.message||e); }
 }
 
 if(!_puInit()){const _t=setInterval(()=>{if(_puInit())clearInterval(_t);},600);setTimeout(()=>clearInterval(_t),30000);window.addEventListener('malaquias:profile-ready',function(){_puInit();},{once:true});}
