@@ -2600,12 +2600,27 @@ function enterApp() {
 
   const hora = new Date().getHours();
   const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
-  document.getElementById('dash-title').textContent = saudacao + ', ' + (currentProfile?.nome?.split(' ')[0] || 'Usuário');
-  document.getElementById('dash-date').textContent = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  try {
+    const _dt = document.getElementById('dash-title');
+    if (_dt) _dt.textContent = saudacao + ', ' + (currentProfile?.nome?.split(' ')[0] || 'Usuário');
+    const _dd = document.getElementById('dash-date');
+    if (_dd) _dd.textContent = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  } catch(e){ console.warn('[malaquias:enterApp:title]', e?.message||e); }
   const _fdata = document.getElementById('f-data');
   if (_fdata) _fdata.value = _todayBR();
 
-  loadData();
+  /* QW: loadData com try/catch + retry leve em 2s. Garante que dados aparecam
+     automaticamente ao entrar — se falhar (rede instavel, supabase warmup),
+     tenta de novo sem travar UI. Antes: loadData sincrono podia rejeitar
+     e deixar a tela vazia ate o usuario refrescar. */
+  (async function bootLoad(){
+    try { await loadData(); }
+    catch (e) {
+      console.warn('[malaquias:boot:loadData]', e?.message||e);
+      /* retry em 2s se falhar (rede/RLS transiente) */
+      setTimeout(() => { try { loadData(); } catch(err){ console.error('[malaquias:boot:retry]', err); } }, 2000);
+    }
+  })();
   /* Garante que o wizard de Novo Cadastro seja montado + rebuild ao clicar no nav */
   (function(){
     var _bf=function(){var p=typeof currentProject!=='undefined'?currentProject:'fibro';try{if(typeof window.buildNovoForm==='function')window.buildNovoForm(p);}catch(e){console.error('[enterApp:buildNovoForm]',e);}};
@@ -2614,6 +2629,15 @@ function enterApp() {
   })();
   /* Notifica IIFEs que dependem de currentProfile (evita race condition no sidebar) */
   setTimeout(function(){ window.dispatchEvent(new CustomEvent('malaquias:profile-ready')); }, 200);
+  /* QW: redraw seguro apos 1s — garante que widgets que dependem de allPacientes
+     (carregado async) rendam mesmo se algum wrapper tiver falhado silencioso */
+  setTimeout(function(){
+    try {
+      if (Array.isArray(window.allPacientes) && window.allPacientes.length > 0) {
+        if (typeof window._renderLight === 'function') window._renderLight();
+      }
+    } catch(e){ console.warn('[malaquias:boot:redraw]', e?.message||e); }
+  }, 1200);
 }
 
 async function doLogout() {
@@ -2623,11 +2647,34 @@ async function doLogout() {
 
 // Check session on load
 (async function() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    currentUser = session.user;
-    await loadProfile();
-    enterApp();
+  /* QW: bootstrap robusto — try/catch em cada etapa critica.
+     Antes: se sb.auth.getSession() ou loadProfile() rejeitasse, a tela ficava
+     em branco ("pagina nao encontrada" visual) sem feedback. Agora cada falha
+     loga, mostra a tela de login e deixa o usuario tentar de novo. */
+  try {
+    const { data, error } = await sb.auth.getSession();
+    if (error) { console.warn('[malaquias:boot:getSession]', error?.message||error); return; }
+    const session = data?.session;
+    if (session) {
+      currentUser = session.user;
+      try {
+        await loadProfile();
+      } catch (e) {
+        console.warn('[malaquias:boot:loadProfile]', e?.message||e);
+        /* Sem profile, signOut limpa estado corrompido pra usuario logar de novo */
+        try { await sb.auth.signOut(); } catch(_){}
+        return;
+      }
+      try { enterApp(); }
+      catch (e) {
+        console.error('[malaquias:boot:enterApp]', e);
+        /* Mostra erro discreto no login pra usuario saber que algo errado aconteceu */
+        const err = document.getElementById('login-error');
+        if (err) { err.textContent = 'Erro ao carregar. Atualize a pagina (F5).'; err.style.display = 'block'; }
+      }
+    }
+  } catch (e) {
+    console.error('[malaquias:boot:fatal]', e);
   }
 })();
 
@@ -2757,6 +2804,22 @@ function getChartColors() {
   };
 }
 
+/* QW3: Upsert de Chart — se ja existe e eh do mesmo tipo, atualiza .data
+   e chama .update('none') (sem animacao, ~5x mais rapido que destroy + new).
+   Senao destroy (se existir) + new. Mantem o mesmo contrato visual. */
+window._upsertChart = function(key, ctx, type, data, options){
+  if (!ctx || typeof Chart === 'undefined') return null;
+  if (charts[key] && charts[key].config && charts[key].config.type === type) {
+    charts[key].data = data;
+    if (options) charts[key].options = { ...charts[key].options, ...options };
+    try { charts[key].update('none'); return charts[key]; }
+    catch(e){ console.warn('[malaquias:chart-upsert]', e?.message||e); try{charts[key].destroy();}catch(_){} }
+  }
+  if (charts[key]) { try { charts[key].destroy(); } catch(_){} }
+  charts[key] = new Chart(ctx, { type, data, options });
+  return charts[key];
+};
+
 function updateCharts() {
   const c = getChartColors();
   Chart.defaults.color = c.text;
@@ -2771,34 +2834,27 @@ function updateCharts() {
     last30.push({ label, count });
   }
 
-  if (charts.weekly) charts.weekly.destroy();
   const ctx1 = document.getElementById('chart-weekly');
-  if (ctx1) {
-    charts.weekly = new Chart(ctx1, {
-      type: 'line',
-      data: {
-        labels: last30.map(d => d.label),
-        datasets: [{
-          label: 'Cadastros',
-          data: last30.map(d => d.count),
-          borderColor: c.accent,
-          backgroundColor: c.accentBg,
-          fill: true,
-          tension: 0.4,
-          pointRadius: 2,
-          pointBackgroundColor: c.accent,
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: { beginAtZero: true, grid: { color: c.grid }, ticks: { stepSize: 1 } },
-          x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 0, autoSkip: true, maxTicksLimit: 15 } }
-        }
-      }
-    });
-  }
+  window._upsertChart('weekly', ctx1, 'line', {
+    labels: last30.map(d => d.label),
+    datasets: [{
+      label: 'Cadastros',
+      data: last30.map(d => d.count),
+      borderColor: c.accent,
+      backgroundColor: c.accentBg,
+      fill: true,
+      tension: 0.4,
+      pointRadius: 2,
+      pointBackgroundColor: c.accent,
+    }]
+  }, {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: c.grid }, ticks: { stepSize: 1 } },
+      x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 0, autoSkip: true, maxTicksLimit: 15 } }
+    }
+  });
 
   /* G2 — Distribuição em 3 faixas (Leve/Moderada/Severa) */
   let leve=0, moderada=0, severa=0;
@@ -2809,26 +2865,19 @@ function updateCharts() {
     else severa++;
   });
 
-  if (charts.dor) charts.dor.destroy();
   const ctx2 = document.getElementById('chart-dor');
-  if (ctx2) {
-    charts.dor = new Chart(ctx2, {
-      type: 'doughnut',
-      data: {
-        labels: ['Leve (0–3)','Moderada (4–6)','Severa (7–10)'],
-        datasets: [{
-          data: [leve, moderada, severa],
-          backgroundColor: ['#10b981','#eab308','#ef4444'],
-          borderWidth: 0,
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'right', labels: { boxWidth: 12, padding: 10, font: { size: 12 } } } },
-        cutout: '60%',
-      }
-    });
-  }
+  window._upsertChart('dor', ctx2, 'doughnut', {
+    labels: ['Leve (0–3)','Moderada (4–6)','Severa (7–10)'],
+    datasets: [{
+      data: [leve, moderada, severa],
+      backgroundColor: ['#10b981','#eab308','#ef4444'],
+      borderWidth: 0,
+    }]
+  }, {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'right', labels: { boxWidth: 12, padding: 10, font: { size: 12 } } } },
+    cutout: '60%',
+  });
 
   /* G3 + G4 — novos charts via funções dedicadas */
   if (typeof updateTopPontosChart === 'function') updateTopPontosChart(c);
@@ -2850,28 +2899,23 @@ async function updateTopPontosChart(c) {
     const { data, error } = await sb.from(view).select('nome_ponto,total_cadastros,numero_ponto').order('total_cadastros', { ascending: false }).limit(10);
     if (error) { console.error('[DASHBOARD G3]', error); return; }
     const rows = data || [];
-    if (charts.topPontos) charts.topPontos.destroy();
-    charts.topPontos = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: rows.map(r => r.nome_ponto || ('Ponto '+r.numero_ponto)),
-        datasets: [{
-          label: 'Cadastros',
-          data: rows.map(r => r.total_cadastros || 0),
-          backgroundColor: 'rgba(16,185,129,0.7)',
-          borderColor: '#10b981',
-          borderWidth: 1,
-          borderRadius: 4,
-        }]
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.raw + ' cadastros' } } },
-        scales: {
-          x: { beginAtZero: true, grid: { color: c.grid }, ticks: { stepSize: 1, font: { size: 11 } } },
-          y: { grid: { display: false }, ticks: { font: { size: 12 } } }
-        }
+    window._upsertChart('topPontos', ctx, 'bar', {
+      labels: rows.map(r => r.nome_ponto || ('Ponto '+r.numero_ponto)),
+      datasets: [{
+        label: 'Cadastros',
+        data: rows.map(r => r.total_cadastros || 0),
+        backgroundColor: 'rgba(16,185,129,0.7)',
+        borderColor: '#10b981',
+        borderWidth: 1,
+        borderRadius: 4,
+      }]
+    }, {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.raw + ' cadastros' } } },
+      scales: {
+        x: { beginAtZero: true, grid: { color: c.grid }, ticks: { stepSize: 1, font: { size: 11 } } },
+        y: { grid: { display: false }, ticks: { font: { size: 12 } } }
       }
     });
   } catch (e) { console.error('[DASHBOARD G3 EXCEPTION]', e); }
@@ -2890,27 +2934,22 @@ async function updateHourlyChart(c) {
     const porHora = Array(24).fill(0);
     (data || []).forEach(r => { if (r.criado_em) porHora[new Date(r.criado_em).getHours()]++; });
     const labels = Array.from({length:24}, (_,i) => String(i).padStart(2,'0')+'h');
-    if (charts.hourly) charts.hourly.destroy();
-    charts.hourly = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Cadastros',
-          data: porHora,
-          backgroundColor: 'rgba(167,139,250,0.65)',
-          borderColor: '#a78bfa',
-          borderWidth: 1,
-          borderRadius: 4,
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.raw + ' cadastros' } } },
-        scales: {
-          y: { beginAtZero: true, grid: { color: c.grid }, ticks: { stepSize: 1 } },
-          x: { grid: { display: false }, ticks: { font: { size: 10 } } }
-        }
+    window._upsertChart('hourly', ctx, 'bar', {
+      labels,
+      datasets: [{
+        label: 'Cadastros',
+        data: porHora,
+        backgroundColor: 'rgba(167,139,250,0.65)',
+        borderColor: '#a78bfa',
+        borderWidth: 1,
+        borderRadius: 4,
+      }]
+    }, {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.raw + ' cadastros' } } },
+      scales: {
+        y: { beginAtZero: true, grid: { color: c.grid }, ticks: { stepSize: 1 } },
+        x: { grid: { display: false }, ticks: { font: { size: 10 } } }
       }
     });
   } catch (e) { console.error('[DASHBOARD G4 EXCEPTION]', e); }
@@ -2925,31 +2964,24 @@ function updateAnalyticsCharts(c) {
   });
   const sorted = Object.entries(pontoMap).sort((a,b) => b[1]-a[1]).slice(0, 10);
 
-  if (charts.pontos) charts.pontos.destroy();
   const ctx3 = document.getElementById('chart-pontos');
-  if (ctx3) {
-    charts.pontos = new Chart(ctx3, {
-      type: 'bar',
-      data: {
-        labels: sorted.map(s => s[0]),
-        datasets: [{
-          data: sorted.map(s => s[1]),
-          backgroundColor: sorted.map((_, i) => i === 0 ? c.gold : c.greenBg),
-          borderColor: sorted.map((_, i) => i === 0 ? c.gold : c.green),
-          borderWidth: 1,
-          borderRadius: 6,
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: { beginAtZero: true, grid: { color: c.grid } },
-          x: { grid: { display: false } }
-        }
-      }
-    });
-  }
+  window._upsertChart('pontos', ctx3, 'bar', {
+    labels: sorted.map(s => s[0]),
+    datasets: [{
+      data: sorted.map(s => s[1]),
+      backgroundColor: sorted.map((_, i) => i === 0 ? c.gold : c.greenBg),
+      borderColor: sorted.map((_, i) => i === 0 ? c.gold : c.green),
+      borderWidth: 1,
+      borderRadius: 6,
+    }]
+  }, {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: c.grid } },
+      x: { grid: { display: false } }
+    }
+  });
 
   // Trend area chart
   const trend = [];
@@ -2961,32 +2993,25 @@ function updateAnalyticsCharts(c) {
     trend.push({ label: d.getDate()+'/'+(d.getMonth()+1), value: acc });
   }
 
-  if (charts.trend) charts.trend.destroy();
   const ctx4 = document.getElementById('chart-trend');
-  if (ctx4) {
-    charts.trend = new Chart(ctx4, {
-      type: 'line',
-      data: {
-        labels: trend.map(t => t.label),
-        datasets: [{
-          data: trend.map(t => t.value),
-          borderColor: c.gold,
-          backgroundColor: c.goldBg,
-          fill: true,
-          tension: 0.3,
-          pointRadius: 0,
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: { beginAtZero: true, grid: { color: c.grid } },
-          x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } }
-        }
-      }
-    });
-  }
+  window._upsertChart('trend', ctx4, 'line', {
+    labels: trend.map(t => t.label),
+    datasets: [{
+      data: trend.map(t => t.value),
+      borderColor: c.gold,
+      backgroundColor: c.goldBg,
+      fill: true,
+      tension: 0.3,
+      pointRadius: 0,
+    }]
+  }, {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: c.grid } },
+      x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } }
+    }
+  });
 
   // Age distribution
   const ageGroups = { '0-18': 0, '19-30': 0, '31-45': 0, '46-60': 0, '60+': 0 };
@@ -2999,25 +3024,18 @@ function updateAnalyticsCharts(c) {
     else ageGroups['60+']++;
   });
 
-  if (charts.idade) charts.idade.destroy();
   const ctx5 = document.getElementById('chart-idade');
-  if (ctx5) {
-    charts.idade = new Chart(ctx5, {
-      type: 'polarArea',
-      data: {
-        labels: Object.keys(ageGroups),
-        datasets: [{
-          data: Object.values(ageGroups),
-          backgroundColor: [c.accentBg, c.greenBg, c.goldBg, c.warningBg, c.dangerBg],
-          borderWidth: 0,
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } },
-      }
-    });
-  }
+  window._upsertChart('idade', ctx5, 'polarArea', {
+    labels: Object.keys(ageGroups),
+    datasets: [{
+      data: Object.values(ageGroups),
+      backgroundColor: [c.accentBg, c.greenBg, c.goldBg, c.warningBg, c.dangerBg],
+      borderWidth: 0,
+    }]
+  }, {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } },
+  });
 
   // Hourly distribution
   const hours = Array(24).fill(0);
@@ -3028,31 +3046,24 @@ function updateAnalyticsCharts(c) {
     }
   });
 
-  if (charts.horarios) charts.horarios.destroy();
   const ctx6 = document.getElementById('chart-horarios');
-  if (ctx6) {
-    charts.horarios = new Chart(ctx6, {
-      type: 'bar',
-      data: {
-        labels: hours.map((_, i) => i + 'h'),
-        datasets: [{
-          data: hours,
-          backgroundColor: c.accentBg,
-          borderColor: c.accent,
-          borderWidth: 1,
-          borderRadius: 4,
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: { beginAtZero: true, grid: { color: c.grid } },
-          x: { grid: { display: false }, ticks: { maxTicksLimit: 12, font: { size: 10 } } }
-        }
-      }
-    });
-  }
+  window._upsertChart('horarios', ctx6, 'bar', {
+    labels: hours.map((_, i) => i + 'h'),
+    datasets: [{
+      data: hours,
+      backgroundColor: c.accentBg,
+      borderColor: c.accent,
+      borderWidth: 1,
+      borderRadius: 4,
+    }]
+  }, {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: c.grid } },
+      x: { grid: { display: false }, ticks: { maxTicksLimit: 12, font: { size: 10 } } }
+    }
+  });
 }
 
 // ============== SAVE ==============
@@ -3191,11 +3202,31 @@ function showSavePreview(rec) {
 }
 
 // ============== UTILS ==============
+/* QW6/perf: cache do elemento ativo evita varrer querySelectorAll('.section') e
+   '.nav-item' em CADA click. Antes: O(N) com N=20+ elementos por click; agora: O(1).
+   Fallback pra varredura completa so na 1a chamada (boot) ou se cache divergir. */
+let _activeSection = null;
+let _activeNavItem = null;
 function showSection(id, el) {
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.getElementById('sec-' + id).classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  el.classList.add('active');
+  const target = document.getElementById('sec-' + id);
+  if (!target) return;
+  /* Desativa apenas a section anterior (cache hit) */
+  if (_activeSection && _activeSection !== target) _activeSection.classList.remove('active');
+  /* Defensivo: na 1a chamada ou se cache perdeu sync, limpa qualquer outra .active */
+  if (!_activeSection) {
+    const others = document.querySelectorAll('.section.active');
+    for (let i = 0; i < others.length; i++) if (others[i] !== target) others[i].classList.remove('active');
+  }
+  target.classList.add('active');
+  _activeSection = target;
+
+  /* Mesma estrategia pro nav-item */
+  if (_activeNavItem && _activeNavItem !== el) _activeNavItem.classList.remove('active');
+  if (!_activeNavItem) {
+    const oNav = document.querySelectorAll('.nav-item.active');
+    for (let i = 0; i < oNav.length; i++) if (oNav[i] !== el) oNav[i].classList.remove('active');
+  }
+  if (el) { el.classList.add('active'); _activeNavItem = el; }
 }
 
 function updateDor(val) {
@@ -10871,15 +10902,32 @@ window.showToast = function(msg, isError) {
 };
 
 // ─── AUTO-REFRESH ────────────────────────────────────────────────────
+/* QW: Auto-refresh inteligente — pula tick quando aba esta em background
+   (document.hidden) pra nao gastar CPU/rede sem ninguem olhando. Quando
+   o usuario volta pra aba, dispara refresh imediato. */
 let _refreshInterval = null;
 let _lastRefresh = Date.now();
+let _refreshRunning = false;
 
 function startAutoRefresh() {
-  _refreshInterval = setInterval(async () => {
-    await loadData();
-    _lastRefresh = Date.now();
-    updateLiveBadge();
-  }, 60000);
+  async function _tick() {
+    if (document.hidden) return; /* pula quando aba escondida */
+    if (_refreshRunning) return; /* evita rajada de loadData se anterior demorou */
+    _refreshRunning = true;
+    try {
+      await loadData();
+      _lastRefresh = Date.now();
+      updateLiveBadge();
+    } catch (e) { console.warn('[malaquias:auto-refresh]', e?.message||e); }
+    finally { _refreshRunning = false; }
+  }
+  if (_refreshInterval) clearInterval(_refreshInterval);
+  _refreshInterval = setInterval(_tick, 60000);
+  /* Quando aba volta a ficar visivel apos minutos parada, atualiza imediato */
+  if (!window._visListenerAdded) {
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) _tick(); });
+    window._visListenerAdded = true;
+  }
   updateLiveBadge();
 }
 
