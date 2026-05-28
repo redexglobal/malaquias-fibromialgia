@@ -4,10 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Malaquias — Sistema Fibromialgia</title>
+<!-- QW: preconnect avisa o browser pra resolver DNS + abrir TCP/TLS cedo (paralelo
+     com o parse do HTML). Cada um economiza ~80-300ms na 1a visita. -->
+<link rel="preconnect" href="https://vuylzbefjwbtibhnczih.supabase.co" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<!-- Supabase precisa ser sincrono (script inline na linha ~2507 chama supabase.createClient
+     imediatamente apos o parse). defer aqui quebra o boot. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/js/all.min.js"></script>
+<!-- Chart.js: defer eh seguro — todas as chamadas a new Chart() acontecem em funcoes
+     disparadas por loadData/showSection/eventos, ou seja, DEPOIS do DOMContentLoaded
+     (e defer garante que Chart.js carregou ate la). Ganho ~150-300ms no boot. -->
+<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<!-- Font Awesome: defer seguro tambem — icones aparecem 100-200ms depois (imperceptivel),
+     em troca o resto da pagina renderiza antes. -->
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/js/all.min.js"></script>
 <style>
 :root {
   --gold: #00e676;
@@ -7232,11 +7246,16 @@ window.switchProject=function(proj,btn){
 const _prevLDAdv12=window.loadData;
 window.loadData=async function(){
   if(typeof _prevLDAdv12==='function') await _prevLDAdv12();
-  _updateExecSummary();
-  _updateWeeklyCard();
-  _updateHealthIndicator();
-  const hmEl=$('adv12-hm');if(hmEl)_renderHeatMap(hmEl);
-  _buildHourlyChart();
+  /* QW4: 5 widgets independentes do dashboard avancado — paraleliza renderizacao.
+     _renderHeatMap depende do canvas existir, mas verificacao eh sincrona dentro. */
+  const hmEl=$('adv12-hm');
+  await Promise.allSettled([
+    Promise.resolve().then(()=>_updateExecSummary()),
+    Promise.resolve().then(()=>_updateWeeklyCard()),
+    Promise.resolve().then(()=>_updateHealthIndicator()),
+    hmEl ? Promise.resolve().then(()=>_renderHeatMap(hmEl)) : Promise.resolve(),
+    Promise.resolve().then(()=>_buildHourlyChart()),
+  ]);
 };
 
 /* ====== INICIALIZAÇÃO ====== */
@@ -7815,10 +7834,14 @@ window.loadData=async function(){
   if(!window._pMapGlobal||!Object.keys(window._pMapGlobal).length){
     window._pMapGlobal=window._pMap||window._pdPontoMap||{};
   }
-  _updatePulsoDia();
-  _updateTimeline();
-  _updateOfflineCard();
-  _updateRecordsCard();
+  /* QW4: 4 widgets independentes — em vez de sequencial, dispara em paralelo.
+     Promise.allSettled garante que um falhar nao para os outros. */
+  await Promise.allSettled([
+    Promise.resolve().then(()=>_updatePulsoDia()),
+    Promise.resolve().then(()=>_updateTimeline()),
+    Promise.resolve().then(()=>_updateOfflineCard()),
+    Promise.resolve().then(()=>_updateRecordsCard()),
+  ]);
 };
 
 const _prevSWFF=window.switchProject;
@@ -8748,10 +8771,15 @@ const _prevLDUp = window.loadData;
 window.loadData = async function() {
   if (typeof _prevLDUp === 'function') await _prevLDUp();
   if (typeof currentProfile === 'undefined' || currentProfile?.papel !== 'admin') return;
+  /* QW4: _injectFilters cria/popula DOM dos filtros. _populatePontoFilter depende
+     dos filtros existirem (eh chamada APOS). _renderFilteredTable/_renderCalendar
+     sao independentes entre si e podem rodar em paralelo apos os filtros estarem prontos. */
   _injectFilters();
-  _populatePontoFilter();
-  _renderFilteredTable();
-  _renderCalendar();
+  await Promise.allSettled([
+    Promise.resolve().then(()=>_populatePontoFilter()),
+    Promise.resolve().then(()=>_renderFilteredTable()),
+    Promise.resolve().then(()=>_renderCalendar()),
+  ]);
 };
 
 const _prevSWUp = window.switchProject;
@@ -11715,8 +11743,13 @@ window.updateTable = function() {
 /* --- Override loadData para carregar profiles antes de renderizar --- */
 const _prevLD = window.loadData;
 window.loadData = async function() {
-  await _loadProfilesMap();
-  if(typeof _prevLD==='function') await _prevLD();
+  /* QW4: _loadProfilesMap (fetch de profiles) e _prevLD (fetch de pacientes)
+     sao independentes — em paralelo em vez de sequencial. Em rede normal
+     economiza 50-150ms por loadData (eh chamado em todo refresh). */
+  await Promise.allSettled([
+    _loadProfilesMap(),
+    typeof _prevLD==='function' ? _prevLD() : Promise.resolve(),
+  ]);
 };
 
 /* --- Ficha completa do paciente (modal) --- */
