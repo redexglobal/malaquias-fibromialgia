@@ -3545,7 +3545,7 @@ sb.channel('fibro-changes')
   })
   .subscribe();
 
-/* Zera badge quando admin entrar em Cadastrados */
+/* Zera badge quando admin entrar em Cadastrados + render lazy de Pontos/Dashboard */
 (function(){
   const _prevSS = window.showSection;
   window.showSection = function(id, el){
@@ -3554,6 +3554,29 @@ sb.channel('fibro-changes')
       window._cadNewCount = 0;
       const b = document.getElementById('cad-new-badge');
       if (b) { b.style.display = 'none'; b.textContent = ''; }
+    }
+    /* QW: render LAZY — heatmap (pesado) e exec card so atualizam quando admin
+       efetivamente entra na aba. Tira esse trabalho do boot e dos refresh
+       periodicos, fica instantaneo no normal e renderiza on-demand. */
+    if (typeof currentProfile !== 'undefined' && currentProfile?.papel === 'admin') {
+      if (id === 'pontos' || id === 'sec-pontos') {
+        setTimeout(()=>{
+          try {
+            const existing=document.getElementById('adv-heat-section');
+            if(existing)existing.remove();
+            if (typeof advRenderHeatMap === 'function') advRenderHeatMap();
+          } catch(e){ console.warn('[malaquias:lazy-heat]', e?.message||e); }
+        }, 50);
+      }
+      if (id === 'dashboard' || id === 'sec-dashboard') {
+        setTimeout(()=>{
+          try {
+            const card=document.getElementById('adv-exec-card');
+            if(card)card.remove();
+            if (typeof advRenderExec === 'function') advRenderExec();
+          } catch(e){ console.warn('[malaquias:lazy-exec]', e?.message||e); }
+        }, 50);
+      }
     }
   };
 })();
@@ -4203,10 +4226,15 @@ function advInit(){
     window.updatePontos=async function(){
       if(typeof _origUpdatePontos==='function')await _origUpdatePontos();
       advUpdateInactiveBadge();
-      /* rebuild heatmap */
-      const existing=document.getElementById('adv-heat-section');
-      if(existing)existing.remove();
-      await advRenderHeatMap();
+      /* QW: Heatmap eh PESADO (fetch + DOM massivo). So renderiza se admin
+         esta efetivamente vendo a aba Pontos. Senao, deixa pro showSection
+         disparar quando entrar la. Tira esse trabalho do boot/refresh. */
+      const onPontos = document.getElementById('sec-pontos')?.classList.contains('active');
+      if (onPontos) {
+        const existing=document.getElementById('adv-heat-section');
+        if(existing)existing.remove();
+        await advRenderHeatMap();
+      }
     };
   }catch(e){console.warn('[malaquias]',e?.message||e);}
 
@@ -4215,9 +4243,14 @@ function advInit(){
     const _origLoadData=window.loadData;
     window.loadData=async function(){
       if(typeof _origLoadData==='function')await _origLoadData();
-      const card=document.getElementById('adv-exec-card');
-      if(card)card.remove();
-      advRenderExec();
+      /* QW: Lazy — so atualiza exec card se Dashboard esta visivel. Em outras
+         abas o card nem aparece, atualizar eh desperdicio de CPU/DOM. */
+      const onDash = document.getElementById('sec-dashboard')?.classList.contains('active');
+      if (onDash) {
+        const card=document.getElementById('adv-exec-card');
+        if(card)card.remove();
+        advRenderExec();
+      }
     };
   }catch(e){console.warn('[malaquias]',e?.message||e);}
 
@@ -11638,8 +11671,32 @@ window._profilesMap = window._profilesMap || {};
 async function _loadProfilesMap() {
   if(currentProfile?.papel !== 'admin') return;
   if(Object.keys(window._profilesMap).length > 0) return;
+  /* QW: cache sessionStorage 30min — profiles raramente mudam.
+     Boot subsequente fica ~500ms mais rapido (sem ida ao banco). */
+  try {
+    const cached = sessionStorage.getItem('mq_profiles_map');
+    const cachedAt = parseInt(sessionStorage.getItem('mq_profiles_map_at')||'0',10);
+    if (cached && (Date.now() - cachedAt) < 1800000) {
+      const parsed = JSON.parse(cached);
+      Object.assign(window._profilesMap, parsed);
+      /* Refresh em background (nao bloqueia) pra atualizar cache pra proximo boot */
+      sb.from('profiles').select('id,nome,nome_ponto,numero_ponto').then(({data})=>{
+        if(data){
+          const map={}; data.forEach(pr=>{ if(pr&&pr.id) map[pr.id]=pr; });
+          window._profilesMap=map;
+          try{ sessionStorage.setItem('mq_profiles_map',JSON.stringify(map));
+               sessionStorage.setItem('mq_profiles_map_at',String(Date.now())); }catch(_){}
+        }
+      });
+      return;
+    }
+  } catch(_){}
   const {data} = await sb.from('profiles').select('id,nome,nome_ponto,numero_ponto');
-  if(data) data.forEach(pr => { window._profilesMap[pr.id] = pr; });
+  if(data){
+    data.forEach(pr => { if(pr&&pr.id) window._profilesMap[pr.id] = pr; });
+    try{ sessionStorage.setItem('mq_profiles_map',JSON.stringify(window._profilesMap));
+         sessionStorage.setItem('mq_profiles_map_at',String(Date.now())); }catch(_){}
+  }
 }
 
 function _nomeCadastrador(userId) {
