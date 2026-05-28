@@ -4,24 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Malaquias — Sistema Fibromialgia</title>
-<!-- QW: preconnect avisa o browser pra resolver DNS + abrir TCP/TLS cedo (paralelo
-     com o parse do HTML). Cada um economiza ~80-300ms na 1a visita. -->
-<link rel="preconnect" href="https://vuylzbefjwbtibhnczih.supabase.co" crossorigin>
-<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+<!-- QW: preconnect (sem crossorigin pra evitar problemas com Supabase cookies/credentials).
+     DNS + TCP/TLS abertos cedo, em paralelo com o parse do HTML. ~80-300ms ganho na 1a visita. -->
+<link rel="preconnect" href="https://vuylzbefjwbtibhnczih.supabase.co">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<!-- Supabase precisa ser sincrono (script inline na linha ~2507 chama supabase.createClient
-     imediatamente apos o parse). defer aqui quebra o boot. -->
+<!-- Scripts SINCRONOS — defer removido apos suspeita de race condition no boot
+     (em conexoes lentas, IIFE de session-check rodava antes de Chart.js carregar e
+     o try/catch capturava mas deixava charts vazios). Trade-off: -150ms no boot mas
+     garantia 100% de ordem e disponibilidade. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- Chart.js: defer eh seguro — todas as chamadas a new Chart() acontecem em funcoes
-     disparadas por loadData/showSection/eventos, ou seja, DEPOIS do DOMContentLoaded
-     (e defer garante que Chart.js carregou ate la). Ganho ~150-300ms no boot. -->
-<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-<!-- Font Awesome: defer seguro tambem — icones aparecem 100-200ms depois (imperceptivel),
-     em troca o resto da pagina renderiza antes. -->
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/js/all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/js/all.min.js"></script>
 <style>
 :root {
   --gold: #00e676;
@@ -2643,15 +2640,8 @@ function enterApp() {
   })();
   /* Notifica IIFEs que dependem de currentProfile (evita race condition no sidebar) */
   setTimeout(function(){ window.dispatchEvent(new CustomEvent('malaquias:profile-ready')); }, 200);
-  /* QW: redraw seguro apos 1s — garante que widgets que dependem de allPacientes
-     (carregado async) rendam mesmo se algum wrapper tiver falhado silencioso */
-  setTimeout(function(){
-    try {
-      if (Array.isArray(window.allPacientes) && window.allPacientes.length > 0) {
-        if (typeof window._renderLight === 'function') window._renderLight();
-      }
-    } catch(e){ console.warn('[malaquias:boot:redraw]', e?.message||e); }
-  }, 1200);
+  /* Removido: setTimeout(redraw,1200) chamava _renderLight no boot, mas loadData()
+     ja chama updateKPIs/Table/Charts internamente. Redundancia causava double-paint. */
 }
 
 async function doLogout() {
@@ -2835,6 +2825,9 @@ window._upsertChart = function(key, ctx, type, data, options){
 };
 
 function updateCharts() {
+  /* Guarda: se Chart.js ainda nao carregou (rede lenta), nao tenta nada — try/catch
+     externo vai apanhar mas isso evita erro e log poluido. */
+  if (typeof Chart === 'undefined') { console.warn('[updateCharts] Chart.js ainda nao carregou — skip'); return; }
   const c = getChartColors();
   Chart.defaults.color = c.text;
 
@@ -3508,26 +3501,37 @@ window._applyRecordToLocal = function(eventType, newRow, oldRow){
   }
 };
 
-/* Re-render leve dos widgets que olham allPacientes — debounced, sem refetch. */
+/* Re-render LEVE: so o que NAO faz fetch, NAO re-cria DOM massivo e
+   eh garantido fast (<50ms). Cada chamada com try/catch individual.
+   IMPORTANTE: NAO chama updatePontos (cascata em 3 wrappers que dispara
+   advRenderHeatMap pesada — trava thread em rajada). NAO chama updateAlerts/
+   updateRanking/updateRelatorios (podem fazer fetch ou DOM pesado). Esses
+   widgets sao re-rodados quando admin faz loadData explicito (auto-refresh 60s,
+   click em aba, F5). */
+let _renderLightLastRun = 0;
 window._renderLight = function(){
   clearTimeout(_natReloadTimer);
   _natReloadTimer = setTimeout(() => {
-    try {
-      if (typeof updateKPIs === 'function') updateKPIs();
-      if (typeof updateTable === 'function') updateTable();
-      if (typeof updateCharts === 'function') updateCharts();
-      if (typeof currentProfile !== 'undefined' && currentProfile?.papel === 'admin') {
-        if (typeof updateAlerts === 'function') updateAlerts();
-        if (typeof updateRanking === 'function') updateRanking();
-        if (typeof updateRelatorios === 'function') updateRelatorios();
-        if (typeof updatePontos === 'function') updatePontos();
-        if (typeof _updatePulsoDia === 'function') _updatePulsoDia();
-        if (typeof _updateTimeline === 'function') _updateTimeline();
-        if (typeof _updateOfflineCard === 'function') _updateOfflineCard();
-        if (typeof _updateRecordsCard === 'function') _updateRecordsCard();
-      }
-    } catch(e){ console.warn('[malaquias:render-light]', e?.message||e); }
-  }, 200);
+    /* Throttle adicional: max 1 render a cada 800ms. Em rajada de eventos
+       realtime (7 pontos cadastrando junto), evita travar UI. */
+    const now = Date.now();
+    if (now - _renderLightLastRun < 800) {
+      /* Reagenda pro fim do throttle */
+      _natReloadTimer = setTimeout(()=>window._renderLight(), 800 - (now - _renderLightLastRun));
+      return;
+    }
+    _renderLightLastRun = now;
+    try { if (typeof updateKPIs === 'function') updateKPIs(); } catch(e){ console.warn('[ml:rl:kpis]', e?.message||e); }
+    try { if (typeof updateTable === 'function') updateTable(); } catch(e){ console.warn('[ml:rl:tbl]', e?.message||e); }
+    try { if (typeof updateCharts === 'function') updateCharts(); } catch(e){ console.warn('[ml:rl:ch]', e?.message||e); }
+    if (typeof currentProfile !== 'undefined' && currentProfile?.papel === 'admin') {
+      /* So widgets garantidamente leves (lookup em allPacientes em memoria) */
+      try { if (typeof _updatePulsoDia === 'function') _updatePulsoDia(); } catch(e){ console.warn('[ml:rl:pd]', e?.message||e); }
+      try { if (typeof _updateTimeline === 'function') _updateTimeline(); } catch(e){ console.warn('[ml:rl:tl]', e?.message||e); }
+      try { if (typeof _updateOfflineCard === 'function') _updateOfflineCard(); } catch(e){ console.warn('[ml:rl:oc]', e?.message||e); }
+      try { if (typeof _updateRecordsCard === 'function') _updateRecordsCard(); } catch(e){ console.warn('[ml:rl:rc]', e?.message||e); }
+    }
+  }, 250);
 };
 
 sb.channel('fibro-changes')
