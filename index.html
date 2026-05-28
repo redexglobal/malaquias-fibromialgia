@@ -1387,9 +1387,7 @@ tr:last-child td { border-bottom: none; }
       <div class="nav-item" data-section="relatorio-dia" onclick="showSection('relatorio-dia', this)">
         <i class="fas fa-clipboard-list"></i> Retorno do Dia
       </div>
-      <div class="nav-item" data-section="calendario" onclick="showSection('calendario', this)">
-        <i class="fas fa-calendar-alt"></i> Calendário
-      </div>
+      <!-- Calendário removido (2026-05-28) — não usado -->
     </div>
 
     <div class="nav-section" id="nav-juridico-section" style="display:none">
@@ -2122,43 +2120,7 @@ tr:last-child td { border-bottom: none; }
       </div>
     </div>
 
-    <!-- ===== CALENDÁRIO DE RETORNOS ===== -->
-    <div class="section" id="sec-calendario">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
-        <div>
-          <h1 class="page-title">Calendário de Retornos</h1>
-          <p class="page-subtitle">Visão mensal — clica num dia para ver os pacientes agendados</p>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn-limpar" onclick="window._calPrev()" title="Mês anterior"><i class="fas fa-chevron-left"></i></button>
-          <div id="cal-titulo" style="font-size:16px;font-weight:700;color:var(--accent);min-width:180px;text-align:center">—</div>
-          <button class="btn-limpar" onclick="window._calNext()" title="Próximo mês"><i class="fas fa-chevron-right"></i></button>
-          <button class="btn-limpar" onclick="window._calHoje()" title="Voltar pra hoje"><i class="fas fa-calendar-day"></i> Hoje</button>
-        </div>
-      </div>
-
-      <!-- Legenda -->
-      <div style="display:flex;gap:14px;font-size:11px;color:var(--text-muted);margin-bottom:10px;flex-wrap:wrap">
-        <div><span style="display:inline-block;width:10px;height:10px;background:#ef4444;border-radius:50%;margin-right:5px;vertical-align:middle"></span>Em até 3 dias</div>
-        <div><span style="display:inline-block;width:10px;height:10px;background:#f59e0b;border-radius:50%;margin-right:5px;vertical-align:middle"></span>4–7 dias</div>
-        <div><span style="display:inline-block;width:10px;height:10px;background:#00e676;border-radius:50%;margin-right:5px;vertical-align:middle"></span>Mais de 7 dias</div>
-        <div><span style="display:inline-block;width:10px;height:10px;background:#6b7280;border-radius:50%;margin-right:5px;vertical-align:middle"></span>Passado</div>
-      </div>
-
-      <!-- Grid calendário -->
-      <div class="chart-card" style="padding:14px">
-        <div id="cal-cabecalho-dias" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;text-align:center">
-          <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
-        </div>
-        <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px"></div>
-      </div>
-
-      <!-- Painel lateral: dia selecionado -->
-      <div id="cal-painel" class="chart-card" style="margin-top:14px;display:none">
-        <div class="chart-title" id="cal-painel-titulo"><i class="fas fa-list"></i> Pacientes do dia</div>
-        <div id="cal-painel-lista" style="margin-top:10px;font-size:13px"></div>
-      </div>
-    </div>
+    <!-- sec-calendario removido (2026-05-28) — não usado -->
 
   </main>
 </div>
@@ -3945,8 +3907,9 @@ function advUpdateInactiveBadge(){
   }catch(e){console.warn('[malaquias]',e?.message||e);}
 }
 
-/* ---- COMPARAR SECTION ---- */
-async function advInitComparar(){
+/* ---- COMPARAR SECTION REMOVIDA (2026-05-28) — aba não usada ---- */
+async function advInitComparar(){ return; }
+async function _advInitCompararOLD(){
   /* inject nav item */
   const navAdmin=document.getElementById('nav-admin-section');
   if(navAdmin&&!document.getElementById('nav-item-comparar')){
@@ -14100,7 +14063,10 @@ function _cTodayBR(){return new Date().toLocaleDateString('en-CA',{timeZone:'Ame
 function _cYMD(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+dd;}
 function _cMesNome(d){return ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][d.getMonth()]+' '+d.getFullYear();}
 
-async function _calLoad(){
+/* _calLoad: aba Calendário removida — no-op pra evitar fetch pesado de pacientes
+   por mês inteiro + render de grid 7x6 dias. */
+async function _calLoad(){ return; }
+async function _calLoadOLD(){
   if(typeof sb==='undefined')return;
   if(!_calRef){const t=new Date(_cTodayBR()+'T12:00:00');_calRef=new Date(t.getFullYear(),t.getMonth(),1);}
   const ano=_calRef.getFullYear(),mes=_calRef.getMonth();
@@ -14123,7 +14089,9 @@ async function _calLoad(){
   _calRender();
 }
 
-function _calRender(){
+/* _calRender no-op (aba Calendário removida) */
+function _calRender(){ return; }
+function _calRenderOLD(){
   if(!_calRef)return;
   const ano=_calRef.getFullYear(),mes=_calRef.getMonth();
   document.getElementById('cal-titulo').textContent=_cMesNome(_calRef);
