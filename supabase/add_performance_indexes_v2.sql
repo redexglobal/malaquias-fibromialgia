@@ -44,9 +44,10 @@ CREATE INDEX IF NOT EXISTS idx_profiles_email_lower      ON public.profiles ((lo
 CREATE INDEX IF NOT EXISTS idx_profiles_numero_ponto     ON public.profiles (numero_ponto) WHERE numero_ponto IS NOT NULL;
 
 -- ===== atendimentos_juridicos (lazy mas critico no admin) =====
+-- Schema real: advogado_nome / advogado_oab / advogado_contato (NAO existe 'advogado')
 CREATE INDEX IF NOT EXISTS idx_jur_status_proc           ON public.atendimentos_juridicos (status_processo);
 CREATE INDEX IF NOT EXISTS idx_jur_tipo_beneficio        ON public.atendimentos_juridicos (tipo_beneficio);
-CREATE INDEX IF NOT EXISTS idx_jur_advogado              ON public.atendimentos_juridicos (advogado);
+CREATE INDEX IF NOT EXISTS idx_jur_advogado_nome         ON public.atendimentos_juridicos (advogado_nome) WHERE advogado_nome IS NOT NULL;
 
 -- =====================================================================
 -- ANALYZE para o planner do PostgreSQL atualizar estatisticas
