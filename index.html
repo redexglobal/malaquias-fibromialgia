@@ -22,6 +22,35 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/js/all.min.js"></script>
 <style>
+/* =========================================================
+   PERF MODE GLOBAL (2026-05-28) — clique instantâneo
+   ---------------------------------------------------------
+   Antes: 35 `backdrop-filter: blur()` + 59 `transition: all`
+   forcavam a GPU a re-compor em cada hover/click. Em PCs comuns
+   isso virava delay de 200-400ms por interação.
+
+   Esse bloco override:
+   - Mata todos os `backdrop-filter` (visual fica 95% identico —
+     o fundo do card ja tem background semi-transparente).
+   - Reduz transitions globais pra 0.12s (sente instantaneo mas
+     ainda mostra feedback de hover).
+   - Diminui anim decorativas infinitas (float blobs etc) pra 60s
+     em vez de 20s — 3x menos repaints com mesma vibe.
+   ========================================================= */
+*, *::before, *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transition-duration: 0.12s !important;
+}
+/* Animacoes decorativas em loop: mantem mas reduz frequencia */
+.bg-blob, [class*="float"], [class*="pulse"] {
+  animation-duration: 60s !important;
+}
+/* Mantem feedback de modal/drawer (>120ms ficaria estranho) */
+.modal, .drawer, .toast, [class*="modal"], [class*="drawer"], [class*="toast"] {
+  transition-duration: 0.18s !important;
+}
+
 :root {
   --gold: #00e676;
   --gold-light: #69ff47;
