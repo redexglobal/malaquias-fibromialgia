@@ -3275,6 +3275,55 @@ window._delConfirm = function(nomeAlvo, onConfirm){
   setTimeout(()=>input.focus(),50);
 };
 
+/* ============================================================
+   GUARD ANTI-DUPLICADO (regra: mesmo NOME + mesmo CPF)
+   Ao salvar um cadastro novo, avisa a colaboradora se ja existe
+   paciente com o mesmo nome E mesmo CPF — evita o mesmo paciente
+   cadastrado 2x. Retornos legitimos (mesma pessoa, outra data)
+   ainda podem ser confirmados via "Cadastrar mesmo assim".
+   ============================================================ */
+window._normNomeDup = function(s){
+  return (s||'').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();
+};
+window._cpfDigitsDup = function(s){ return (s||'').toString().replace(/\D/g,''); };
+
+/* Procura um paciente JA cadastrado com o MESMO nome + MESMO CPF.
+   Retorna a row encontrada (ou null). So aplica quando ha CPF com 11 digitos. */
+window._acharDuplicado = function(nome, cpf){
+  if(!Array.isArray(window.allPacientes)) return null;
+  const nn = window._normNomeDup(nome);
+  const cc = window._cpfDigitsDup(cpf);
+  if(!nn || cc.length !== 11) return null; /* sem CPF valido nao da pra aplicar a regra nome+cpf */
+  return window.allPacientes.find(p =>
+    window._normNomeDup(p.nome) === nn && window._cpfDigitsDup(p.cpf) === cc
+  ) || null;
+};
+
+/* Modal de aviso. Resolve true (cadastrar mesmo assim) ou false (cancelar). */
+window._dupConfirm = function(nome){
+  return new Promise(resolve=>{
+    let bg=document.getElementById('_dupcfm-bg'); if(bg) bg.remove();
+    bg=document.createElement('div');
+    bg.id='_dupcfm-bg';
+    bg.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10003;display:flex;align-items:center;justify-content:center;padding:16px;font-family:inherit';
+    const safe=(nome||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    bg.innerHTML='<div style="background:#1a160a;border:2px solid #f59e0b;border-radius:14px;padding:24px;max-width:480px;width:100%;color:#fff;box-shadow:0 20px 60px rgba(0,0,0,0.7)">'+
+      '<div style="font-size:13px;text-transform:uppercase;letter-spacing:1.5px;color:#fbbf24;font-weight:800;margin-bottom:6px">⚠️ PACIENTE JA CADASTRADO</div>'+
+      '<div style="font-size:16px;font-weight:700;margin-bottom:10px">Ja existe um paciente com este nome e CPF:</div>'+
+      '<div style="font-size:18px;font-weight:800;color:#fbbf24;padding:10px 14px;background:rgba(251,191,36,0.1);border-left:4px solid #fbbf24;border-radius:4px;margin-bottom:14px;word-break:break-word">'+safe+'</div>'+
+      '<div style="font-size:12px;color:#fde68a;margin-bottom:16px;line-height:1.5">Se for um <strong>RETORNO</strong> deste paciente, clique em <strong>Cancelar</strong> e use o botao <strong>"+ Adicionar novo retorno"</strong> na ficha dele (aba Retornos).<br>So clique em "Cadastrar mesmo assim" se for realmente um paciente novo diferente.</div>'+
+      '<div style="display:flex;gap:10px">'+
+        '<button id="_dupcfm-cancel" style="flex:1;padding:11px;background:#16a34a;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:700;cursor:pointer">Cancelar (e o mesmo)</button>'+
+        '<button id="_dupcfm-ok" style="flex:1;padding:11px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.18);border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer">Cadastrar mesmo assim</button>'+
+      '</div></div>';
+    document.body.appendChild(bg);
+    const done=(v)=>{ try{bg.remove();}catch(_){} resolve(v); };
+    document.getElementById('_dupcfm-cancel').addEventListener('click',()=>done(false));
+    document.getElementById('_dupcfm-ok').addEventListener('click',()=>done(true));
+    bg.addEventListener('click',e=>{ if(e.target===bg) done(false); });
+  });
+};
+
 /* Helpers de TIMEZONE (America/Sao_Paulo - Brasilia UTC-3, sem DST).
    criado_em chega em UTC do Supabase; pra comparar com "hoje" no horario local
    do admin, sempre usar essas funcoes em vez de toISOString().split('T')[0]. */
@@ -5850,6 +5899,17 @@ window._stgSave = async function() {
   const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
   if(!_dat.nome){_toast('Nome é obrigatório',true);_stgGo(1);return;}
   if(!_stgValidate(4)) return;
+
+  /* GUARD ANTI-DUPLICADO: se ja existe paciente com MESMO nome + MESMO CPF,
+     avisa antes de cadastrar. Mesmo CPF com nome diferente, ou mesmo nome com
+     CPF diferente, NAO bloqueia (regra do Vilson). Retorno legitimo: confirma. */
+  if (typeof window._acharDuplicado === 'function') {
+    const jaCadastrado = window._acharDuplicado(_dat.nome, _dat.cpf);
+    if (jaCadastrado) {
+      const prosseguir = await window._dupConfirm(_dat.nome);
+      if (!prosseguir) return; /* colaboradora confirmou que e o mesmo paciente */
+    }
+  }
 
   const btn=document.getElementById('btn-finalizar');
   if(btn){btn.disabled=true;btn.textContent='Salvando...';}
