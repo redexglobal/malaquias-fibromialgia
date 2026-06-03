@@ -3403,6 +3403,65 @@ window._dupConfirm = function(nome){
   });
 };
 
+/* ============================================================
+   #2 — AVISO DE DUPLICATA ENQUANTO DIGITA (ataca a raiz da duplicacao)
+   Enquanto a colaboradora digita nome/CPF/WhatsApp no cadastro, procura um
+   paciente que ja existe (nos cadastros dela) e mostra um aviso inline
+   sugerindo registrar como RETORNO em vez de cadastrar de novo — com 1 toque
+   pra abrir o retorno. So leitura, nao bloqueia nada.
+   ============================================================ */
+/* Chave de grupo igual a do _puAgrupar (pra abrir o historico certo). */
+window._grupoKeyDe = function(p){
+  const cpf=(p.cpf||'').replace(/\D/g,'');
+  const cpfOK=window._cpfValido && window._cpfValido(cpf);
+  return cpfOK ? 'cpf:'+cpf : 'nw:'+((p.nome||'').toLowerCase().trim())+'|'+((p.whatsapp||'').replace(/\D/g,''));
+};
+window._checkDupWhileTyping = (function(){
+  let t;
+  return function(){ clearTimeout(t); t=setTimeout(window._doCheckDupTyping, 350); };
+})();
+window._doCheckDupTyping = function(){
+  const warn=document.getElementById('s1-dup-warn');
+  if(!warn) return;
+  const nomeRaw=(document.getElementById('s1-nome')?.value||'').trim();
+  const whats=(document.getElementById('s1-whats')?.value||'').replace(/\D/g,'');
+  const cpf=(document.getElementById('s1-cpf')?.value||'').replace(/\D/g,'');
+  if(nomeRaw.length<4){ warn.style.display='none'; return; }
+  const nn=window._normNomeDup?window._normNomeDup(nomeRaw):nomeRaw.toLowerCase();
+  const list=window.allPacientes||[];
+  let match=null, forte=false;
+  for(const p of list){
+    const pn=window._normNomeDup?window._normNomeDup(p.nome):'';
+    if(pn!==nn) continue;
+    const pw=(p.whatsapp||'').replace(/\D/g,'');
+    const pc=(p.cpf||'').replace(/\D/g,'');
+    if((whats&&pw&&whats===pw)||(cpf.length===11&&pc===cpf)){ match=p; forte=true; break; } /* nome + (whats ou cpf) = certeza */
+    if(!match) match=p; /* so o nome bate: candidato fraco, segue procurando algo mais forte */
+  }
+  if(!match){ warn.style.display='none'; return; }
+  const key=window._grupoKeyDe(match);
+  const esc=window._escHtml||(s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;'));
+  const titulo=forte?'Esse paciente já está cadastrado':'Já existe alguém com esse nome';
+  warn.style.display='block';
+  warn.innerHTML='<div style="background:rgba(245,158,11,.12);border:1px solid #f59e0b;border-radius:10px;padding:11px 13px;font-size:12.5px;color:#fde68a;line-height:1.5">'+
+    '<b>⚠️ '+titulo+':</b> '+esc(match.nome)+'.<br>'+
+    'Se for a <b>mesma pessoa voltando</b>, registre como <b>retorno</b> (não cadastre de novo — evita duplicar).'+
+    '<div style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap">'+
+      '<button type="button" onclick="window._abrirRetornoDoCadastro(\''+key.replace(/'/g,"\\'")+'\')" style="background:#16a34a;border:none;border-radius:7px;color:#fff;padding:8px 13px;font-size:12px;font-weight:700;cursor:pointer">+ Abrir retorno deste paciente</button>'+
+      '<button type="button" onclick="document.getElementById(\'s1-dup-warn\').style.display=\'none\'" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:7px;color:#fde68a;padding:8px 13px;font-size:12px;font-weight:600;cursor:pointer">É outra pessoa, continuar</button>'+
+    '</div></div>';
+};
+window._abrirRetornoDoCadastro = function(key){
+  try{
+    if(typeof window._abrirHistoricoPaciente==='function'){
+      window._abrirHistoricoPaciente(key);
+      const w=document.getElementById('s1-dup-warn'); if(w) w.style.display='none';
+    } else if(typeof showToast==='function'){
+      showToast('Abra a aba Retornos/Pacientes e use "+ Adicionar novo retorno" na ficha dele',false);
+    }
+  }catch(e){ console.warn('[malaquias:abrirRetornoCad]',e?.message||e); if(typeof showToast==='function') showToast('Use a aba Retornos pra adicionar o retorno',false); }
+};
+
 /* Helpers de TIMEZONE (America/Sao_Paulo - Brasilia UTC-3, sem DST).
    criado_em chega em UTC do Supabase; pra comparar com "hoje" no horario local
    do admin, sempre usar essas funcoes em vez de toISOString().split('T')[0]. */
@@ -5575,13 +5634,14 @@ function _buildStg1() {
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Nome completo *</label>
-          <input type="text" class="form-input" id="s1-nome" placeholder="Nome do paciente" autocomplete="off" autocapitalize="words" enterkeyhint="next">
+          <input type="text" class="form-input" id="s1-nome" placeholder="Nome do paciente" autocomplete="off" autocapitalize="words" enterkeyhint="next" oninput="window._checkDupWhileTyping&&window._checkDupWhileTyping()">
         </div>
         <div class="form-group">
           <label class="form-label">Telefone / WhatsApp *</label>
-          <input type="tel" class="form-input" id="s1-whats" placeholder="(00) 00000-0000" inputmode="tel" autocomplete="off">
+          <input type="tel" class="form-input" id="s1-whats" placeholder="(00) 00000-0000" inputmode="tel" autocomplete="off" oninput="window._checkDupWhileTyping&&window._checkDupWhileTyping()">
         </div>
       </div>
+      <div id="s1-dup-warn" style="display:none;margin-bottom:14px"></div>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Idade</label>
@@ -5589,7 +5649,7 @@ function _buildStg1() {
         </div>
         <div class="form-group">
           <label class="form-label">CPF</label>
-          <input type="text" class="form-input" id="s1-cpf" placeholder="000.000.000-00" maxlength="14" oninput="_maskCPF(this)" inputmode="numeric" autocomplete="off">
+          <input type="text" class="form-input" id="s1-cpf" placeholder="000.000.000-00" maxlength="14" oninput="_maskCPF(this);window._checkDupWhileTyping&&window._checkDupWhileTyping()" inputmode="numeric" autocomplete="off">
         </div>
       </div>
       <div class="form-row">
