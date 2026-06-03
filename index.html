@@ -3235,6 +3235,17 @@ window._whatsValido = function(s){
   };
 })();
 
+/* Debounce da busca da aba "Pacientes" (admin). Antes filtrava+agrupava os
+   ~1400 registros a CADA tecla — em lista grande isso engasgava a digitacao.
+   Agora espera 220ms apos parar de digitar pra renderizar uma vez so. */
+(function(){
+  let _tp;
+  window._puSearchDebounced = function(){
+    if(_tp) clearTimeout(_tp);
+    _tp = setTimeout(()=>{ if(typeof window._renderPacientesUnicos==='function') window._renderPacientesUnicos(); }, 220);
+  };
+})();
+
 /* Modal de CONFIRMACAO DUPLA pra DELETE de paciente.
    Pede digitar o nome exato. So executa o onConfirm se bater (case-insensitive, trim).
    Usado pra protejer DELETE acidental tanto pelo admin quanto pelo ponto. */
@@ -11989,8 +12000,8 @@ function _puInit(){
         <div class="table-header">
           <h3 id="pu-title">${tabelaTit}</h3>
           <div class="table-controls">
-            <input type="text" class="search-input" id="pu-search" placeholder="Buscar nome, CPF ou WhatsApp..." oninput="window._renderPacientesUnicos()">
-            <input type="date" class="search-input" id="pu-search-data" title="Buscar por data de atendimento ou cadastro" oninput="window._renderPacientesUnicos()" style="max-width:175px">
+            <input type="text" class="search-input" id="pu-search" placeholder="Buscar nome, CPF ou WhatsApp..." oninput="window._puSearchDebounced()">
+            <input type="date" class="search-input" id="pu-search-data" title="Buscar por data de atendimento ou cadastro" oninput="window._puSearchDebounced()" style="max-width:175px">
           </div>
         </div>
         <div style="overflow-x:auto">
