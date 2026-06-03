@@ -3523,7 +3523,10 @@ sb.channel('fibro-changes')
     /* Realtime liberado pra TODOS os admins (era restrito a natalia) */
     if (currentProfile?.papel === 'admin') {
       const ev = payload.eventType;
-      showToast(ev === 'UPDATE' ? 'Cadastro de paciente atualizado!' : ev === 'DELETE' ? 'Cadastro de paciente removido!' : 'Novo cadastro recebido!');
+      /* INSERT: o toast bonito (com nome do paciente + ponto) vem do canal 'rt-new'
+         — aqui so notificamos UPDATE/DELETE pra nao duplicar a notificacao. */
+      if (ev === 'UPDATE') showToast('Cadastro de paciente atualizado!');
+      else if (ev === 'DELETE') showToast('Cadastro de paciente removido!');
       /* Badge no sidebar: incrementa contador de novos INSERTs */
       if (ev === 'INSERT') {
         window._cadNewCount = (window._cadNewCount || 0) + 1;
@@ -7854,29 +7857,17 @@ function _updateRecordsCard(){
 let _rtFibro=null, _rtOculos=null;
 
 function _initGlobalRealtime(){
-  /* Subscreve AMBAS as tabelas simultaneamente — não desconecta ao trocar seção */
-  if(!_rtFibro){
-    _rtFibro=sb.channel('global_rt_fibro')
-      .on('postgres_changes',{event:'INSERT',schema:'public',table:'pacientes_fibro'},pl=>{
-        const rec=pl.new;
-        if(_proj()==='fibro'){
-          if(!Array.isArray(window.allPacientes))window.allPacientes=[];
-          window.allPacientes.unshift(rec);
-        }
-        _onNewRecord(rec,'fibro');
-      }).subscribe();
-  }
-  if(!_rtOculos){
-    _rtOculos=sb.channel('global_rt_oculos')
-      .on('postgres_changes',{event:'INSERT',schema:'public',table:'pacientes_oculos'},pl=>{
-        const rec=pl.new;
-        if(_proj()==='oculos'){
-          if(!Array.isArray(window.allPacientes))window.allPacientes=[];
-          window.allPacientes.unshift(rec);
-        }
-        _onNewRecord(rec,'oculos');
-      }).subscribe();
-  }
+  /* DESATIVADO (2026-06-03) — era a MAIOR causa do "travando muito".
+     Os canais 'global_rt_fibro'/'global_rt_oculos' eram REDUNDANTES com
+     'fibro-changes' e disparavam _onNewRecord, que rodava updateKPIs +
+     updateTable (ate 500 linhas) + updateCharts (6 graficos) SEM throttle e
+     SEM gate de visibilidade a CADA insert de QUALQUER um dos 50 pontos, alem
+     de allPacientes.unshift() SEM dedup (contava paciente 2x). Em horario de
+     pico, o painel de todo admin redesenhava tudo varias vezes por segundo.
+     'fibro-changes' ja cobre os dados (com dedup) + os feed widgets do dashboard
+     (via _renderLight, throttled e gated); 'rt-new' cobre a notificacao bonita.
+     Mantemos a funcao (chamada em _ffInit) como no-op. */
+  return;
 }
 
 async function _onNewRecord(rec,proj){
