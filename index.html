@@ -2651,14 +2651,19 @@ async function loadData() {
   const ownId = (currentProfile?.papel !== 'admin') ? currentUser.id : null;
   /* Usa versao cacheada (60s TTL + refetch background) pra boot instantaneo */
   allPacientes = await (window._cachedFetchAllRows || window._fetchAllRows)('pacientes_fibro', ownId);
+  /* PERF: so renderiza o que esta VISIVEL (igual ao _renderLight). Antes o
+     auto-refresh de 60s redesenhava tabela (500 linhas) + 6 graficos + 25 cards
+     de Pontos (com fetch) a cada minuto, mesmo com ninguem olhando aquela aba.
+     KPIs e widgets leves continuam sempre; o pesado renderiza ao abrir a aba. */
+  const _vis = (id) => { const s = document.getElementById(id); return !!(s && s.classList.contains('active')); };
   updateKPIs();
-  updateTable();
-  updateCharts();
+  if (_vis('sec-cadastros')) updateTable();
+  if (_vis('sec-dashboard')) updateCharts();
   if (currentProfile?.papel === 'admin') {
     /* updateAlerts removido a pedido do usuario (2026-05-28) — feature nao usada */
-    updateRanking();
-    updateRelatorios();
-    updatePontos();
+    updateRanking();      /* leve: agrega allPacientes em memoria */
+    updateRelatorios();   /* leve: idem */
+    if (_vis('sec-pontos')) updatePontos(); /* faz fetch de profiles + 25 cards: so se a aba Pontos estiver aberta */
   }
 }
 
@@ -4747,29 +4752,20 @@ try {
 let _mainChannel = null;
 
 function _setupMainRealtime(table) {
+  /* DESATIVADO (2026-06-03) — era a causa principal do "travando muito".
+     Este canal era REDUNDANTE com 'fibro-changes' e, pior:
+       1) fazia updateTable() (redesenho de ate 500 linhas) SEM throttle a cada
+          INSERT — com varios colaboradores cadastrando em rajada, cada cadastro
+          disparava um re-render completo no painel de TODOS os admins;
+       2) fazia allPacientes.unshift() SEM dedup — podia contar o mesmo paciente
+          2x e duplicar linha na tabela.
+     O canal 'fibro-changes' (definido acima) ja cobre o realtime do admin com
+     dedup (_applyRecordToLocal) + render throttled e gated por visibilidade
+     (_renderLight). Mantemos esta funcao (chamada em 2 lugares) so pra limpar
+     qualquer canal antigo — nao subscreve mais o canal redundante. */
   try {
-    if (_mainChannel) {
-      sb.removeChannel(_mainChannel);
-      _mainChannel = null;
-    }
-    _mainChannel = sb.channel('main_rt_' + table)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table }, payload => {
-        if (typeof currentProfile !== 'undefined' && currentProfile?.papel === 'admin') {
-          /* Atualiza dados do admin em tempo real */
-          if (Array.isArray(window.allPacientes)) {
-            window.allPacientes.unshift(payload.new);
-          }
-          /* Atualiza KPIs */
-          if (typeof updateKPIs === 'function') try { updateKPIs(); } catch(e) { console.warn('[malaquias]',e?.message||e); }
-          /* Atualiza tabela */
-          if (typeof updateTable === 'function') try { updateTable(); } catch(e) { console.warn('[malaquias]',e?.message||e); }
-        }
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-        }
-      });
-  } catch(e) { console.warn('_setupMainRealtime:', e); }
+    if (_mainChannel) { sb.removeChannel(_mainChannel); _mainChannel = null; }
+  } catch(e) { console.warn('_setupMainRealtime cleanup:', e); }
 }
 
 /* Inicializa realtime com a tabela do projeto atual */
