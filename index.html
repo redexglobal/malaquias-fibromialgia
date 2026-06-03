@@ -12647,6 +12647,7 @@ window._pEditOpen=async function(recordId){
   }
   bg.style.display='flex';
 
+  const _estCivOpts=['','Solteiro(a)','Casado(a)','União estável','Separado(a)','Divorciado(a)','Viúvo(a)'];
   const ident=`
     <div class="_ped-grupo"><label class="_ped-label">Nome</label><input type="text" id="_ped-nome" class="_ped-input" value="${esc(rec.nome)}"></div>
     <div class="_ped-row">
@@ -12654,7 +12655,20 @@ window._pEditOpen=async function(recordId){
       <div class="_ped-grupo"><label class="_ped-label">Idade</label><input type="number" id="_ped-idade" class="_ped-input" value="${esc(rec.idade)}"></div>
     </div>
     <div class="_ped-grupo"><label class="_ped-label">WhatsApp</label><input type="text" id="_ped-whats" class="_ped-input" value="${esc(rec.whatsapp)}"></div>
-    <div class="_ped-grupo"><label class="_ped-label">Seção Eleitoral</label><input type="text" id="_ped-secao" class="_ped-input" value="${esc(rec.secao_eleitoral)}"></div>`;
+    <div class="_ped-row">
+      <div class="_ped-grupo"><label class="_ped-label">Nome da mãe</label><input type="text" id="_ped-mae" class="_ped-input" value="${esc(rec.nome_mae)}"></div>
+      <div class="_ped-grupo"><label class="_ped-label">Nome do pai</label><input type="text" id="_ped-pai" class="_ped-input" value="${esc(rec.nome_pai)}"></div>
+    </div>
+    <div class="_ped-row">
+      <div class="_ped-grupo"><label class="_ped-label">Estado civil</label>
+        <select id="_ped-estciv" class="_ped-input">${_estCivOpts.map(o=>`<option value="${esc(o)}" ${(rec.estado_civil||'')===o?'selected':''}>${o||'— Selecione —'}</option>`).join('')}</select>
+      </div>
+      <div class="_ped-grupo"><label class="_ped-label">Adultos no lar</label><input type="number" id="_ped-adultos" min="0" max="20" class="_ped-input" value="${esc(rec.adultos_no_lar)}"></div>
+    </div>
+    <div class="_ped-row">
+      <div class="_ped-grupo"><label class="_ped-label">Cidade</label><input type="text" id="_ped-cidade" class="_ped-input" value="${esc(rec.cidade)}"></div>
+      <div class="_ped-grupo"><label class="_ped-label">Seção Eleitoral</label><input type="text" id="_ped-secao" class="_ped-input" value="${esc(rec.secao_eleitoral)}"></div>
+    </div>`;
 
   const corpoFibro=`
     <div class="_ped-grupo"><label class="_ped-label">Sintomas</label><textarea id="_ped-sintomas" rows="2" class="_ped-input">${esc(rec.sintomas)}</textarea></div>
@@ -12775,6 +12789,11 @@ async function _pEditSave(recordId,btnRef){
     cpf: txt('_ped-cpf'),
     idade: parseInt(val('_ped-idade'))||null,
     whatsapp: txt('_ped-whats'),
+    nome_mae: txt('_ped-mae'),
+    nome_pai: txt('_ped-pai'),
+    estado_civil: val('_ped-estciv')||null,
+    adultos_no_lar: (function(){ const v=val('_ped-adultos'); return v===''||v==null?null:parseInt(v); })(),
+    cidade: txt('_ped-cidade'),
     secao_eleitoral: txt('_ped-secao'),
     precaucoes_clinicas: txt('_ped-precaucoes'),
     observacoes: txt('_ped-obs'),
@@ -12811,9 +12830,10 @@ async function _pEditSave(recordId,btnRef){
 
   if(btnRef){ btnRef.disabled=true; btnRef.textContent='Salvando...'; }
 
+  const _identCols=['cpf','nome_mae','nome_pai','estado_civil','adultos_no_lar','cidade','secao_eleitoral','nivel_melhora','precaucoes_clinicas'];
   const newCols = proj==='fibro'
-    ? ['cpf','nivel_melhora','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor']
-    : ['cpf','nivel_melhora','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
+    ? [..._identCols,'tempo_sintomas','medicacoes','pontos_dor']
+    : [..._identCols,'adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
 
   let {error}=await sb.from(table).update(payload).eq('id',recordId);
   if(error && error.message && error.message.includes('column')){
