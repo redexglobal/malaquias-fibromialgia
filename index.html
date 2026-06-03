@@ -8627,7 +8627,8 @@ window._renderCadastrosAgrupadoAdmin = function(records) {
   if (cnt) cnt.textContent = arr.length + (arr.length===1?' paciente único':' pacientes únicos');
   const esc = window._escHtml || (s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'));
   if (!arr.length) { body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">Nenhum paciente encontrado.</td></tr>'; return; }
-  body.innerHTML = arr.slice(0,500).map(g => {
+
+  const rowHtml = (g) => {
     const p = g.paciente;
     const cpfShow = p.cpf || (g.visitas.find(v=>v.cpf)||{}).cpf || '';
     const ultima = p.criado_em ? new Date(p.criado_em).toLocaleDateString('pt-BR') : '—';
@@ -8642,10 +8643,29 @@ window._renderCadastrosAgrupadoAdmin = function(records) {
       <td style="padding:10px 12px">${ultima}</td>
       <td style="padding:10px 12px"><button class="btn-sm" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();if(typeof window._abrirHistoricoPaciente==='function')window._abrirHistoricoPaciente(this.closest('tr').dataset.pacKey)">Ver histórico</button></td>
     </tr>`;
-  }).join('');
-  body.querySelectorAll('tr[data-pac-key]').forEach(tr => {
-    tr.addEventListener('click', () => { if (typeof window._abrirHistoricoPaciente === 'function') window._abrirHistoricoPaciente(tr.dataset.pacKey); });
-  });
+  };
+
+  /* PERF (#3): render PROGRESSIVO — primeiras linhas na hora (paint instantaneo),
+     resto em tempo ocioso. Listener UNICO por delegacao (antes anexava ate 500
+     listeners). Token anti-race evita que um append antigo caia num render novo. */
+  const list = arr.slice(0, 500);
+  const FIRST = 80;
+  window._cadRenderToken = (window._cadRenderToken || 0) + 1;
+  const myToken = window._cadRenderToken;
+  body.innerHTML = list.slice(0, FIRST).map(rowHtml).join('');
+  if (!body._pacKeyDelegated) {
+    body._pacKeyDelegated = true;
+    body.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return; /* o botao Ver historico tem seu proprio onclick */
+      const tr = e.target.closest('tr[data-pac-key]');
+      if (tr && typeof window._abrirHistoricoPaciente === 'function') window._abrirHistoricoPaciente(tr.dataset.pacKey);
+    });
+  }
+  if (list.length > FIRST) {
+    const restHtml = list.slice(FIRST).map(rowHtml).join('');
+    const append = () => { if (window._cadRenderToken === myToken) body.insertAdjacentHTML('beforeend', restHtml); };
+    (window.requestIdleCallback ? requestIdleCallback(append,{timeout:600}) : setTimeout(append, 60));
+  }
 };
 
 function _renderFilteredTable() {
