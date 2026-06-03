@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Malaquias — Sistema Fibromialgia</title>
+<!-- PWA (#1): instalavel na tela inicial + carrega offline (shell) + mais rapido -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#00c853">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Malaquias">
+<link rel="apple-touch-icon" href="/icon.svg">
 <!-- Favicon inline SVG ("M" verde do tema) — mata o GET /favicon.ico 404 no console -->
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%23031a0e'/%3E%3Ctext x='50' y='72' font-size='70' font-weight='700' font-family='system-ui,sans-serif' fill='%2300e676' text-anchor='middle'%3EM%3C/text%3E%3C/svg%3E">
 <!-- QW: preconnect (sem crossorigin pra evitar problemas com Supabase cookies/credentials).
@@ -14603,6 +14611,18 @@ window.showSection=function(id,el){
     } catch(_){}
   };
 })();
+</script>
+
+<script>
+/* PWA (#1): registra o service worker (carrega offline + instalavel + mais rapido).
+   Estrategia network-first no HTML (ver sw.js) garante que, ONLINE, sempre vem a
+   versao mais nova — sem risco de prender ninguem em versao velha. Defensivo:
+   qualquer erro so cai no console, nunca quebra o app. */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[sw] registro falhou:', e && e.message); });
+  });
+}
 </script>
 </body>
 </html>
