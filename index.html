@@ -5421,6 +5421,22 @@ body[data-theme="dark"] { background: #071a0f !important; }
 }
 .btn-finalizar:hover { box-shadow: 0 0 28px rgba(0,200,83,.5); transform: translateY(-1px); }
 .btn-finalizar:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+/* Estados de feedback do salvar — spinner girando e "Salvo!" verde brilhante */
+.btn-finalizar.is-saving { background: linear-gradient(135deg,#00a847,#00c853); }
+.btn-finalizar.is-saved {
+  background: linear-gradient(135deg,#00e676,#69f0ae) !important;
+  box-shadow: 0 0 34px rgba(0,230,118,.8);
+  animation: mq-saved-pop .45s ease;
+}
+/* estados vivos nao devem ficar esmaecidos pelo :disabled */
+.btn-finalizar.is-saving:disabled, .btn-finalizar.is-saved:disabled { opacity: 1; cursor: default; transform: none; }
+.btn-spin {
+  display:inline-block; width:17px; height:17px; vertical-align:-3px; margin-right:9px;
+  border:3px solid rgba(7,26,15,.30); border-top-color:#071a0f;
+  border-radius:50%; animation: mq-spin .6s linear infinite;
+}
+@keyframes mq-spin { to { transform: rotate(360deg); } }
+@keyframes mq-saved-pop { 0%{transform:scale(.97)} 55%{transform:scale(1.035)} 100%{transform:scale(1)} }
 
 @media(max-width:600px) {
   .stg-dot-label { display: none; }
@@ -5920,7 +5936,7 @@ window._stgSave = async function() {
   }
 
   const btn=document.getElementById('btn-finalizar');
-  if(btn){btn.disabled=true;btn.textContent='Salvando...';}
+  if(btn){ btn.disabled=true; btn.classList.remove('is-saved'); btn.classList.add('is-saving'); btn.innerHTML='<span class="btn-spin" aria-hidden="true"></span> Salvando...'; }
 
   const table=proj==='oculos'?'pacientes_oculos':'pacientes_fibro';
 
@@ -5991,22 +6007,34 @@ window._stgSave = async function() {
     }
   }
 
-  if(btn){btn.disabled=false;btn.textContent=proj==='oculos'?'✅ Finalizar Pedido':'✅ Finalizar Cadastro';}
+  const _btnLabel = proj==='oculos'?'✅ Finalizar Pedido':'✅ Finalizar Cadastro';
 
-  if(error){_toast('Erro: '+error.message,true);console.error(error);return;}
+  if(error){
+    /* erro: restaura o botao normal na hora */
+    if(btn){ btn.classList.remove('is-saving','is-saved'); btn.disabled=false; btn.innerHTML=_btnLabel; }
+    _toast('Erro: '+error.message,true); console.error(error); return;
+  }
 
+  /* SUCESSO: feedback verde bem visivel no proprio botao (✔ Salvo!) */
+  if(btn){ btn.classList.remove('is-saving'); btn.classList.add('is-saved'); btn.disabled=true; btn.innerHTML='✔ Salvo com sucesso!'; }
   _toast(proj==='oculos'?'Pedido cadastrado com sucesso!':'Paciente cadastrado com sucesso!');
-  _stg=1;_dat={};
-  buildNovoForm(proj);
-  /* QW1: muta local + render leve em vez de loadData() cheio.
-     Realtime ja dispara pros outros clientes; guard de dedup em _applyRecordToLocal
-     evita duplicar quando o realtime do proprio cliente tambem chegar. */
+
+  /* Atualiza os dados JA (lista local + admin via realtime), sem mexer no form ainda */
   if (insertedRow && typeof window._applyRecordToLocal === 'function') {
     window._applyRecordToLocal('INSERT', insertedRow, null);
     if (typeof window._renderLight === 'function') window._renderLight();
-  } else if (typeof loadData === 'function') {
-    loadData(); /* fallback legado pra oculos ou se helper indisponivel */
   }
+
+  /* Segura o "✔ Salvo!" visivel por ~0,9s, depois limpa o form pro proximo paciente.
+     Da certeza visual a colaboradora de que salvou (antes o reset do form era
+     instantaneo e ela nao via confirmacao no botao). */
+  setTimeout(function(){
+    try {
+      _stg=1; _dat={};
+      buildNovoForm(proj);
+      if (!insertedRow && typeof loadData === 'function') loadData(); /* fallback legado */
+    } catch(e){ console.warn('[malaquias:pos-save-reset]', e?.message||e); }
+  }, 900);
 };
 
 /* ---- Cor do slider de dor ---- */
