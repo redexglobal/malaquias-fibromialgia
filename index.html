@@ -3543,7 +3543,18 @@ sb.channel('fibro-changes')
       window._renderLight();
     }
   })
-  .subscribe();
+  .subscribe((status) => {
+    /* Catch-up ao (RE)conectar: se o websocket caiu e voltou, pode ter perdido
+       eventos enquanto offline — faz 1 loadData pra sincronizar. Pula a 1a
+       conexao (o boot ja carregou os dados). Isto e o que garante que, mesmo
+       sem polling, o admin nunca fica com dados defasados apos uma queda. */
+    if (status === 'SUBSCRIBED') {
+      if (window._fibroChSubscribedOnce && typeof window._catchUpRefresh === 'function') {
+        window._catchUpRefresh('realtime-reconnect');
+      }
+      window._fibroChSubscribedOnce = true;
+    }
+  });
 
 /* Zera badge quando admin entrar em Cadastrados + render lazy de Pontos/Dashboard */
 (function(){
@@ -10929,27 +10940,37 @@ let _refreshInterval = null;
 let _lastRefresh = Date.now();
 let _refreshRunning = false;
 
+/* MUDANCA (2026-06-03, pedido do Vilson): SEM polling cego de 60s. A atualizacao
+   do painel do admin agora e 100% EVENT-DRIVEN pelo canal realtime 'fibro-changes':
+   quando alguem cadastra num ponto, chega a notificacao (toast) E os dados do
+   dashboard atualizam na hora (_applyRecordToLocal + _renderLight). Mantemos so
+   2 redes de seguranca contra queda de internet/websocket:
+     (a) ao VOLTAR pra aba (visibilitychange) -> 1 catch-up;
+     (b) ao RECONECTAR o canal realtime -> 1 catch-up (ver subscribe do fibro-changes).
+   Um timer leve atualiza apenas o rotulo "ao vivo / atualizado ha Xs" (zero rede). */
 function startAutoRefresh() {
-  async function _tick() {
-    if (document.hidden) return; /* pula quando aba escondida */
-    if (_refreshRunning) return; /* evita rajada de loadData se anterior demorou */
-    _refreshRunning = true;
-    try {
-      await loadData();
-      _lastRefresh = Date.now();
-      updateLiveBadge();
-    } catch (e) { console.warn('[malaquias:auto-refresh]', e?.message||e); }
-    finally { _refreshRunning = false; }
-  }
   if (_refreshInterval) clearInterval(_refreshInterval);
-  _refreshInterval = setInterval(_tick, 60000);
-  /* Quando aba volta a ficar visivel apos minutos parada, atualiza imediato */
+  _refreshInterval = setInterval(updateLiveBadge, 15000); /* so o rotulo, nenhum fetch */
   if (!window._visListenerAdded) {
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) _tick(); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) window._catchUpRefresh('voltou-aba'); });
     window._visListenerAdded = true;
   }
   updateLiveBadge();
 }
+
+/* Catch-up: refaz loadData UMA vez como rede de seguranca (reconexao/volta de aba).
+   Guard _refreshRunning evita rajada; pula se aba escondida. NAO e polling. */
+window._catchUpRefresh = async function(motivo){
+  if (document.hidden) return;
+  if (_refreshRunning) return;
+  _refreshRunning = true;
+  try {
+    await loadData();
+    _lastRefresh = Date.now();
+    updateLiveBadge();
+  } catch (e) { console.warn('[malaquias:catchup]', motivo, e?.message||e); }
+  finally { _refreshRunning = false; }
+};
 
 function updateLiveBadge() {
   const el = document.getElementById('live-label');
