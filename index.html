@@ -3409,11 +3409,21 @@ window._dupConfirm = function(nome){
 window._todayBR = function(){
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
 };
+/* PERF (#1): memoiza a conversao de timezone por timestamp. _dateBR era o maior
+   custo de CPU do dashboard — os graficos chamam _matchDayBR (que usa _dateBR)
+   ~30x por registro x 1489 registros = ~130 mil conversoes caras (toLocaleDateString
+   com timeZone) por render. Como criado_em e uma string fixa por registro, cachear
+   o resultado transforma isso em ~1489 conversoes (1 por registro). Mesma saida,
+   so que calculada 1x. Zero risco. O cache e limpo quando os dados recarregam. */
+window._dateBRCache = new Map();
 window._dateBR = function(iso){
   if(!iso) return '';
+  const cached = window._dateBRCache.get(iso);
+  if(cached !== undefined) return cached;
   const d = new Date(iso);
-  if(isNaN(d.getTime())) return '';
-  return d.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  const r = isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  window._dateBRCache.set(iso, r);
+  return r;
 };
 window._matchDayBR = function(iso, prefix){
   if(!iso || !prefix) return false;
@@ -3586,11 +3596,19 @@ window._renderLight = function(){
     try { if (typeof updateTable === 'function' && _secAtiva('sec-cadastros')) updateTable(); } catch(e){ console.warn('[ml:rl:tbl]', e?.message||e); }
     try { if (typeof updateCharts === 'function' && _secAtiva('sec-dashboard')) updateCharts(); } catch(e){ console.warn('[ml:rl:ch]', e?.message||e); }
     if (typeof currentProfile !== 'undefined' && currentProfile?.papel === 'admin') {
-      /* So widgets garantidamente leves (lookup em allPacientes em memoria) */
-      try { if (typeof _updatePulsoDia === 'function') _updatePulsoDia(); } catch(e){ console.warn('[ml:rl:pd]', e?.message||e); }
-      try { if (typeof _updateTimeline === 'function') _updateTimeline(); } catch(e){ console.warn('[ml:rl:tl]', e?.message||e); }
-      try { if (typeof _updateOfflineCard === 'function') _updateOfflineCard(); } catch(e){ console.warn('[ml:rl:oc]', e?.message||e); }
-      try { if (typeof _updateRecordsCard === 'function') _updateRecordsCard(); } catch(e){ console.warn('[ml:rl:rc]', e?.message||e); }
+      /* PERF (#2): os widgets do feed (Pulso/Timeline/Offline/Records) sao adiados
+         pro tempo OCIOSO (requestIdleCallback) — assim os KPIs e graficos pintam
+         imediato e o feed preenche logo em seguida, sem competir com a pintura
+         principal nem travar a thread. Continuam sempre frescos (sem gate). */
+      const _idleFeed = window.requestIdleCallback
+        ? (fn)=>requestIdleCallback(fn,{timeout:800})
+        : (fn)=>setTimeout(fn,80);
+      _idleFeed(()=>{
+        try { if (typeof _updatePulsoDia === 'function') _updatePulsoDia(); } catch(e){ console.warn('[ml:rl:pd]', e?.message||e); }
+        try { if (typeof _updateTimeline === 'function') _updateTimeline(); } catch(e){ console.warn('[ml:rl:tl]', e?.message||e); }
+        try { if (typeof _updateOfflineCard === 'function') _updateOfflineCard(); } catch(e){ console.warn('[ml:rl:oc]', e?.message||e); }
+        try { if (typeof _updateRecordsCard === 'function') _updateRecordsCard(); } catch(e){ console.warn('[ml:rl:rc]', e?.message||e); }
+      });
     }
   }, 250);
 };
