@@ -3492,9 +3492,17 @@ window._renderLight = function(){
       return;
     }
     _renderLightLastRun = now;
+    /* PERF — fix definitivo do "trava ao salvar": os KPIs sao baratos e dao
+       feedback IMEDIATO (o contador do dia/total sobe na hora que salva), entao
+       sempre rodam. Ja a TABELA (ate 500 linhas) e os GRAFICOS (6 charts) so
+       renderizam se a aba estiver VISIVEL. Salvar na aba "Novo Cadastro" nao
+       deve gastar tempo redesenhando abas escondidas — era exatamente isso que
+       travava pontos com muitos registros (ex: 720) em celular. Ao abrir a aba,
+       o hook de navegacao no showSection renderiza fresco. */
+    const _secAtiva = (secId) => { const s = document.getElementById(secId); return !!(s && s.classList.contains('active')); };
     try { if (typeof updateKPIs === 'function') updateKPIs(); } catch(e){ console.warn('[ml:rl:kpis]', e?.message||e); }
-    try { if (typeof updateTable === 'function') updateTable(); } catch(e){ console.warn('[ml:rl:tbl]', e?.message||e); }
-    try { if (typeof updateCharts === 'function') updateCharts(); } catch(e){ console.warn('[ml:rl:ch]', e?.message||e); }
+    try { if (typeof updateTable === 'function' && _secAtiva('sec-cadastros')) updateTable(); } catch(e){ console.warn('[ml:rl:tbl]', e?.message||e); }
+    try { if (typeof updateCharts === 'function' && _secAtiva('sec-dashboard')) updateCharts(); } catch(e){ console.warn('[ml:rl:ch]', e?.message||e); }
     if (typeof currentProfile !== 'undefined' && currentProfile?.papel === 'admin') {
       /* So widgets garantidamente leves (lookup em allPacientes em memoria) */
       try { if (typeof _updatePulsoDia === 'function') _updatePulsoDia(); } catch(e){ console.warn('[ml:rl:pd]', e?.message||e); }
@@ -14297,6 +14305,39 @@ window.showSection=function(id,el){
   }
 };
 
+})();
+</script>
+
+<script>
+/* ============================================================
+   LAZY RENDER ON NAVIGATE — par do gate de visibilidade no _renderLight.
+   Mantem as abas pesadas (Dashboard / Cadastros) frescas SO quando o
+   usuario as abre. Como salvar nao redesenha mais abas escondidas, o
+   cadastro fica instantaneo mesmo em pontos com milhares de registros;
+   ao navegar pra aba, ela renderiza com os dados atuais (sem staleness).
+   Envolve a versao FINAL de showSection (depois de TODA a cadeia de
+   wrappers), entao nada do comportamento anterior e perdido.
+   Guard __lazyRenderHooked evita hook duplo.
+   ============================================================ */
+(function(){
+  if (!window.showSection || window.__lazyRenderHooked) return;
+  window.__lazyRenderHooked = true;
+  const _prevShowSection = window.showSection;
+  window.showSection = function(id, el){
+    if (typeof _prevShowSection === 'function') _prevShowSection.apply(this, arguments);
+    try {
+      if (id === 'dashboard') {
+        setTimeout(function(){
+          try { if (typeof updateKPIs === 'function') updateKPIs(); } catch(_){}
+          try { if (typeof updateCharts === 'function') updateCharts(); } catch(_){}
+        }, 40);
+      } else if (id === 'cadastros') {
+        setTimeout(function(){
+          try { if (typeof updateTable === 'function') updateTable(); } catch(_){}
+        }, 40);
+      }
+    } catch(_){}
+  };
 })();
 </script>
 </body>
