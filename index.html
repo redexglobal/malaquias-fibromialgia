@@ -2571,7 +2571,15 @@ async function doLogout() {
    de 1000 rows, faz count() rapido + N paginas EM PARALELO via Promise.all.
    Para 5000 rows admin: de ~2-3s sequencial -> ~400-600ms paralelo (5x).
    Para o ponto (RLS filtra por cadastrado_por), normalmente sao <=1 pagina. */
-window._fetchAllRows = async function(tbl, ownId){
+/* TWO-TIER: colunas ENXUTAS (so o que listas/dashboard/feed precisam). Os campos
+   clinicos pesados (sintomas, medicacoes, pontos_dor, tempo_sintomas,
+   precaucoes_clinicas, observacoes) + identidade extra carregam em 2o plano via
+   _enrichHeavyInBackground, ou sob demanda via _ensureFull (ficha/edicao). */
+window._LEAN_COLS = 'id,nome,cpf,whatsapp,idade,nivel_dor,nivel_melhora,data_consulta,proximo_retorno,criado_em,cadastrado_por,avaliacao';
+window._HEAVY_COLS = 'id,sintomas,medicacoes,pontos_dor,tempo_sintomas,precaucoes_clinicas,observacoes,nome_mae,nome_pai,secao_eleitoral,adultos_no_lar,estado_civil,cidade,origem,atualizado_em';
+
+window._fetchAllRows = async function(tbl, ownId, cols){
+  const SEL = cols || '*';
   const PAGE = 1000;
   const MAX_ROWS = 5000;
   try {
@@ -2588,7 +2596,7 @@ window._fetchAllRows = async function(tbl, ownId){
     for (let i = 0; i < numPages; i++) {
       const from = i * PAGE;
       const to = Math.min(from + PAGE - 1, total - 1);
-      let q = sb.from(tbl).select('*').order('criado_em',{ascending:false}).range(from, to);
+      let q = sb.from(tbl).select(SEL).order('criado_em',{ascending:false}).range(from, to);
       if (ownId) q = q.eq('cadastrado_por', ownId);
       requests.push(q.then(r => r.data || []));
     }
@@ -2600,12 +2608,59 @@ window._fetchAllRows = async function(tbl, ownId){
   }
 };
 
+/* 2a camada: baixa os campos pesados em background e mescla no allPacientes por
+   id (marca _full=true + flag global _heavyLoaded). Nao bloqueia o 1o paint.
+   Retorna a PROMISE em andamento (chamadas concorrentes compartilham a mesma),
+   pra que _ensureAllFull possa ESPERAR a conclusao quando precisar. */
+window._enrichHeavyInBackground = function(tbl, ownId){
+  if (window._heavyEnrichInFlight) return window._heavyEnrichInFlight;
+  window._heavyLoaded = false; /* dados enxutos recem-carregados ainda nao tem os pesados */
+  window._heavyEnrichInFlight = (async () => {
+    try {
+      const heavy = await window._fetchAllRows(tbl, ownId, window._HEAVY_COLS);
+      if (Array.isArray(heavy) && heavy.length && Array.isArray(window.allPacientes)) {
+        const byId = {};
+        window.allPacientes.forEach(p => { byId[p.id] = p; });
+        heavy.forEach(h => { const p = byId[h.id]; if (p) { Object.assign(p, h); p._full = true; } });
+      }
+      window._heavyLoaded = true;
+    } catch(e){ console.warn('[malaquias:enrich-heavy]', e?.message||e); }
+  })().finally(() => { window._heavyEnrichInFlight = null; });
+  return window._heavyEnrichInFlight;
+};
+
+/* Garante que TODO o allPacientes tenha os campos pesados antes de uma acao que
+   le todos (exportar CSV, imprimir relatorio geral). Espera o background terminar
+   (ou dispara e espera). Instantaneo se ja carregado. */
+window._ensureAllFull = async function(){
+  if (window._heavyLoaded) return;
+  const ownId = (typeof currentProfile!=='undefined' && currentProfile?.papel !== 'admin') ? (typeof currentUser!=='undefined'?currentUser.id:null) : null;
+  const tbl = (typeof currentProject!=='undefined' && currentProject==='oculos') ? 'pacientes_oculos' : 'pacientes_fibro';
+  try { await window._enrichHeavyInBackground(tbl, ownId); } catch(_){}
+};
+
+/* Sob demanda: garante que UM registro tenha os campos pesados antes de abrir
+   ficha/edicao/impressao. Se ja completo (_full) retorna na hora; senao busca a
+   linha cheia por id e mescla. CRITICO no modal de edicao — evita editar/salvar
+   com campo clinico em branco enquanto o background ainda nao terminou. */
+window._ensureFull = async function(rec){
+  try {
+    if (!rec || !rec.id) return rec;
+    if (rec._full || ('sintomas' in rec && 'observacoes' in rec)) return rec;
+    const tbl = (typeof currentProject!=='undefined' && currentProject==='oculos') ? 'pacientes_oculos' : 'pacientes_fibro';
+    const { data } = await sb.from(tbl).select('*').eq('id', rec.id).single();
+    if (data) { Object.assign(rec, data); rec._full = true; }
+  } catch(e){ console.warn('[malaquias:ensureFull]', e?.message||e); }
+  return rec;
+};
+
 /* Cache de allPacientes em sessionStorage (60s TTL).
    Boot subsequente na mesma sessao: pega cache instantaneo + refetch em
    background. Usuario ve dados em <50ms em vez de esperar 500-2000ms.
    Como o cache eh por papel+projeto, ponto vs admin nao misturam. */
-window._cachedFetchAllRows = async function(tbl, ownId){
-  const cacheKey = 'mq_rows_' + tbl + '_' + (ownId || 'all');
+window._cachedFetchAllRows = async function(tbl, ownId, cols){
+  /* cache key inclui 'cols' pra nao misturar enxuto x completo */
+  const cacheKey = 'mq_rows_' + tbl + '_' + (ownId || 'all') + (cols ? '_lean' : '');
   const cacheAtKey = cacheKey + '_at';
   try {
     const cached = sessionStorage.getItem(cacheKey);
@@ -2614,7 +2669,7 @@ window._cachedFetchAllRows = async function(tbl, ownId){
     if (cached && (Date.now() - cachedAt) < 60000) {
       const parsed = JSON.parse(cached);
       /* Refetch em background pra atualizar cache pro proximo refresh */
-      window._fetchAllRows(tbl, ownId).then(fresh => {
+      window._fetchAllRows(tbl, ownId, cols).then(fresh => {
         try {
           sessionStorage.setItem(cacheKey, JSON.stringify(fresh));
           sessionStorage.setItem(cacheAtKey, String(Date.now()));
@@ -2622,6 +2677,8 @@ window._cachedFetchAllRows = async function(tbl, ownId){
           if (Array.isArray(fresh) && fresh.length !== parsed.length) {
             window.allPacientes = fresh;
             if (typeof window._renderLight === 'function') window._renderLight();
+            /* re-enriquece os campos pesados pro novo conjunto */
+            if (typeof window._enrichHeavyInBackground === 'function') window._enrichHeavyInBackground(tbl, ownId);
           }
         } catch(_){}
       }).catch(_=>{});
@@ -2629,11 +2686,11 @@ window._cachedFetchAllRows = async function(tbl, ownId){
     }
   } catch(_){}
   /* Cache miss ou stale: busca normal e grava */
-  const fresh = await window._fetchAllRows(tbl, ownId);
+  const fresh = await window._fetchAllRows(tbl, ownId, cols);
   try {
     sessionStorage.setItem(cacheKey, JSON.stringify(fresh));
     sessionStorage.setItem(cacheAtKey, String(Date.now()));
-  } catch(_){ /* quota exceeded — segue sem cache */ }
+  } catch(_){ /* quota exceeded — segue sem cache (enxuto ja ajuda a caber) */ }
   return fresh;
 };
 
@@ -2649,8 +2706,9 @@ window._fetchCount = async function(tbl, filterFn){
 
 async function loadData() {
   const ownId = (currentProfile?.papel !== 'admin') ? currentUser.id : null;
-  /* Usa versao cacheada (60s TTL + refetch background) pra boot instantaneo */
-  allPacientes = await (window._cachedFetchAllRows || window._fetchAllRows)('pacientes_fibro', ownId);
+  /* TWO-TIER: carrega ENXUTO (so colunas de lista/dashboard, ~55% menor) pra
+     1o paint rapido; os campos clinicos pesados entram em 2o plano logo abaixo. */
+  allPacientes = await (window._cachedFetchAllRows || window._fetchAllRows)('pacientes_fibro', ownId, window._LEAN_COLS);
   /* PERF: so renderiza o que esta VISIVEL (igual ao _renderLight). Antes o
      auto-refresh de 60s redesenhava tabela (500 linhas) + 6 graficos + 25 cards
      de Pontos (com fetch) a cada minuto, mesmo com ninguem olhando aquela aba.
@@ -2664,6 +2722,11 @@ async function loadData() {
     updateRanking();      /* leve: agrega allPacientes em memoria */
     updateRelatorios();   /* leve: idem */
     if (_vis('sec-pontos')) updatePontos(); /* faz fetch de profiles + 25 cards: so se a aba Pontos estiver aberta */
+  }
+  /* 2a camada (nao bloqueia o paint): baixa os campos clinicos pesados e mescla
+     no allPacientes. Em ~1s o conjunto fica completo pra ficha/edicao/export. */
+  if (typeof window._enrichHeavyInBackground === 'function') {
+    window._enrichHeavyInBackground('pacientes_fibro', ownId);
   }
 }
 
@@ -3372,8 +3435,11 @@ function setPeriod(p, btn) {
   btn.classList.add('active');
 }
 
-function exportCSV() {
+async function exportCSV() {
   if (!allPacientes.length) { showToast('Sem dados para exportar', true); return; }
+  /* TWO-TIER: garante os campos clinicos pesados antes de exportar (senao
+     Sintomas/Observacoes sairiam vazios se o background ainda nao terminou). */
+  if (typeof window._ensureAllFull === 'function') await window._ensureAllFull();
   const headers = 'Nome,Idade,WhatsApp,Sintomas,Nível Dor,Data Consulta,Observações,Avaliação\n';
   const rows = allPacientes.map(p =>
     `"${p.nome||''}",${p.idade||''},${p.whatsapp||''},"${p.sintomas||''}",${p.nivel_dor||''},${p.data_consulta||''},"${p.observacoes||''}",${p.avaliacao||0}`
@@ -4448,8 +4514,10 @@ window.filterTable = function(){
 };
 
 /* ---- override exportCSV ---- */
-window.exportCSV = function(){
+window.exportCSV = async function(){
   if(!(allPacientes||[]).length){if(typeof showToast==='function')showToast('Sem dados para exportar',true);return;}
+  /* TWO-TIER: garante campos clinicos pesados antes de exportar */
+  if (typeof window._ensureAllFull === 'function') await window._ensureAllFull();
   let headers,rows;
   if(currentProject==='fibro'){
     headers='Nome,Idade,WhatsApp,Sintomas,Nível Dor,Data Consulta,Observações\n';
@@ -7149,7 +7217,9 @@ window._epSet=(p,el)=>{
   el.classList.add('active');
   const cd=$('exp-custom');if(cd)cd.classList.toggle('show',p==='custom');
 };
-window._epExport=()=>{
+window._epExport=async()=>{
+  /* TWO-TIER: garante campos clinicos pesados antes de exportar */
+  if (typeof window._ensureAllFull === 'function') await window._ensureAllFull();
   const all=window.allPacientes||[];
   const filtered=_epFilter(all);
   if(!filtered.length){if(typeof showToast==='function')showToast('Sem dados no período',true);return;}
@@ -8570,9 +8640,12 @@ function _renderFilteredTable() {
 /* ====================================================
    2. EDIÇÃO E EXCLUSÃO DE CADASTROS
    ==================================================== */
-window._emOpen = function(id) {
+window._emOpen = async function(id) {
   const rec = (window.allPacientes||[]).find(p=>p.id===id);
   if (!rec) return;
+  /* SEGURANCA TWO-TIER: garante os campos clinicos pesados ANTES de preencher o
+     form — senao, se editar antes do background terminar, salvaria em branco. */
+  if (typeof window._ensureFull === 'function') await window._ensureFull(rec);
   _editId = id;
   $('em-id').value = id;
   $('em-nome').value = rec.nome||'';
@@ -8753,7 +8826,9 @@ window._cfgExportMes = function() {
   _doExportCSV(filtrado, 'mes-'+mes);
 };
 
-function _doExportCSV(data, label) {
+async function _doExportCSV(data, label) {
+  /* TWO-TIER: garante campos clinicos pesados antes de exportar */
+  if (typeof window._ensureAllFull === 'function') await window._ensureAllFull();
   const pontoMap = window._pMapGlobal||window._pMap||{};
   const isOculos = _proj() === 'oculos';
   const headers = isOculos
@@ -9161,8 +9236,10 @@ function _ppRenderRows(isNew) {
   } catch(e) { console.error('[PP RENDER]', e); }
 }
 
-window._ppExportCSV = function() {
+window._ppExportCSV = async function() {
   try {
+    /* TWO-TIER: garante campos clinicos pesados antes de exportar */
+    if (typeof window._ensureAllFull === 'function') await window._ensureAllFull();
     const recs = _ppGetFiltered();
     if (!recs.length) { alert('Nada pra exportar com os filtros atuais.'); return; }
     const isOculos = _proj() === 'oculos';
@@ -11792,9 +11869,11 @@ window.loadData = async function() {
 };
 
 /* --- Ficha completa do paciente (modal) --- */
-window._abrirFichaPaciente = function(pid) {
+window._abrirFichaPaciente = async function(pid) {
   const p = (window.allPacientes||[]).find(x=>x.id===pid);
   if(!p) return;
+  /* SEGURANCA TWO-TIER: garante os campos clinicos pesados antes de montar a ficha */
+  if (typeof window._ensureFull === 'function') await window._ensureFull(p);
   const proj = typeof currentProject!=='undefined'?currentProject:'fibro';
 
   function row(label, val) {
@@ -12087,10 +12166,16 @@ window._renderPacientesUnicos=function(){
   });
 };
 
-window._abrirHistoricoPaciente=function(key){
+window._abrirHistoricoPaciente=async function(key){
   const groups=_puAgrupar();
   const g=groups.find(x=>x.key===key);
   if(!g) return;
+  /* SEGURANCA TWO-TIER: garante os campos clinicos pesados de TODAS as visitas
+     antes de montar a ficha (senao sintomas/medicacoes/etc. apareceriam vazios
+     se o background ainda nao tivesse terminado). Em paralelo, rapido. */
+  if (typeof window._ensureFull === 'function') {
+    try { await Promise.all((g.visitas||[]).map(v => window._ensureFull(v))); } catch(_){}
+  }
   const p=g.paciente;
   const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
 
@@ -12417,6 +12502,10 @@ async function _salvarRetorno(key,btnRef){
   const g=groups.find(x=>x.key===key);
   if(!g){ if(typeof showToast==='function') showToast('Paciente não encontrado',true); return; }
   const pBase=g.paciente;
+  /* SEGURANCA TWO-TIER: garante identidade completa (nome_mae/pai/secao/cidade/etc.)
+     do paciente base ANTES de copiar pro novo retorno — senao o retorno nasceria
+     sem esses dados se o background ainda nao tivesse enriquecido. */
+  if (typeof window._ensureFull === 'function') await window._ensureFull(pBase);
   const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
   const focusFail=(msg,el)=>{ if(typeof showToast==='function') showToast(msg,true); try{el?.focus();}catch(_){}};
 
@@ -12533,9 +12622,12 @@ async function _salvarRetorno(key,btnRef){
    cadastro existente (UPDATE). Datas de consulta/proximo retorno
    (oculos: entrega) ficam TRAVADAS. RLS _update_own/_update_admin.
 ============================================================ */
-window._pEditOpen=function(recordId){
+window._pEditOpen=async function(recordId){
   const rec=(window.allPacientes||[]).find(p=>String(p.id)===String(recordId));
   if(!rec){ if(typeof showToast==='function') showToast('Registro não encontrado',true); return; }
+  /* SEGURANCA TWO-TIER: garante campos clinicos pesados antes de montar o form de
+     edicao — evita editar/salvar em branco se o background ainda nao terminou. */
+  if (typeof window._ensureFull === 'function') await window._ensureFull(rec);
   const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
   const esc=s=>(s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const pontos=['Cabeça','Pescoço','Ombros','Costas sup.','Costas inf.','Braços','Antebraços','Quadris','Coxas','Joelhos','Pernas','Pés'];
