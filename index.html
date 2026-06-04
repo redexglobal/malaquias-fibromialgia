@@ -3470,6 +3470,31 @@ window._abrirRetornoDoCadastro = function(key){
   }catch(e){ console.warn('[malaquias:abrirRetornoCad]',e?.message||e); if(typeof showToast==='function') showToast('Use a aba Retornos pra adicionar o retorno',false); }
 };
 
+/* ============================================================
+   WHATSAPP 1-TOQUE — abre conversa com o paciente (confirmar retorno, lembrete).
+   O numero ja esta salvo; normaliza p/ wa.me (DDI 55 + DDD + numero).
+   ============================================================ */
+window._waDigits = function(whats){
+  let d = (whats||'').toString().replace(/\D/g,'');
+  if(!d) return '';
+  if(d.length>=12 && d.startsWith('55')) return d;   /* ja tem DDI 55 */
+  if(d.length===10 || d.length===11) return '55'+d;  /* DDD + numero */
+  return '';
+};
+window._waLink = function(whats){
+  const d = window._waDigits(whats);
+  return d ? ('https://wa.me/'+d) : '';
+};
+/* Retorna HTML de um botao verde do WhatsApp (vazio se numero invalido). */
+window._waBtn = function(whats, texto){
+  const url = window._waLink(whats);
+  if(!url) return '';
+  const t = texto || 'WhatsApp';
+  return '<a href="'+url+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" '+
+    'style="display:inline-flex;align-items:center;gap:6px;background:#25D366;color:#fff;text-decoration:none;'+
+    'padding:7px 13px;border-radius:8px;font-size:12px;font-weight:700;white-space:nowrap"><i class="fab fa-whatsapp"></i> '+t+'</a>';
+};
+
 /* Helpers de TIMEZONE (America/Sao_Paulo - Brasilia UTC-3, sem DST).
    criado_em chega em UTC do Supabase; pra comparar com "hoje" no horario local
    do admin, sempre usar essas funcoes em vez de toISOString().split('T')[0]. */
@@ -12009,6 +12034,7 @@ window._abrirFichaPaciente = async function(pid) {
   corpo += row('CPF', p.cpf);
   corpo += row('Idade', p.idade ? p.idade+' anos' : null);
   corpo += row('WhatsApp', p.whatsapp);
+  if (window._waBtn && window._waBtn(p.whatsapp)) corpo += '<div style="padding:8px 0 2px">'+window._waBtn(p.whatsapp,'Chamar no WhatsApp')+'</div>';
   corpo += row('Nome da mãe', p.nome_mae);
   corpo += row('Nome do pai', p.nome_pai);
   corpo += row('Seção eleitoral', p.secao_eleitoral);
@@ -12312,6 +12338,7 @@ window._abrirHistoricoPaciente=async function(key){
       ${row('CPF',p.cpf)}
       ${row('Idade',p.idade?p.idade+' anos':null)}
       ${row('WhatsApp',p.whatsapp)}
+      ${window._waBtn&&window._waBtn(p.whatsapp)?'<div style="padding:8px 0 2px">'+window._waBtn(p.whatsapp,'Chamar no WhatsApp')+'</div>':''}
       ${row('Nome da mãe',p.nome_mae)}
       ${row('Nome do pai',p.nome_pai)}
       ${row('Seção eleitoral',p.secao_eleitoral)}
@@ -12577,7 +12604,8 @@ window._abrirRetornoModal=function(key){
       <button id="_pret-btn-close" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:50%;width:30px;height:30px;color:var(--text-muted,#94a3b8);font-size:15px;cursor:pointer">✕</button>
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent,#00e676);font-weight:700;margin-bottom:4px">📋 Novo Retorno</div>
       <div style="font-size:17px;font-weight:700;color:var(--text-primary,#f1f5f9);margin-bottom:2px;padding-right:36px">${_escHtml(pBase.nome||'Paciente')}</div>
-      <div style="font-size:11px;color:var(--text-muted,#94a3b8);margin-bottom:16px">${pBase.cpf?'CPF: '+_escHtml(pBase.cpf):''}${pBase.cpf&&pBase.whatsapp?' · ':''}${pBase.whatsapp?'WhatsApp: '+_escHtml(pBase.whatsapp):''}</div>
+      <div style="font-size:11px;color:var(--text-muted,#94a3b8);margin-bottom:10px">${pBase.cpf?'CPF: '+_escHtml(pBase.cpf):''}${pBase.cpf&&pBase.whatsapp?' · ':''}${pBase.whatsapp?'WhatsApp: '+_escHtml(pBase.whatsapp):''}</div>
+      ${window._waBtn?'<div style="margin-bottom:16px">'+window._waBtn(pBase.whatsapp,'Chamar no WhatsApp')+'</div>':''}
       <div style="background:rgba(0,200,83,0.06);border:1px solid rgba(0,200,83,0.18);border-radius:8px;padding:10px 12px;margin-bottom:18px;font-size:11px;color:var(--text-primary,#f1f5f9);line-height:1.5">
         ℹ️ <strong style="color:var(--accent,#00e676)">Dados de identificação serão copiados automaticamente.</strong> Preencha só os campos clínicos do retorno de hoje.
       </div>
