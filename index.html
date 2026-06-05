@@ -2584,7 +2584,7 @@ async function doLogout() {
    precaucoes_clinicas, observacoes) + identidade extra carregam em 2o plano via
    _enrichHeavyInBackground, ou sob demanda via _ensureFull (ficha/edicao). */
 window._LEAN_COLS = 'id,nome,cpf,whatsapp,idade,nivel_dor,nivel_melhora,data_consulta,proximo_retorno,criado_em,cadastrado_por,avaliacao';
-window._HEAVY_COLS = 'id,sintomas,medicacoes,pontos_dor,tempo_sintomas,precaucoes_clinicas,observacoes,nome_mae,nome_pai,secao_eleitoral,adultos_no_lar,estado_civil,cidade,origem,atualizado_em';
+window._HEAVY_COLS = 'id,sintomas,medicacoes,pontos_dor,tempo_sintomas,precaucoes_clinicas,observacoes,nome_mae,nome_pai,adultos_no_lar,estado_civil,cidade,origem,atualizado_em';
 
 window._fetchAllRows = async function(tbl, ownId, cols){
   const SEL = cols || '*';
@@ -5697,10 +5697,6 @@ function _buildStg1() {
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Seção Eleitoral</label>
-          <input type="text" class="form-input" id="s1-secao" placeholder="Ex: 0123 / Zona 001">
-        </div>
-        <div class="form-group">
           <label class="form-label">Adultos no lar</label>
           <input type="number" class="form-input" id="s1-adultos" placeholder="Ex: 3" min="0" max="20">
         </div>
@@ -6059,7 +6055,6 @@ function _stgCollect(s) {
     _dat.idade=parseInt(document.getElementById('s1-idade')?.value)||null;
     _dat.nome_mae=document.getElementById('s1-mae')?.value.trim()||null;
     _dat.nome_pai=document.getElementById('s1-pai')?.value.trim()||null;
-    _dat.secao_eleitoral=document.getElementById('s1-secao')?.value.trim()||null;
     const _ad=parseInt(document.getElementById('s1-adultos')?.value);
     _dat.adultos_no_lar=isNaN(_ad)?null:_ad;
     _dat.estado_civil=document.getElementById('s1-estciv')?.value||null;
@@ -6152,7 +6147,6 @@ window._stgSave = async function() {
     cpf:_dat.cpf||null,
     nome_mae:_dat.nome_mae||null,
     nome_pai:_dat.nome_pai||null,
-    secao_eleitoral:_dat.secao_eleitoral||null,
     adultos_no_lar:_dat.adultos_no_lar!=null?_dat.adultos_no_lar:null,
     estado_civil:_dat.estado_civil||null,
     cidade:_dat.cidade||null,
@@ -6192,8 +6186,8 @@ window._stgSave = async function() {
 
   /* Remove campos com coluna potencialmente faltando — tenta inserir, se falhar remove e tenta sem */
   const newCols = proj==='fibro'
-    ? ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
-    : ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
+    ? ['cpf','nome_mae','nome_pai','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
+    : ['cpf','nome_mae','nome_pai','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
 
   /* QW1: .select().single() devolve a row com id/criado_em gerados pelo banco —
      necessario pra mutar allPacientes local em vez de refazer loadData() inteiro */
@@ -12037,7 +12031,6 @@ window._abrirFichaPaciente = async function(pid) {
   if (window._waBtn && window._waBtn(p.whatsapp)) corpo += '<div style="padding:8px 0 2px">'+window._waBtn(p.whatsapp,'Chamar no WhatsApp')+'</div>';
   corpo += row('Nome da mãe', p.nome_mae);
   corpo += row('Nome do pai', p.nome_pai);
-  corpo += row('Seção eleitoral', p.secao_eleitoral);
   corpo += row('Estado civil', p.estado_civil);
   corpo += row('Adultos no lar', p.adultos_no_lar);
   corpo += row('Cidade', p.cidade);
@@ -12341,7 +12334,6 @@ window._abrirHistoricoPaciente=async function(key){
       ${window._waBtn&&window._waBtn(p.whatsapp)?'<div style="padding:8px 0 2px">'+window._waBtn(p.whatsapp,'Chamar no WhatsApp')+'</div>':''}
       ${row('Nome da mãe',p.nome_mae)}
       ${row('Nome do pai',p.nome_pai)}
-      ${row('Seção eleitoral',p.secao_eleitoral)}
       ${row('Estado civil',p.estado_civil)}
       ${row('Adultos no lar',p.adultos_no_lar)}
       ${row('Cidade',p.cidade)}
@@ -12673,7 +12665,6 @@ async function _salvarRetorno(key,btnRef){
     cpf: pBase.cpf||null,
     nome_mae: pBase.nome_mae||null,
     nome_pai: pBase.nome_pai||null,
-    secao_eleitoral: pBase.secao_eleitoral||null,
     adultos_no_lar: pBase.adultos_no_lar!=null?pBase.adultos_no_lar:null,
     estado_civil: pBase.estado_civil||null,
     cidade: pBase.cidade||null,
@@ -12718,8 +12709,8 @@ async function _salvarRetorno(key,btnRef){
 
   /* Mesmo padrão de graceful degradation do _stgSave: tenta com tudo, se coluna nova falhar, remove e tenta de novo */
   const newCols = proj==='fibro'
-    ? ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
-    : ['cpf','nome_mae','nome_pai','secao_eleitoral','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
+    ? ['cpf','nome_mae','nome_pai','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
+    : ['cpf','nome_mae','nome_pai','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
 
   /* QW1: .select().single() pra mutar local em vez de loadData() cheio */
   let insertedRow = null;
@@ -12806,10 +12797,7 @@ window._pEditOpen=async function(recordId){
       </div>
       <div class="_ped-grupo"><label class="_ped-label">Adultos no lar</label><input type="number" id="_ped-adultos" min="0" max="20" class="_ped-input" value="${esc(rec.adultos_no_lar)}"></div>
     </div>
-    <div class="_ped-row">
-      <div class="_ped-grupo"><label class="_ped-label">Cidade</label><input type="text" id="_ped-cidade" class="_ped-input" value="${esc(rec.cidade)}"></div>
-      <div class="_ped-grupo"><label class="_ped-label">Seção Eleitoral</label><input type="text" id="_ped-secao" class="_ped-input" value="${esc(rec.secao_eleitoral)}"></div>
-    </div>`;
+    <div class="_ped-grupo"><label class="_ped-label">Cidade</label><input type="text" id="_ped-cidade" class="_ped-input" value="${esc(rec.cidade)}"></div>`;
 
   const corpoFibro=`
     <div class="_ped-grupo"><label class="_ped-label">Sintomas</label><textarea id="_ped-sintomas" rows="2" class="_ped-input">${esc(rec.sintomas)}</textarea></div>
@@ -12935,7 +12923,6 @@ async function _pEditSave(recordId,btnRef){
     estado_civil: val('_ped-estciv')||null,
     adultos_no_lar: (function(){ const v=val('_ped-adultos'); return v===''||v==null?null:parseInt(v); })(),
     cidade: txt('_ped-cidade'),
-    secao_eleitoral: txt('_ped-secao'),
     precaucoes_clinicas: txt('_ped-precaucoes'),
     observacoes: txt('_ped-obs'),
     nivel_melhora: (function(){ const v=val('_ped-melhora'); return v===''||v==null?null:parseInt(v); })(),
@@ -12971,7 +12958,7 @@ async function _pEditSave(recordId,btnRef){
 
   if(btnRef){ btnRef.disabled=true; btnRef.textContent='Salvando...'; }
 
-  const _identCols=['cpf','nome_mae','nome_pai','estado_civil','adultos_no_lar','cidade','secao_eleitoral','nivel_melhora','precaucoes_clinicas'];
+  const _identCols=['cpf','nome_mae','nome_pai','estado_civil','adultos_no_lar','cidade','nivel_melhora','precaucoes_clinicas'];
   const newCols = proj==='fibro'
     ? [..._identCols,'tempo_sintomas','medicacoes','pontos_dor']
     : [..._identCols,'adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
