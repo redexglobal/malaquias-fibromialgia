@@ -1797,10 +1797,23 @@ tr:last-child td { border-bottom: none; }
           <div class="chart-title">Configurações do Relatório</div>
           <div style="display:flex;flex-direction:column;gap:16px;padding:8px 0">
             <div class="form-group">
+              <label class="form-label">Ponto / Cidade</label>
+              <select class="form-input" id="pdf-ponto" onchange="atualizarPreviewPDF()">
+                <option value="todos">Todos os pontos</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tipo de registro</label>
+              <select class="form-input" id="pdf-tipo" onchange="atualizarPreviewPDF()">
+                <option value="todos">Todos os atendimentos</option>
+                <option value="novos">Apenas casos novos (1ª vez)</option>
+              </select>
+            </div>
+            <div class="form-group">
               <label class="form-label">Período</label>
-              <select class="form-input" id="pdf-periodo">
-                <option value="7">Últimos 7 dias</option>
-                <option value="30" selected>Últimos 30 dias</option>
+              <select class="form-input" id="pdf-periodo" onchange="atualizarPreviewPDF()">
+                <option value="7">Última semana (7 dias)</option>
+                <option value="30" selected>Último mês (30 dias)</option>
                 <option value="90">Últimos 90 dias</option>
                 <option value="0">Todos os registros</option>
               </select>
@@ -1813,11 +1826,11 @@ tr:last-child td { border-bottom: none; }
                 <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="pdf-inc-ranking" checked style="accent-color:var(--accent)"> Ranking de pontos</label>
               </div>
             </div>
-            <button class="btn-primary" onclick="gerarPDF()" style="margin-top:8px">
-              <i class="fas fa-file-pdf"></i> Gerar e Baixar PDF
+            <button class="btn-primary" onclick="window._pdfImprimir()" style="margin-top:8px">
+              <i class="fas fa-print"></i> Imprimir relatório
             </button>
-            <button class="btn-limpar" onclick="window.print()" style="text-align:center">
-              <i class="fas fa-print"></i> Imprimir / Salvar PDF
+            <button class="btn-limpar" onclick="gerarPDF()" style="text-align:center">
+              <i class="fas fa-file-pdf"></i> Baixar arquivo (HTML/PDF)
             </button>
           </div>
         </div>
@@ -10142,97 +10155,238 @@ function loadResumoSemanal() {
   }
 }
 
-/* ====== EXPORTAR PDF ====== */
-function atualizarPreviewPDF() {
+/* ====== EXPORTAR PDF / IMPRIMIR RELATÓRIO (com filtro por ponto/cidade) ====== */
+
+/* Detecta a CIDADE a partir do nome do ponto (nomes sao inconsistentes:
+   "Sara : Unidade Rio Verde Esther", "Rozenilda : Rio Verde", "Maria Eduarda - Rio Verde"
+   devem TODOS virar "Rio Verde"). Remove o nome da colaboradora (antes de : - /),
+   tira "Unidade"/"Ponto Fixo NN" e casa por palavra-chave de cidade conhecida. */
+window._cidadeDoPonto = function(nome){
+  let s=(nome||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  s=s.split(/[:\-\/]/).pop();
+  s=s.replace(/\bunidade\b/g,' ').replace(/ponto fixo\s*\d*/g,' ').replace(/\s+/g,' ').trim();
+  if(/rio verde/.test(s))return 'Rio Verde';
+  if(/novo gama/.test(s))return 'Novo Gama';
+  if(/ocidental/.test(s))return 'Ocidental';
+  if(/cristalina/.test(s))return 'Cristalina';
+  if(/luziania|inga/.test(s))return 'Luziânia';
+  if(/val ?paraiso/.test(s))return 'Valparaíso';
+  if(/caldas novas/.test(s))return 'Caldas Novas';
+  if(/anapolis/.test(s))return 'Anápolis';
+  if(/formosa/.test(s))return 'Formosa';
+  if(/vera cruz/.test(s))return 'Vera Cruz';
+  if(/mangalo|goiania/.test(s))return 'Goiânia';
+  if(/novo mundo/.test(s))return 'Jardim Novo Mundo';
+  if(!s)return 'Outros';
+  return s.replace(/\b\w/g,c=>c.toUpperCase());
+};
+
+window._pdfCidadeMap = {};   /* cidade -> [pointIds] */
+window._pdfPontoNome = {};   /* pointId -> nome */
+
+/* Popula o dropdown quando a aba abre: por CIDADE (junta os pontos) + por ponto. */
+window._pdfPopulatePontos = async function(){
+  const sel = document.getElementById('pdf-ponto');
+  if(!sel || sel.dataset.loaded === '1') return;
+  const projDB = (typeof currentProject!=='undefined' && currentProject==='oculos') ? 'oculos' : 'fibromialgia';
+  try {
+    const { data } = await sb.from('profiles')
+      .select('id,nome,nome_ponto,numero_ponto')
+      .eq('papel','colaborador').eq('projeto',projDB).order('numero_ponto');
+    if(!Array.isArray(data)) return;
+    const esc = window._escHtml || (s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;'));
+    const cidadeMap = {}; const pontoNome = {}; const pontoOpts = [];
+    data.forEach(p => {
+      const nome = p.nome_ponto || p.nome || ('Ponto '+p.numero_ponto);
+      pontoNome[p.id] = nome;
+      const cid = window._cidadeDoPonto(nome);
+      (cidadeMap[cid] = cidadeMap[cid] || []).push(p.id);
+      pontoOpts.push(`<option value="ponto:${esc(p.id)}">${esc(nome)}</option>`);
+    });
+    window._pdfCidadeMap = cidadeMap;
+    window._pdfPontoNome = pontoNome;
+    const cidadeOpts = Object.keys(cidadeMap).sort((a,b)=>a.localeCompare(b,'pt')).map(c=>{
+      const n = cidadeMap[c].length;
+      return `<option value="cidade:${esc(c)}">${esc(c)}${n>1?' ('+n+' pontos)':''}</option>`;
+    }).join('');
+    sel.innerHTML = '<option value="todos">Todos os pontos / cidades</option>'
+      + '<optgroup label="Por cidade">' + cidadeOpts + '</optgroup>'
+      + '<optgroup label="Por ponto (colaborador)">' + pontoOpts.join('') + '</optgroup>';
+    sel.dataset.loaded = '1';
+  } catch(e){ console.warn('[pdf:pontos]', e?.message||e); }
+};
+
+/* Chave de identidade do paciente (igual ao agrupamento das abas Pacientes). */
+window._pdfPacKey = function(p){
+  const cpf=(p.cpf||'').replace(/\D/g,'');
+  const cpfOK=window._cpfValido && window._cpfValido(cpf);
+  return cpfOK ? 'cpf:'+cpf : 'nw:'+((p.nome||'').toLowerCase().trim())+'|'+((p.whatsapp||'').replace(/\D/g,''));
+};
+
+/* Aplica os filtros (ponto + tipo + período) e devolve as linhas + rótulos. */
+window._pdfGetReport = function(){
   const all = window.allPacientes || [];
   const dias = parseInt(document.getElementById('pdf-periodo')?.value || 30);
   const cutoff = dias > 0 ? new Date(Date.now() - dias * 86400000) : null;
-  const filtered = cutoff ? all.filter(p => p.criado_em && new Date(p.criado_em) >= cutoff) : all;
-  const proj = typeof currentProject !== 'undefined' ? (currentProject === 'fibro' ? 'Fibromialgia' : 'Óculos') : '—';
-  const periodo = dias > 0 ? `Últimos ${dias} dias` : 'Todos os registros';
+  const pontoSel = document.getElementById('pdf-ponto');
+  const ponto = pontoSel?.value || 'todos';
+  const tipo = document.getElementById('pdf-tipo')?.value || 'todos';
+
+  /* Resolve o filtro de ponto/cidade em um conjunto de pointIds (null = todos). */
+  let pontoIds = null; let pontoLabel = 'Todos os pontos / cidades'; const isTodos = (ponto==='todos');
+  if(ponto.startsWith('cidade:')){
+    const cid = ponto.slice(7);
+    const ids = window._pdfCidadeMap[cid] || [];
+    pontoIds = new Set(ids);
+    pontoLabel = 'Cidade: ' + cid + (ids.length>1 ? (' ('+ids.length+' pontos)') : '');
+  } else if(ponto.startsWith('ponto:')){
+    const id = ponto.slice(6);
+    pontoIds = new Set([id]);
+    pontoLabel = window._pdfPontoNome[id] || id;
+  }
+
+  /* Tipo "casos novos": agrupa por paciente e fica só com a 1ª linha (mais antiga)
+     de cada — a primeira vez que aquele paciente foi cadastrado. */
+  let base = all;
+  if(tipo === 'novos'){
+    const groups = new Map();
+    all.forEach(p => {
+      const k = window._pdfPacKey(p);
+      const cur = groups.get(k);
+      if(!cur || (p.criado_em||'') < (cur.criado_em||'')) groups.set(k, p);
+    });
+    base = [...groups.values()];
+  }
+  /* Filtro por ponto/cidade (cadastrado_por é sempre confiável). */
+  if(pontoIds) base = base.filter(p => pontoIds.has(p.cadastrado_por));
+  /* Filtro por período (data de cadastro). */
+  let rows = cutoff ? base.filter(p => p.criado_em && new Date(p.criado_em) >= cutoff) : base;
+  rows = rows.slice().sort((a,b)=>(b.criado_em||'').localeCompare(a.criado_em||''));
+
+  return {
+    rows,
+    ponto, isTodos, pontoLabel,
+    tipoLabel: tipo==='novos' ? 'Casos novos (1ª vez)' : 'Todos os atendimentos',
+    periodoLabel: dias>0 ? (dias===7?'Última semana (7 dias)':dias===30?'Último mês (30 dias)':`Últimos ${dias} dias`) : 'Todos os registros',
+    proj: (typeof currentProject!=='undefined' && currentProject==='oculos') ? 'Óculos' : 'Fibromialgia',
+    isOculos: typeof currentProject!=='undefined' && currentProject==='oculos',
+  };
+};
+
+function atualizarPreviewPDF() {
+  window._pdfPopulatePontos();
+  const r = window._pdfGetReport();
   const dataGer = new Date().toLocaleDateString('pt-BR');
   const prev = document.getElementById('pdf-preview-content');
   if(prev) prev.innerHTML = `
-    <div style="margin-bottom:8px"><b>Projeto:</b> ${proj}</div>
-    <div style="margin-bottom:8px"><b>Período:</b> ${periodo}</div>
-    <div style="margin-bottom:8px"><b>Total de registros:</b> ${filtered.length}</div>
+    <div style="margin-bottom:8px"><b>Projeto:</b> ${r.proj}</div>
+    <div style="margin-bottom:8px"><b>Ponto / Cidade:</b> ${r.pontoLabel}</div>
+    <div style="margin-bottom:8px"><b>Tipo:</b> ${r.tipoLabel}</div>
+    <div style="margin-bottom:8px"><b>Período:</b> ${r.periodoLabel}</div>
+    <div style="margin-bottom:8px"><b>Registros encontrados:</b> ${r.rows.length}</div>
     <div style="margin-bottom:8px"><b>Gerado em:</b> ${dataGer}</div>
-    <div style="margin-bottom:8px;color:var(--accent)">Pronto para exportar</div>
+    <div style="margin-bottom:8px;color:var(--accent)">${r.rows.length? 'Pronto para imprimir' : 'Nenhum registro com esses filtros'}</div>
   `;
 }
 
-function gerarPDF() {
-  const all = window.allPacientes || [];
-  const dias = parseInt(document.getElementById('pdf-periodo')?.value || 30);
-  const cutoff = dias > 0 ? new Date(Date.now() - dias * 86400000) : null;
-  const filtered = cutoff ? all.filter(p => p.criado_em && new Date(p.criado_em) >= cutoff) : all;
-  const proj = typeof currentProject !== 'undefined' ? (currentProject === 'fibro' ? 'Fibromialgia' : 'Óculos') : 'Sistema';
-  const periodo = dias > 0 ? `Últimos ${dias} dias` : 'Todos os registros';
+/* Monta o HTML do relatório (usado tanto pra imprimir quanto pra baixar). */
+window._pdfBuildHtml = function(){
+  const r = window._pdfGetReport();
   const dataGer = new Date().toLocaleDateString('pt-BR');
-  const incTabela = document.getElementById('pdf-inc-tabela')?.checked;
   const incRanking = document.getElementById('pdf-inc-ranking')?.checked;
+  const incTabela = document.getElementById('pdf-inc-tabela')?.checked;
+  const esc = window._escHtml || (s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;'));
+  const pMap = window._pMapGlobal || window._pMap || window._pdPontoMap || {};
+  const fmtD = v => v ? new Date(v+'T00:00').toLocaleDateString('pt-BR') : '—';
+  /* Subtítulo destacando o filtro (o que a secretária quer ver claro no papel). */
+  const filtroTxt = [r.pontoLabel, r.tipoLabel, r.periodoLabel].join(' · ');
 
-  const pontoMap = {};
-  filtered.forEach(p => { pontoMap[p.cadastrado_por] = (pontoMap[p.cadastrado_por]||0)+1; });
-  const topPontos = Object.entries(pontoMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
-  const pMap = window._pMap || window._pdPontoMap || {};
-
-  let html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório — ${esc(r.pontoLabel)}</title>
   <style>
-    body{font-family:Arial,sans-serif;margin:40px;color:#1e293b;background:#fff}
-    .header{text-align:center;border-bottom:3px solid #00a855;padding-bottom:20px;margin-bottom:30px}
-    .logo{font-size:32px;font-weight:700;color:#00a855;margin-bottom:4px}
-    .subtitle{font-size:13px;color:#64748b}
-    .meta{display:flex;gap:24px;margin-bottom:24px;flex-wrap:wrap}
-    .meta-item{background:#f8faf9;border:1px solid #e2e8f0;border-radius:8px;padding:12px 20px}
-    .meta-label{font-size:11px;text-transform:uppercase;color:#64748b;margin-bottom:4px}
-    .meta-value{font-size:20px;font-weight:700;color:#00a855}
-    table{width:100%;border-collapse:collapse;margin-bottom:24px}
-    th{background:#00a855;color:#fff;padding:8px 12px;text-align:left;font-size:12px}
-    td{padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:12px}
+    @page{margin:1.4cm;size:A4}
+    body{font-family:Arial,sans-serif;margin:0;color:#1e293b;background:#fff}
+    .header{text-align:center;border-bottom:3px solid #00a855;padding-bottom:16px;margin-bottom:18px}
+    .logo{font-size:30px;font-weight:700;color:#00a855}
+    .subtitle{font-size:13px;color:#64748b;margin-top:2px}
+    .filtro{font-size:13px;color:#1e293b;font-weight:700;margin-top:8px;background:#eafff2;border:1px solid #b9f0d0;border-radius:8px;display:inline-block;padding:6px 14px}
+    .meta{display:flex;gap:14px;margin-bottom:18px;flex-wrap:wrap;justify-content:center}
+    .meta-item{background:#f8faf9;border:1px solid #e2e8f0;border-radius:8px;padding:10px 18px;text-align:center}
+    .meta-label{font-size:10px;text-transform:uppercase;color:#64748b;margin-bottom:3px}
+    .meta-value{font-size:18px;font-weight:700;color:#00a855}
+    table{width:100%;border-collapse:collapse;margin-bottom:20px}
+    th{background:#00a855;color:#fff;padding:7px 10px;text-align:left;font-size:11px}
+    td{padding:6px 10px;border-bottom:1px solid #e2e8f0;font-size:11px}
     tr:nth-child(even) td{background:#f8faf9}
-    h2{color:#00a855;margin:24px 0 12px;font-size:16px}
-    .footer{margin-top:40px;text-align:center;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:16px}
+    h2{color:#00a855;margin:18px 0 10px;font-size:15px}
+    .footer{margin-top:24px;text-align:center;font-size:10px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px}
+    @media print{ .meta-item{break-inside:avoid} tr{break-inside:avoid} }
   </style></head><body>
   <div class="header">
     <div class="logo">Dr. Malaquias</div>
-    <div class="subtitle">Sistema de Gestão — Relatório ${proj}</div>
+    <div class="subtitle">Relatório de Atendimentos — ${r.proj}</div>
+    <div class="filtro">${esc(filtroTxt)}</div>
   </div>
   <div class="meta">
-    <div class="meta-item"><div class="meta-label">Período</div><div class="meta-value" style="font-size:14px">${periodo}</div></div>
-    <div class="meta-item"><div class="meta-label">Total Registros</div><div class="meta-value">${filtered.length}</div></div>
-    <div class="meta-item"><div class="meta-label">Gerado em</div><div class="meta-value" style="font-size:14px">${dataGer}</div></div>
+    <div class="meta-item"><div class="meta-label">Registros</div><div class="meta-value">${r.rows.length}</div></div>
+    <div class="meta-item"><div class="meta-label">Período</div><div class="meta-value" style="font-size:13px">${esc(r.periodoLabel)}</div></div>
+    <div class="meta-item"><div class="meta-label">Gerado em</div><div class="meta-value" style="font-size:13px">${dataGer}</div></div>
   </div>`;
 
-  if(incRanking && topPontos.length) {
-    html += `<h2>Ranking de Pontos</h2><table><tr><th>#</th><th>Ponto</th><th>Registros</th></tr>`;
-    topPontos.forEach(([id,cnt],i) => {
-      html += `<tr><td>${i+1}</td><td>${pMap[id]||id.substring(0,8)}</td><td>${cnt}</td></tr>`;
-    });
+  /* Quando o resultado abrange vários pontos (Todos, ou uma cidade com vários
+     pontos), mostra o detalhamento por ponto. */
+  const multiPonto = new Set(r.rows.map(p=>p.cadastrado_por)).size > 1;
+  if(incRanking && multiPonto && r.rows.length){
+    const cnt={}; r.rows.forEach(p=>{cnt[p.cadastrado_por]=(cnt[p.cadastrado_por]||0)+1;});
+    const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,25);
+    html += `<h2>Por ponto</h2><table><tr><th>#</th><th>Ponto / Colaborador</th><th>Registros</th></tr>`;
+    top.forEach(([id,c],i)=>{ html += `<tr><td>${i+1}</td><td>${esc(pMap[id]||String(id).substring(0,8))}</td><td>${c}</td></tr>`; });
     html += `</table>`;
   }
 
-  if(incTabela && filtered.length) {
-    const isOculos = typeof currentProject !== 'undefined' && currentProject === 'oculos';
-    html += `<h2>Registros (${filtered.length})</h2><table>`;
-    if(isOculos) html += `<tr><th>Nome</th><th>Idade</th><th>WhatsApp</th><th>Status</th><th>Data Entrega</th></tr>`;
-    else html += `<tr><th>Nome</th><th>Idade</th><th>WhatsApp</th><th>Nível Dor</th><th>Data Consulta</th></tr>`;
-    filtered.slice(0,100).forEach(p => {
-      if(isOculos) html += `<tr><td>${p.nome||'—'}</td><td>${p.idade||'—'}</td><td>${p.whatsapp||'—'}</td><td>${p.status_pedido||'—'}</td><td>${p.data_entrega?new Date(p.data_entrega+'T00:00').toLocaleDateString('pt-BR'):'—'}</td></tr>`;
-      else html += `<tr><td>${p.nome||'—'}</td><td>${p.idade||'—'}</td><td>${p.whatsapp||'—'}</td><td>${p.nivel_dor!=null?p.nivel_dor+'/10':'—'}</td><td>${p.data_consulta?new Date(p.data_consulta+'T00:00').toLocaleDateString('pt-BR'):'—'}</td></tr>`;
+  if(incTabela && r.rows.length){
+    const showPonto = multiPonto;
+    html += `<h2>${r.tipoLabel} (${r.rows.length})</h2><table><tr><th>Nome</th><th>Idade</th><th>WhatsApp</th>`;
+    if(r.isOculos) html += `<th>Status</th><th>Data Entrega</th>`;
+    else html += `<th>Nível Dor</th><th>Data Consulta</th>`;
+    if(showPonto) html += `<th>Ponto / Cidade</th>`;
+    html += `<th>Cadastro</th></tr>`;
+    r.rows.slice(0,400).forEach(p=>{
+      html += `<tr><td>${esc(p.nome||'—')}</td><td>${esc(p.idade||'—')}</td><td>${esc(p.whatsapp||'—')}</td>`;
+      if(r.isOculos) html += `<td>${esc(p.status_pedido||'—')}</td><td>${fmtD(p.data_entrega)}</td>`;
+      else html += `<td>${p.nivel_dor!=null?p.nivel_dor+'/10':'—'}</td><td>${fmtD(p.data_consulta)}</td>`;
+      if(showPonto) html += `<td>${esc(pMap[p.cadastrado_por]||'—')}</td>`;
+      html += `<td>${p.criado_em?new Date(p.criado_em).toLocaleDateString('pt-BR'):'—'}</td></tr>`;
     });
-    if(filtered.length > 100) html += `<tr><td colspan="5" style="text-align:center;color:#64748b">... e mais ${filtered.length-100} registros</td></tr>`;
+    if(r.rows.length>400) html += `<tr><td colspan="8" style="text-align:center;color:#64748b">... e mais ${r.rows.length-400} registros</td></tr>`;
     html += `</table>`;
+  } else if(incTabela){
+    html += `<p style="text-align:center;color:#64748b;padding:30px">Nenhum registro encontrado com os filtros selecionados.</p>`;
   }
 
   html += `<div class="footer">Relatório gerado automaticamente — Dr. Malaquias © ${new Date().getFullYear()}</div></body></html>`;
+  return { html, r };
+};
 
+/* Abre o relatório em nova janela e dispara a impressão direto (o que a Natália quer). */
+window._pdfImprimir = function(){
+  const { html, r } = window._pdfBuildHtml();
+  if(!r.rows.length){ if(typeof showToast==='function') showToast('Nenhum registro com esses filtros',true); return; }
+  const w = window.open('', '_blank');
+  if(w){ w.document.write(html); w.document.close(); w.focus(); setTimeout(()=>{ try{ w.print(); }catch(_){} }, 450); }
+  else if(typeof showToast==='function') showToast('Permita pop-ups para imprimir',true);
+};
+
+/* Baixa o relatório como arquivo HTML (abre e Ctrl+P pra PDF). */
+function gerarPDF() {
+  const { html, r } = window._pdfBuildHtml();
+  if(!r.rows.length){ if(typeof showToast==='function') showToast('Nenhum registro com esses filtros',true); return; }
+  const slug = (r.pontoLabel==='Todos os pontos'?'todos':r.pontoLabel).toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);
   const blob = new Blob([html], {type:'text/html;charset=utf-8'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `relatorio-malaquias-${proj.toLowerCase()}-${_todayBR()}.html`;
+  a.download = `relatorio-${r.proj.toLowerCase()}-${slug}-${_todayBR()}.html`;
   a.click();
-  if(typeof showToast==='function') showToast('Relatório gerado! Abra o arquivo e use Ctrl+P para salvar como PDF.');
+  if(typeof showToast==='function') showToast('Relatório baixado! Abra e use Ctrl+P para salvar como PDF.');
 }
 
 /* ====== HOOK NO showSection PARA CARREGAR DADOS DAS NOVAS SEÇÕES ====== */
