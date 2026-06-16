@@ -13528,7 +13528,7 @@ if(!_amInit()){const _t=setInterval(()=>{if(_amInit())clearInterval(_t);},600);s
 const _N2_SEC='relatorio-nat2';
 const _N2_EMAIL='natalia@malaquias.com';
 let _n2Chart=null, _n2CidadesReady=false, _n2CidadeMap={}, _n2PontoNomeMap={};
-let _n2Periodo='todos', _n2Cidade='todas', _n2Report='lista', _n2Tipo='unicos', _n2Agrupar='ambas';
+let _n2Periodo='todos', _n2Cidade='todas', _n2Report='lista', _n2Tipo='unicos', _n2Agrupar='ambas', _n2Busca='';
 
 function _n2IsNatalia(){ return typeof currentProfile!=='undefined' && currentProfile && currentProfile.email===_N2_EMAIL; }
 function _n2Cat(v){ v=parseInt(v); if(v>0)return'melh'; if(v<0)return'pior'; return'estav'; }
@@ -13540,6 +13540,22 @@ function _n2SplitClinica(label){ const i=(label||'').indexOf(' - '); if(i<0) ret
 function _n2GrupoDe(uid){ const full=_n2CidadeDe(uid); const sp=_n2SplitClinica(full); return _n2Agrupar==='cidade'?sp.cidade:_n2Agrupar==='regiao'?sp.regiao:full; }
 function _n2GrupoLabel(){ return _n2Agrupar==='cidade'?'Cidade':_n2Agrupar==='regiao'?'Região':'Cidade + Região'; }
 function _n2ActiveMap(){ if(_n2Agrupar==='ambas') return _n2CidadeMap; const m={}; Object.keys(_n2CidadeMap).forEach(full=>{ const sp=_n2SplitClinica(full); const k=_n2Agrupar==='cidade'?sp.cidade:sp.regiao; (m[k]=m[k]||new Set()); _n2CidadeMap[full].forEach(id=>m[k].add(id)); }); return m; }
+/* Canoniza a CIDADE digitada no paciente (texto livre). Retorna clínica conhecida ou null. */
+function _n2CanonCidade(txt){ const s=(txt||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  if(/rio verde/.test(s))return 'Rio Verde';
+  if(/mangalo/.test(s))return 'Mangalô';
+  if(/renascer|goiania/.test(s))return 'Goiânia Viva - Renascer';
+  if(/ocidental/.test(s))return 'Cidade Ocidental';
+  if(/cristalina/.test(s))return 'Cristalina';
+  if(/luziania|inga/.test(s))return 'Luziânia - Jardim Ingá';
+  if(/val ?paraiso|ceu azul/.test(s))return 'Valparaíso - Jd. Céu Azul';
+  if(/caldas novas/.test(s))return 'Caldas Novas';
+  if(/anapolis/.test(s))return 'Anápolis';
+  if(/vera cruz/.test(s))return 'Vera Cruz';
+  if(/novo mundo/.test(s))return 'Novo Mundo';
+  if(/santa helena/.test(s))return 'Santa Helena';
+  return null;
+}
 function _n2Cutoff(){ const n=Date.now(); if(_n2Periodo==='30d')return new Date(n-30*864e5).toISOString(); if(_n2Periodo==='90d')return new Date(n-90*864e5).toISOString(); if(_n2Periodo==='1ano')return new Date(n-365*864e5).toISOString(); return null; }
 function _n2PeriodoLabel(){ return _n2Periodo==='30d'?'Últimos 30 dias':_n2Periodo==='90d'?'Últimos 90 dias':_n2Periodo==='1ano'?'Último ano':'Todo o período'; }
 function _n2Status(m){ const el=document.getElementById('n2-status'); if(el)el.textContent=m||''; }
@@ -13619,6 +13635,7 @@ function _n2BuildSec(){
             <span style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-right:4px">Incluir</span>
             <button class="n2-tbtn n2-active" onclick="window._n2SetTipo('unicos',this)">Pacientes únicos</button>
             <button class="n2-tbtn" onclick="window._n2SetTipo('todos',this)">Todos os atendimentos</button>
+            <input id="n2-busca" type="text" placeholder="🔍 Buscar nome ou telefone..." oninput="window._n2SetBusca(this.value)" style="background:var(--bg-secondary);border:1px solid var(--border-glass);border-radius:8px;padding:7px 12px;color:var(--text-primary);font-size:13px;min-width:230px;margin-left:8px">
           </div>
         </div>
         <div class="n2-bar">
@@ -13713,6 +13730,7 @@ function _n2Lista(rows){
     rows.forEach(p=>{ const k=window._pdfPacKey?window._pdfPacKey(p):((p.nome||'').toLowerCase().trim()+'|'+(p.whatsapp||'').replace(/\D/g,'')); const cur=g.get(k); if(!cur||(p.criado_em||'')<(cur.criado_em||'')) g.set(k,p); });
     base=[...g.values()];
   }
+  if(_n2Busca && _n2Busca.trim()){ const q=_n2Busca.toLowerCase().trim(); const qd=q.replace(/\D/g,''); base=base.filter(p=> (p.nome||'').toLowerCase().includes(q) || (qd.length>=3 && (p.whatsapp||'').replace(/\D/g,'').includes(qd)) ); }
   base=base.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
   return {rows:base,total:base.length,totalAtend:rows.length};
 }
@@ -13756,8 +13774,8 @@ function _n2TableHTML(report,rows,light){
   if(report==='lista'){
     const l=_n2Lista(rows); let i=0;
     const fmtData=iso=>iso?new Date(iso).toLocaleDateString('pt-BR'):'—';
-    const body=l.rows.map(p=>{ i++; return `<tr>${td(i,'center','color:'+muted)}${td(p.nome||'—','left','font-weight:600;color:'+txt)}${td(_n2Tel(p.whatsapp),'left')}${td(_n2GrupoDe(p.cadastrado_por),'left','color:'+muted)}${td(fmtData(p.criado_em),'center','color:'+muted)}</tr>`; }).join('')||`<tr>${td('Nenhum paciente nesse filtro','center',null).replace('<td','<td colspan=6')}</tr>`;
-    return `<table style="width:100%;border-collapse:collapse"><thead><tr>${th('#','center')}${th('Nome')}${th('Telefone')}${th(_n2GrupoLabel())}${th('Cadastro','center')}</tr></thead><tbody>${body}</tbody></table>`;
+    const body=l.rows.map(p=>{ i++; const lc=_n2SplitClinica(_n2CidadeDe(p.cadastrado_por)).cidade; const cc=_n2CanonCidade(p.cidade); const div=(cc && _n2SplitClinica(cc).cidade!==lc); const conf=div?('⚠️ '+_n2SplitClinica(cc).cidade):''; return `<tr>${td(i,'center','color:'+muted)}${td(p.nome||'—','left','font-weight:600;color:'+txt)}${td(_n2Tel(p.whatsapp),'left')}${td(_n2GrupoDe(p.cadastrado_por),'left','color:'+muted)}${td(conf,'left',div?('color:#d97706;font-weight:600;font-size:11px'):('color:'+muted))}${td(fmtData(p.criado_em),'center','color:'+muted)}</tr>`; }).join('')||`<tr>${td('Nenhum paciente nesse filtro','center',null).replace('<td','<td colspan=7')}</tr>`;
+    return `<table style="width:100%;border-collapse:collapse"><thead><tr>${th('#','center')}${th('Nome')}${th('Telefone')}${th(_n2GrupoLabel()+' (login)')}${th('Conferência')}${th('Cadastro','center')}</tr></thead><tbody>${body}</tbody></table>`;
   }
   if(report==='melhora'){
     const m=_n2Melhora(rows);
@@ -13803,6 +13821,7 @@ window._n2SetPeriodo=function(p,btn){ _n2Periodo=p; document.querySelectorAll('.
 window._n2SetCidade=function(){ _n2Cidade=document.getElementById('n2-cidade')?.value||'todas'; _n2Render(); };
 window._n2SetTipo=function(t,btn){ _n2Tipo=t; document.querySelectorAll('.n2-tbtn').forEach(b=>b.classList.remove('n2-active')); if(btn)btn.classList.add('n2-active'); _n2Render(); };
 window._n2SetAgrupar=function(g,btn){ _n2Agrupar=g; _n2Cidade='todas'; document.querySelectorAll('.n2-gbtn').forEach(b=>b.classList.remove('n2-active')); if(btn)btn.classList.add('n2-active'); _n2FillCidades(); _n2Render(); };
+window._n2SetBusca=function(v){ _n2Busca=v||''; _n2Render(); };
 
 /* ---------- documento para exportar (light) ---------- */
 function _n2Fname(ext){ const r=_n2Report==='melhora'?'analise-melhora':_n2Report==='atend'?'atendimentos-local':'lista-pacientes'; const c=_n2Cidade==='todas'?'todas':_n2Cidade.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,'-').toLowerCase(); return `relatorio-${r}-${c}-${new Date().toISOString().slice(0,10)}.${ext}`; }
