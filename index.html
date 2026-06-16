@@ -13528,7 +13528,7 @@ if(!_amInit()){const _t=setInterval(()=>{if(_amInit())clearInterval(_t);},600);s
 const _N2_SEC='relatorio-nat2';
 const _N2_EMAIL='natalia@malaquias.com';
 let _n2Chart=null, _n2CidadesReady=false, _n2CidadeMap={}, _n2PontoNomeMap={};
-let _n2Periodo='todos', _n2Cidade='todas', _n2Report='lista', _n2Tipo='unicos', _n2Agrupar='ambas', _n2Busca='';
+let _n2Periodo='todos', _n2Cidade='todas', _n2Report='lista', _n2Tipo='unicos', _n2Agrupar='ambas', _n2Busca='', _n2De='', _n2Ate='';
 
 function _n2IsNatalia(){ return typeof currentProfile!=='undefined' && currentProfile && currentProfile.email===_N2_EMAIL; }
 function _n2Cat(v){ v=parseInt(v); if(v>0)return'melh'; if(v<0)return'pior'; return'estav'; }
@@ -13557,7 +13557,7 @@ function _n2CanonCidade(txt){ const s=(txt||'').toLowerCase().normalize('NFD').r
   return null;
 }
 function _n2Cutoff(){ const n=Date.now(); if(_n2Periodo==='30d')return new Date(n-30*864e5).toISOString(); if(_n2Periodo==='90d')return new Date(n-90*864e5).toISOString(); if(_n2Periodo==='1ano')return new Date(n-365*864e5).toISOString(); return null; }
-function _n2PeriodoLabel(){ return _n2Periodo==='30d'?'Últimos 30 dias':_n2Periodo==='90d'?'Últimos 90 dias':_n2Periodo==='1ano'?'Último ano':'Todo o período'; }
+function _n2PeriodoLabel(){ if(_n2Periodo==='custom'){ const f=d=>d?d.split('-').reverse().join('/'):'…'; return 'De '+f(_n2De)+' a '+f(_n2Ate); } return _n2Periodo==='30d'?'Últimos 30 dias':_n2Periodo==='90d'?'Últimos 90 dias':_n2Periodo==='1ano'?'Último ano':'Todo o período'; }
 function _n2Status(m){ const el=document.getElementById('n2-status'); if(el)el.textContent=m||''; }
 
 /* ---------- nav + seção ---------- */
@@ -13608,6 +13608,7 @@ function _n2BuildSec(){
         <button class="n2-rbtn n2-active" onclick="window._n2SetReport('lista',this)">📋 Lista de Pacientes</button>
         <button class="n2-rbtn" onclick="window._n2SetReport('melhora',this)">📈 Análise de Melhora</button>
         <button class="n2-rbtn" onclick="window._n2SetReport('atend',this)">📍 Atendimentos por Local</button>
+        <button class="n2-rbtn" onclick="window._n2SetReport('resumo',this)">📊 Resumo Geral</button>
       </div>
       <div class="n2-bar">
         <span style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-right:4px">Agrupar por</span>
@@ -13623,6 +13624,10 @@ function _n2BuildSec(){
         <button class="n2-pbtn" onclick="window._n2SetPeriodo('30d',this)">30 dias</button>
         <button class="n2-pbtn" onclick="window._n2SetPeriodo('90d',this)">90 dias</button>
         <button class="n2-pbtn" onclick="window._n2SetPeriodo('1ano',this)">1 ano</button>
+        <span style="font-size:11px;color:var(--text-muted);margin-left:6px">ou de</span>
+        <input type="date" id="n2-de" onchange="window._n2SetData()" title="Data inicial" style="background:var(--bg-secondary);border:1px solid var(--border-glass);border-radius:8px;padding:6px 8px;color:var(--text-primary);font-size:12px">
+        <span style="font-size:11px;color:var(--text-muted)">até</span>
+        <input type="date" id="n2-ate" onchange="window._n2SetData()" title="Data final" style="background:var(--bg-secondary);border:1px solid var(--border-glass);border-radius:8px;padding:6px 8px;color:var(--text-primary);font-size:12px">
       </div>
       <div class="n2-bar" style="justify-content:space-between">
         <div class="n2-bar">
@@ -13642,6 +13647,7 @@ function _n2BuildSec(){
           <button class="n2-exp" id="n2-btn-print" style="background:#64748b" onclick="window._n2Print()"><i class="fas fa-print"></i> Imprimir</button>
           <button class="n2-exp" id="n2-btn-pdf" style="background:#dc2626" onclick="window._n2Pdf()"><i class="fas fa-file-pdf"></i> Baixar PDF</button>
           <button class="n2-exp" id="n2-btn-png" style="background:#7c3aed" onclick="window._n2Png()"><i class="fas fa-image"></i> Baixar PNG</button>
+          <button class="n2-exp" id="n2-btn-csv" style="background:#16a34a" onclick="window._n2Csv()"><i class="fas fa-file-excel"></i> Excel</button>
         </div>
       </div>
       <div id="n2-status" style="font-size:12px;color:var(--text-muted);min-height:16px"></div>
@@ -13688,15 +13694,10 @@ function _n2FillCidades(){
   sel.innerHTML=`<option value="todas">${lbl}</option>`+cidades.map(c=>{ const n=map[c].size; return `<option value="${c.replace(/"/g,'&quot;')}">${c}${n>1?' ('+n+' pontos)':''}</option>`; }).join('');
   sel.value=_n2Cidade;
 }
-function _n2Filtered(){
-  const cut=_n2Cutoff();
-  const ids=_n2Cidade!=='todas'?(_n2ActiveMap()[_n2Cidade]||new Set()):null;
-  return _n2AllRows().filter(p=>{
-    if(ids && !ids.has(p.cadastrado_por)) return false;
-    if(cut && (!p.criado_em || p.criado_em<cut)) return false;
-    return true;
-  });
-}
+function _n2RowsCidade(){ const ids=_n2Cidade!=='todas'?(_n2ActiveMap()[_n2Cidade]||new Set()):null; return _n2AllRows().filter(p=> !ids || ids.has(p.cadastrado_por)); }
+function _n2InPeriodo(criado){ if(_n2Periodo==='custom'){ const d=(criado||'').slice(0,10); if(!d)return false; if(_n2De && d<_n2De)return false; if(_n2Ate && d>_n2Ate)return false; return true; } const cut=_n2Cutoff(); if(cut) return !!criado && criado>=cut; return true; }
+function _n2Filtered(){ return _n2RowsCidade().filter(p=>_n2InPeriodo(p.criado_em)); }
+function _n2Novos(){ const g=new Map(); _n2RowsCidade().forEach(p=>{ const k=window._pdfPacKey?window._pdfPacKey(p):((p.nome||'').toLowerCase().trim()+'|'+(p.whatsapp||'').replace(/\D/g,'')); const c=p.criado_em||''; const cur=g.get(k); if(cur==null||c<cur) g.set(k,c); }); let n=0; g.forEach(min=>{ if(_n2InPeriodo(min)) n++; }); return n; }
 
 /* ---------- modelos ---------- */
 function _n2Melhora(rows){
@@ -13741,6 +13742,16 @@ function _n2Kpis(report,rows,light){
   const txt=light?'#111':'var(--text-primary)', muted=light?'#6b7280':'var(--text-muted)';
   const cardCss=light?'border:1px solid #e9d5ff;border-radius:8px;padding:12px 16px;flex:1;min-width:120px':'background:var(--bg-card);border:1px solid var(--border-glass);border-radius:12px;padding:16px';
   const card=(lbl,val,sub,color)=>`<div style="${cardCss}"><div style="font-size:${light?'24':'30'}px;font-weight:800;color:${color||txt};line-height:1">${val}</div><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:${muted};margin-top:5px">${lbl}</div>${sub?`<div style="font-size:11px;color:${muted};margin-top:3px">${sub}</div>`:''}</div>`;
+  if(report==='resumo'){
+    const a=_n2Atend(rows); const nAtivas=a.arr.filter(o=>o.total>0).length;
+    const uniqSet=new Set(); rows.forEach(p=>{ const k=window._pdfPacKey?window._pdfPacKey(p):((p.nome||'').toLowerCase().trim()+'|'+(p.whatsapp||'').replace(/\D/g,'')); uniqSet.add(k); });
+    let melhTot=0,comM=0; a.arr.forEach(o=>{melhTot+=o.melh;comM+=o.comMelhora;});
+    return card('Atendimentos',a.total,_n2PeriodoLabel(),light?'#065f46':'var(--accent,#00e676)')
+      +card('Pacientes únicos',uniqSet.size,_n2Cidade==='todas'?'todas as clínicas':_n2Cidade,light?'#7c3aed':'#f0abfc')
+      +card('Novos no período',_n2Novos(),'1ª vez cadastrados',light?'#0369a1':'#38bdf8')
+      +card('Clínicas',nAtivas,'com atendimento',light?'#d97706':'#f59e0b')
+      +card('Melhorando',(comM?Math.round(melhTot/comM*100):0)+'%','dos avaliados',light?'#16a34a':'#22c55e');
+  }
   if(report==='lista'){
     const l=_n2Lista(rows);
     const comTel=l.rows.filter(p=>(p.whatsapp||'').replace(/\D/g,'').length>=10).length;
@@ -13771,10 +13782,11 @@ function _n2TableHTML(report,rows,light){
   const thBg=light?'#7c3aed':'transparent', thColor=light?'#fff':'var(--text-muted)', border=light?'#e5e7eb':'rgba(255,255,255,0.06)';
   const th=(t,al)=>`<th style="text-align:${al||'left'};padding:9px 10px;font-size:11px;text-transform:uppercase;background:${thBg};color:${thColor}">${t}</th>`;
   const td=(c,al,extra)=>`<td style="padding:8px 10px;border-bottom:1px solid ${border};font-size:12px;text-align:${al||'left'};${extra||''}">${c}</td>`;
+  if(report==='resumo') report='atend'; /* Resumo usa o ranking por clínica */
   if(report==='lista'){
     const l=_n2Lista(rows); let i=0;
     const fmtData=iso=>iso?new Date(iso).toLocaleDateString('pt-BR'):'—';
-    const body=l.rows.map(p=>{ i++; const lc=_n2SplitClinica(_n2CidadeDe(p.cadastrado_por)).cidade; const cc=_n2CanonCidade(p.cidade); const div=(cc && _n2SplitClinica(cc).cidade!==lc); const conf=div?('⚠️ '+_n2SplitClinica(cc).cidade):''; return `<tr>${td(i,'center','color:'+muted)}${td(p.nome||'—','left','font-weight:600;color:'+txt)}${td(_n2Tel(p.whatsapp),'left')}${td(_n2GrupoDe(p.cadastrado_por),'left','color:'+muted)}${td(conf,'left',div?('color:#d97706;font-weight:600;font-size:11px'):('color:'+muted))}${td(fmtData(p.criado_em),'center','color:'+muted)}</tr>`; }).join('')||`<tr>${td('Nenhum paciente nesse filtro','center',null).replace('<td','<td colspan=7')}</tr>`;
+    const body=l.rows.map(p=>{ i++; const lc=_n2SplitClinica(_n2CidadeDe(p.cadastrado_por)).cidade; const cc=_n2CanonCidade(p.cidade); const div=(cc && _n2SplitClinica(cc).cidade!==lc); const ccCity=cc?_n2SplitClinica(cc).cidade:''; const btn=(!light && div)?(' <button onclick="window._n2FixPonto(\''+p.id+'\',\''+ccCity.replace(/[\\\\\x27]/g,'')+'\')" style="margin-left:6px;background:#d97706;color:#fff;border:none;border-radius:5px;padding:2px 7px;font-size:10px;font-weight:700;cursor:pointer">corrigir</button>'):''; const conf=div?('⚠️ '+ccCity+btn):''; return `<tr>${td(i,'center','color:'+muted)}${td(p.nome||'—','left','font-weight:600;color:'+txt)}${td(_n2Tel(p.whatsapp),'left')}${td(_n2GrupoDe(p.cadastrado_por),'left','color:'+muted)}${td(conf,'left',div?('color:#d97706;font-weight:600;font-size:11px'):('color:'+muted))}${td(fmtData(p.criado_em),'center','color:'+muted)}</tr>`; }).join('')||`<tr>${td('Nenhum paciente nesse filtro','center',null).replace('<td','<td colspan=7')}</tr>`;
     return `<table style="width:100%;border-collapse:collapse"><thead><tr>${th('#','center')}${th('Nome')}${th('Telefone')}${th(_n2GrupoLabel()+' (login)')}${th('Conferência')}${th('Cadastro','center')}</tr></thead><tbody>${body}</tbody></table>`;
   }
   if(report==='melhora'){
@@ -13817,14 +13829,15 @@ function _n2DrawChart(rows){
 
 /* ---------- setters ---------- */
 window._n2SetReport=function(r,btn){ _n2Report=r; document.querySelectorAll('.n2-rbtn').forEach(b=>b.classList.remove('n2-active')); if(btn)btn.classList.add('n2-active'); _n2Render(); };
-window._n2SetPeriodo=function(p,btn){ _n2Periodo=p; document.querySelectorAll('.n2-pbtn').forEach(b=>b.classList.remove('n2-active')); if(btn)btn.classList.add('n2-active'); _n2Render(); };
+window._n2SetPeriodo=function(p,btn){ _n2Periodo=p; _n2De=''; _n2Ate=''; const de=document.getElementById('n2-de'),at=document.getElementById('n2-ate'); if(de)de.value=''; if(at)at.value=''; document.querySelectorAll('.n2-pbtn').forEach(b=>b.classList.remove('n2-active')); if(btn)btn.classList.add('n2-active'); _n2Render(); };
+window._n2SetData=function(){ _n2De=document.getElementById('n2-de')?.value||''; _n2Ate=document.getElementById('n2-ate')?.value||''; if(_n2De||_n2Ate){ _n2Periodo='custom'; document.querySelectorAll('.n2-pbtn').forEach(b=>b.classList.remove('n2-active')); } _n2Render(); };
 window._n2SetCidade=function(){ _n2Cidade=document.getElementById('n2-cidade')?.value||'todas'; _n2Render(); };
 window._n2SetTipo=function(t,btn){ _n2Tipo=t; document.querySelectorAll('.n2-tbtn').forEach(b=>b.classList.remove('n2-active')); if(btn)btn.classList.add('n2-active'); _n2Render(); };
 window._n2SetAgrupar=function(g,btn){ _n2Agrupar=g; _n2Cidade='todas'; document.querySelectorAll('.n2-gbtn').forEach(b=>b.classList.remove('n2-active')); if(btn)btn.classList.add('n2-active'); _n2FillCidades(); _n2Render(); };
 window._n2SetBusca=function(v){ _n2Busca=v||''; _n2Render(); };
 
 /* ---------- documento para exportar (light) ---------- */
-function _n2Fname(ext){ const r=_n2Report==='melhora'?'analise-melhora':_n2Report==='atend'?'atendimentos-local':'lista-pacientes'; const c=_n2Cidade==='todas'?'todas':_n2Cidade.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,'-').toLowerCase(); return `relatorio-${r}-${c}-${new Date().toISOString().slice(0,10)}.${ext}`; }
+function _n2Fname(ext){ const r=_n2Report==='melhora'?'analise-melhora':_n2Report==='atend'?'atendimentos-local':_n2Report==='resumo'?'resumo-geral':'lista-pacientes'; const c=_n2Cidade==='todas'?'todas':_n2Cidade.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,'-').toLowerCase(); return `relatorio-${r}-${c}-${new Date().toISOString().slice(0,10)}.${ext}`; }
 function _n2HeaderHTML(titulo){ const f=[_n2GrupoLabel()+': '+(_n2Cidade==='todas'?'Todas':_n2Cidade),'Período: '+_n2PeriodoLabel()]; if(_n2Report==='lista') f.push(_n2Tipo==='unicos'?'Pacientes únicos':'Todos os atendimentos'); return `<h1 style="font-size:20px;color:#5b21b6;margin-bottom:4px">${titulo}</h1><p style="color:#6b7280;font-size:12px;margin-bottom:18px">${f.join(' · ')} · Gerado em ${new Date().toLocaleString('pt-BR')} · Sistema Dr. Malaquias — Fibromialgia</p>`; }
 function _n2FooterHTML(){ return `<div style="text-align:center;color:#9ca3af;font-size:10px;margin-top:18px;border-top:1px solid #e5e7eb;padding-top:12px">Sistema Dr. Malaquias · Fibromialgia · Relatórios Natália</div>`; }
 function _n2ReportInner(){
@@ -13832,7 +13845,7 @@ function _n2ReportInner(){
   const showG=!isLista && document.getElementById('n2-show-grafico')?.checked!==false;
   const showL=isLista || document.getElementById('n2-show-lista')?.checked!==false;
   const rows=_n2Filtered();
-  const titulo=isLista?'Lista de Pacientes':_n2Report==='melhora'?'Análise de Melhora dos Pacientes':'Atendimentos por Local';
+  const titulo=isLista?'Lista de Pacientes':_n2Report==='resumo'?'Resumo Geral':_n2Report==='melhora'?'Análise de Melhora dos Pacientes':'Atendimentos por Local';
   const cv=document.getElementById('n2-canvas');
   const chartImg=(showG&&cv)?(cv.toDataURL('image/png')||''):'';
   const kpis=`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px">${_n2Kpis(_n2Report,rows,true)}</div>`;
@@ -13853,6 +13866,37 @@ window._n2Print=function(){
   const r=_n2ReportInner();
   const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${r.titulo} — Dr. Malaquias</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:28px;color:#111}@media print{body{padding:14px}}</style></head><body>${_n2HeaderHTML(r.titulo)}${r.inner}${_n2FooterHTML()}<script>window.onload=function(){window.print();}<\/script></body></html>`;
   const w=window.open('','_blank'); if(w){w.document.write(html);w.document.close();} else alert('Permita pop-ups para imprimir.');
+};
+window._n2Csv=function(){
+  const rows=_n2Filtered(); let header=[], data=[];
+  if(_n2Report==='lista'){
+    const l=_n2Lista(rows); header=['#','Nome','Telefone',_n2GrupoLabel()+' (login)','Conferencia','Cadastro']; let i=0;
+    data=l.rows.map(p=>{ i++; const lc=_n2SplitClinica(_n2CidadeDe(p.cadastrado_por)).cidade; const cc=_n2CanonCidade(p.cidade); const div=(cc&&_n2SplitClinica(cc).cidade!==lc); return [i,p.nome||'',_n2Tel(p.whatsapp),_n2GrupoDe(p.cadastrado_por),div?('DIVERGE: '+_n2SplitClinica(cc).cidade):'',p.criado_em?new Date(p.criado_em).toLocaleDateString('pt-BR'):'']; });
+  } else if(_n2Report==='melhora'){
+    const m=_n2Melhora(rows); header=['Ponto','Total','Melhorando','Estavel','Piorando'];
+    data=m.porPonto.map(o=>[o.nome,o.total,o.melh,o.estav,o.pior]);
+  } else {
+    const a=_n2Atend(rows); header=[_n2GrupoLabel(),'Atendimentos','% do total','Dor media','Melhorando %'];
+    data=a.arr.map(o=>{ const pct=a.total?Math.round(o.total/a.total*100):0; const dm=o.dorN?(o.dorSoma/o.dorN).toFixed(1):''; const pM=o.comMelhora?Math.round(o.melh/o.comMelhora*100):0; return [o.cidade,o.total,pct+'%',dm,pM+'%']; });
+  }
+  const esc=v=>{ v=(v==null?'':String(v)); return /[";\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+  const csv=[header,...data].map(r=>r.map(esc).join(';')).join('\r\n');
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=_n2Fname('csv'); document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),8000);
+  _n2Status('✅ Excel/CSV baixado!'); setTimeout(()=>_n2Status(''),4000);
+};
+window._n2FixPonto=async function(pid,cidadeCity){
+  let targetId=null,targetNome='';
+  Object.keys(_n2CidadeMap).forEach(full=>{ if(!targetId && _n2SplitClinica(full).cidade===cidadeCity){ const arr=[..._n2CidadeMap[full]]; if(arr.length){ targetId=arr[0]; targetNome=full; } } });
+  if(!targetId){ alert('Não encontrei um ponto cadastrado para "'+cidadeCity+'". Crie/edite um ponto dessa cidade primeiro.'); return; }
+  if(!confirm('Mover este paciente para o ponto de "'+targetNome+'"?\n(reatribui o cadastro — reversível)')) return;
+  try{
+    const {error}=await sb.from('pacientes_fibro').update({cadastrado_por:targetId}).eq('id',pid);
+    if(error){ alert('Erro ao mover: '+error.message); return; }
+    const row=(window.allPacientes||[]).find(x=>String(x.id)===String(pid)); if(row) row.cadastrado_por=targetId;
+    if(typeof showToast==='function') showToast('Paciente movido para '+targetNome,false);
+    _n2Render();
+  }catch(e){ console.error('[N2 FIX]',e); alert('Erro inesperado ao mover.'); }
 };
 function _n2Ensure(src,check){ return new Promise((res,rej)=>{ if(check())return res(); const s=document.createElement('script'); s.src=src; s.async=true; s.onload=()=>res(); s.onerror=()=>rej(new Error('falha ao carregar '+src)); document.head.appendChild(s); }); }
 function _n2Busy(b){ ['n2-btn-print','n2-btn-pdf','n2-btn-png'].forEach(id=>{const el=document.getElementById(id); if(el)el.disabled=b;}); }
