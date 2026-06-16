@@ -13527,7 +13527,7 @@ if(!_amInit()){const _t=setInterval(()=>{if(_amInit())clearInterval(_t);},600);s
 
 const _N2_SEC='relatorio-nat2';
 const _N2_EMAIL='natalia@malaquias.com';
-let _n2Chart=null, _n2CidadesReady=false, _n2CidadeMap={}, _n2PontoNomeMap={};
+let _n2Chart=null, _n2ChartPizza=null, _n2ChartEvol=null, _n2CidadesReady=false, _n2CidadeMap={}, _n2PontoNomeMap={};
 let _n2Periodo='todos', _n2Cidade='todas', _n2Report='lista', _n2Tipo='unicos', _n2Agrupar='ambas', _n2Busca='', _n2De='', _n2Ate='';
 
 function _n2IsNatalia(){ return typeof currentProfile!=='undefined' && currentProfile && currentProfile.email===_N2_EMAIL; }
@@ -13658,10 +13658,15 @@ function _n2BuildSec(){
         <div id="n2-chart-title" style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:12px"></div>
         <div class="n2-canvas-wrap"><canvas id="n2-canvas"></canvas></div>
       </div>
+      <div id="n2-extra-card" style="display:none;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px">
+        <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:20px"><div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:12px"><i class="fas fa-chart-pie" style="color:#f0abfc;margin-right:6px"></i>Distribuição por clínica</div><div class="n2-canvas-wrap" style="height:300px"><canvas id="n2-canvas-pizza"></canvas></div></div>
+        <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:20px"><div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:12px"><i class="fas fa-chart-line" style="color:#22c55e;margin-right:6px"></i>Evolução de cadastros por mês</div><div class="n2-canvas-wrap" style="height:300px"><canvas id="n2-canvas-evol"></canvas></div></div>
+      </div>
       <div id="n2-table-card" style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:20px">
         <div id="n2-table-title" style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:14px"></div>
         <div style="overflow-x:auto" id="n2-table-wrap"></div>
       </div>
+      <div id="n2-insights" style="margin-top:18px"></div>
     </div>
   `;
   main.appendChild(sec);
@@ -13814,6 +13819,8 @@ window._n2Render=function(){
   if(chartCard){ chartCard.style.display=showG?'block':'none'; if(showG){ const ct=document.getElementById('n2-chart-title'); if(ct)ct.textContent=_n2Report==='melhora'?'Distribuição geral (Melhorando / Estável / Piorando)':'Atendimentos por '+_gl; _n2DrawChart(rows); } }
   const tableCard=document.getElementById('n2-table-card');
   if(tableCard){ tableCard.style.display=showL?'block':'none'; if(showL){ const tt=document.getElementById('n2-table-title'); if(tt)tt.textContent=isLista?'Lista de pacientes (nome + telefone)':_n2Report==='melhora'?'Por ponto de atendimento':'Por '+_gl; const tw=document.getElementById('n2-table-wrap'); if(tw)tw.innerHTML=_n2TableHTML(_n2Report,rows,false); } }
+  const extra=document.getElementById('n2-extra-card'); if(extra){ const se=(_n2Report==='resumo'); extra.style.display=se?'grid':'none'; if(se) _n2DrawExtra(rows); }
+  const insEl=document.getElementById('n2-insights'); if(insEl) insEl.innerHTML=_n2Insights(rows,false);
 };
 function _n2DrawChart(rows){
   const ctx=document.getElementById('n2-canvas'); if(!ctx||typeof Chart==='undefined')return;
@@ -13825,6 +13832,47 @@ function _n2DrawChart(rows){
     const a=_n2Atend(rows);
     _n2Chart=new Chart(ctx,{type:'bar',data:{labels:a.arr.map(o=>o.cidade),datasets:[{label:'Atendimentos',data:a.arr.map(o=>o.total),backgroundColor:'rgba(240,171,252,0.6)',borderColor:'#f0abfc',borderWidth:1,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#cbd5e1',maxRotation:60,minRotation:30,font:{size:11}},grid:{display:false}},y:{beginAtZero:true,ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.05)'}}}}});
   }
+}
+const _N2_PIE=['#f0abfc','#22c55e','#38bdf8','#f59e0b','#ef4444','#a78bfa','#10b981','#fb7185','#facc15','#60a5fa','#34d399','#c084fc'];
+function _n2DrawExtra(rows){
+  if(typeof Chart==='undefined')return;
+  const a=_n2Atend(rows); const arr=a.arr.filter(o=>o.total>0).slice(0,12);
+  const pz=document.getElementById('n2-canvas-pizza');
+  if(pz){ if(_n2ChartPizza)_n2ChartPizza.destroy(); _n2ChartPizza=new Chart(pz,{type:'doughnut',data:{labels:arr.map(o=>o.cidade),datasets:[{data:arr.map(o=>o.total),backgroundColor:_N2_PIE,borderWidth:1,borderColor:'rgba(0,0,0,0.25)'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#cbd5e1',font:{size:10},boxWidth:10,padding:8}},tooltip:{callbacks:{label:c=>c.label+': '+c.raw+' ('+(a.total?Math.round(c.raw/a.total*100):0)+'%)'}}}}}); }
+  const ev=document.getElementById('n2-canvas-evol');
+  if(ev){ const m={}; rows.forEach(p=>{ if(!p.criado_em)return; const k=p.criado_em.slice(0,7); m[k]=(m[k]||0)+1; }); const keys=Object.keys(m).sort(); const labels=keys.map(k=>{const a2=k.split('-');return a2[1]+'/'+a2[0].slice(2);}); if(_n2ChartEvol)_n2ChartEvol.destroy(); _n2ChartEvol=new Chart(ev,{type:'line',data:{labels,datasets:[{label:'Cadastros',data:keys.map(k=>m[k]),borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,0.15)',fill:true,tension:0.3,pointRadius:3,pointBackgroundColor:'#22c55e'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#cbd5e1',font:{size:10}},grid:{display:false}},y:{beginAtZero:true,ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.05)'}}}}}); }
+}
+/* Painel Resumo & Dicas — destaques, alertas e dicas geradas dos dados filtrados */
+function _n2Insights(rows,light){
+  const a=_n2Atend(rows); const ativos=a.arr.filter(o=>o.total>0);
+  if(!ativos.length) return '';
+  const lider=ativos[0];
+  const comAval=ativos.filter(o=>o.comMelhora>0).map(o=>({nome:o.cidade,pct:Math.round(o.melh/o.comMelhora*100),n:o.comMelhora}));
+  const melhor=comAval.slice().sort((x,y)=>y.pct-x.pct)[0];
+  const pior=comAval.slice().sort((x,y)=>x.pct-y.pct)[0];
+  const novos=_n2Novos();
+  const uniqSet=new Set(); rows.forEach(p=>{const k=window._pdfPacKey?window._pdfPacKey(p):((p.nome||'').toLowerCase().trim()+'|'+(p.whatsapp||'').replace(/\D/g,''));uniqSet.add(k);});
+  const semTel=rows.filter(p=>(p.whatsapp||'').replace(/\D/g,'').length<10).length;
+  let mT=0,cT=0; ativos.forEach(o=>{mT+=o.melh;cT+=o.comMelhora;}); const pctGeral=cT?Math.round(mT/cT*100):0;
+  const pctTotal=t=>a.total?Math.round(t/a.total*100):0;
+  const bg=light?'#f8fafc':'rgba(255,255,255,0.02)', bd=light?'#e5e7eb':'var(--border-glass)', tx=light?'#111':'var(--text-primary)', mu=light?'#6b7280':'var(--text-muted)';
+  const col=(titulo,cor,itens)=>`<div style="flex:1;min-width:220px;background:${bg};border:1px solid ${bd};border-left:4px solid ${cor};border-radius:10px;padding:14px"><div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:${cor};margin-bottom:10px">${titulo}</div>${itens.map(i=>`<div style="font-size:13px;color:${tx};margin-bottom:7px;line-height:1.35">${i}</div>`).join('')}</div>`;
+  const destaques=[
+    `🏆 <b>${lider.cidade}</b> lidera: <b>${lider.total}</b> atendimentos (${pctTotal(lider.total)}% do total)`,
+    melhor?`📈 Melhor evolução: <b>${melhor.nome}</b> (${melhor.pct}% melhorando)`:'',
+    `🆕 <b>${novos}</b> pacientes novos no período · <b>${uniqSet.size}</b> pacientes únicos`,
+  ].filter(Boolean);
+  const alertas=[
+    pior&&pior.pct<50?`⚠️ <b>${pior.nome}</b> com baixa evolução (${pior.pct}% melhorando) — investigar`:'',
+    semTel>0?`📞 <b>${semTel}</b> cadastro(s) sem telefone válido — cobrar preenchimento`:'',
+    ativos.length<a.arr.length?`📍 <b>${a.arr.length-ativos.length}</b> clínica(s) sem nenhum atendimento no filtro`:'',
+  ].filter(Boolean);
+  const dicas=[
+    `💡 ${pctGeral>=70?'Resultado geral forte':'Resultado geral pode melhorar'}: <b>${pctGeral}%</b> dos avaliados estão melhorando.`,
+    lider?`💡 ${lider.cidade} concentra ${pctTotal(lider.total)}% — ${pctTotal(lider.total)>=40?'avaliar reforço de equipe e replicar o modelo nas demais':'boa distribuição entre clínicas'}.`:'',
+    pior&&pior.pct<50?`💡 Direcionar atenção clínica a ${pior.nome} (revisar protocolo/retornos).`:(melhor?`💡 ${melhor.nome} é referência — usar como modelo.`:''),
+  ].filter(Boolean);
+  return `<div style="font-size:13px;font-weight:700;color:${tx};margin:0 0 12px"><i class="fas fa-lightbulb" style="color:#f59e0b;margin-right:7px"></i>Resumo & Dicas de Direcionamento</div><div style="display:flex;gap:14px;flex-wrap:wrap">${col('🏆 Destaques','#16a34a',destaques)}${col('⚠️ Pontos de atenção','#d97706',alertas.length?alertas:['Nenhum alerta no filtro atual ✅'])}${col('💡 Dicas','#7c3aed',dicas)}</div>`;
 }
 
 /* ---------- setters ---------- */
@@ -13850,8 +13898,11 @@ function _n2ReportInner(){
   const chartImg=(showG&&cv)?(cv.toDataURL('image/png')||''):'';
   const kpis=`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px">${_n2Kpis(_n2Report,rows,true)}</div>`;
   const chart=(showG&&chartImg)?`<div style="text-align:center;margin:0 0 18px"><img src="${chartImg}" style="max-width:${_n2Report==='melhora'?'320px':'100%'}"></div>`:'';
+  let extra='';
+  if(_n2Report==='resumo'){ const pz=document.getElementById('n2-canvas-pizza'), ev=document.getElementById('n2-canvas-evol'); const pzi=pz?pz.toDataURL('image/png'):'', evi=ev?ev.toDataURL('image/png'):''; if(pzi||evi) extra=`<div style="display:flex;gap:14px;margin:0 0 18px">${pzi?`<div style="flex:1;text-align:center"><img src="${pzi}" style="max-width:100%"></div>`:''}${evi?`<div style="flex:1;text-align:center"><img src="${evi}" style="max-width:100%"></div>`:''}</div>`; }
   const table=showL?_n2TableHTML(_n2Report,rows,true):'';
-  return {titulo,inner:kpis+chart+table};
+  const insights=_n2Insights(rows,true);
+  return {titulo,inner:kpis+chart+extra+table+(insights?('<div style="margin-top:16px">'+insights+'</div>'):'')};
 }
 function _n2Offscreen(){
   const r=_n2ReportInner();
