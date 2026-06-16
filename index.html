@@ -14033,10 +14033,12 @@ if(!_n2Init()){ const _t=setInterval(()=>{ if(_n2Init())clearInterval(_t); },600
   function _chkData(t){
     if(!t || t.tagName!=='INPUT' || t.type!=='date' || !t.value) return;
     const v=t.value; const dash=v.indexOf('-'); const y=dash>0?parseInt(v.slice(0,dash)):NaN;
-    const ok = v.length===10 && !isNaN(y) && y>=2024 && y<=2031;
+    /* Bloqueia só o claramente impossível (ano 5 dígitos tipo 62026/20026, ou <1900 / >2100).
+       NÃO restringe a 2024-2031 de propósito: o módulo Jurídico tem datas antigas legítimas. */
+    const ok = v.length<=10 && !isNaN(y) && y>=1900 && y<=2100;
     if(!ok){
       t.style.borderColor='#ef4444'; t.style.boxShadow='0 0 0 2px rgba(239,68,68,.25)';
-      try{ if(typeof showToast==='function') showToast('Data inválida (ano fora de 2024–2031). Confira e digite de novo.', true); }catch(_){}
+      try{ if(typeof showToast==='function') showToast('Data inválida (ano impossível). Confira e digite de novo.', true); }catch(_){}
       t.value='';
       setTimeout(()=>{ t.style.borderColor=''; t.style.boxShadow=''; }, 2500);
     }
