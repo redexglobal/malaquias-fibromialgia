@@ -11497,12 +11497,22 @@ function _injectSec() {
           <option value="fibromialgia">Fibromialgia</option>
           <option value="oculos">Óculos</option>
         </select>
+        <button onclick="window._rnHistToggleAdd()" style="background:#10b981;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer"><i class="fas fa-plus"></i> Adicionar local</button>
         <button onclick="window._rnHistSave()" style="background:rgba(167,139,250,0.15);border:1px solid #a78bfa;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;color:#a78bfa;cursor:pointer"><i class="fas fa-save"></i> Salvar</button>
         <span id="_rn-hist-save-status" style="font-size:12px;color:var(--text-muted)"></span>
         <button onclick="window._rnHistPrint()" style="background:#a78bfa;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:7px"><i class="fas fa-print"></i> Imprimir</button>
       </div>
     </div>
-    <p style="font-size:12px;color:var(--text-muted);margin-bottom:20px">Dados históricos consolidados — edite os números, os gráficos atualizam em tempo real. Filtre por cidade ou projeto para imprimir. Somente Natália.</p>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:20px">Dados históricos consolidados — clique <b>Adicionar local</b> pra incluir um novo, ou edite os números: <b>tudo recalcula sozinho</b> (totais, tabela e gráficos). Somente Natália.</p>
+    <div id="_rn-add-panel" style="display:none;background:rgba(167,139,250,0.08);border:1px solid #a78bfa;border-radius:10px;padding:14px;margin-bottom:18px;gap:12px;flex-wrap:wrap;align-items:flex-end">
+      <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:11px;color:var(--text-muted)">Local</label><input id="_rn-add-nome" type="text" placeholder="Ex: Bulhões" style="background:var(--bg-secondary);border:1px solid var(--border-glass);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:13px;min-width:200px"></div>
+      <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:11px;color:#4ade80">Positivos</label><input id="_rn-add-pos" type="number" min="0" value="0" style="background:var(--bg-secondary);border:1px solid var(--border-glass);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:13px;width:90px"></div>
+      <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:11px;color:#ef4444">Negativos</label><input id="_rn-add-neg" type="number" min="0" value="0" style="background:var(--bg-secondary);border:1px solid var(--border-glass);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:13px;width:90px"></div>
+      <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:11px;color:#f59e0b">Neutros</label><input id="_rn-add-neu" type="number" min="0" value="0" style="background:var(--bg-secondary);border:1px solid var(--border-glass);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:13px;width:90px"></div>
+      <button onclick="window._rnHistAddLocal()" style="background:#10b981;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer"><i class="fas fa-check"></i> Adicionar</button>
+      <button onclick="document.getElementById('_rn-add-panel').style.display='none'" style="background:transparent;border:1px solid var(--border-glass);color:var(--text-muted);border-radius:8px;padding:9px 14px;font-size:13px;cursor:pointer">Cancelar</button>
+      <span id="_rn-add-status" style="font-size:12px;color:var(--text-muted)"></span>
+    </div>
     <style>
       .natalia-totais{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:0 0 20px}
       .ntot-card{padding:16px;border-radius:10px;border:1px solid var(--border-glass);background:var(--bg-card)}
@@ -11985,6 +11995,41 @@ window._rnHistSave = async function(){
     setStatus('⚠️ Erro inesperado', '#ef4444');
     if (typeof showToast === 'function') showToast('Erro inesperado ao salvar: '+e.message, true);
   }
+};
+
+/* Botão "Adicionar local" — insere no historico_natalia e recarrega tudo
+   (tabela + totais + KPIs + gráficos recalculam sozinhos via _rnHistLoad). */
+window._rnHistToggleAdd = function(){
+  const p=document.getElementById('_rn-add-panel'); if(!p)return;
+  const show=(p.style.display==='none'||!p.style.display);
+  p.style.display=show?'flex':'none';
+  if(show){ const n=document.getElementById('_rn-add-nome'); if(n) setTimeout(()=>n.focus(),50); }
+};
+window._rnHistAddLocal = async function(){
+  const st=document.getElementById('_rn-add-status');
+  const set=(t,c)=>{ if(st){ st.textContent=t; st.style.color=c||'var(--text-muted)'; } };
+  const nome=(document.getElementById('_rn-add-nome')?.value||'').trim();
+  if(!nome){ set('Digite o nome do local.','#ef4444'); return; }
+  const pos=parseInt(document.getElementById('_rn-add-pos')?.value)||0;
+  const neg=parseInt(document.getElementById('_rn-add-neg')?.value)||0;
+  const neu=parseInt(document.getElementById('_rn-add-neu')?.value)||0;
+  set('Adicionando...','#a78bfa');
+  try{
+    const { error } = await sb.from('historico_natalia').insert({ nome, positivos:pos, negativos:neg, neutros:neu, atualizado_em:new Date().toISOString() });
+    if(error){
+      console.error('[RN ADD]', error);
+      set('Erro: '+error.message,'#ef4444');
+      if(typeof showToast==='function') showToast('Erro ao adicionar local: '+error.message,true);
+      return;
+    }
+    set('✅ Adicionado!','#10b981');
+    if(typeof showToast==='function') showToast('Local "'+nome+'" adicionado!',false);
+    const n=document.getElementById('_rn-add-nome'); if(n)n.value='';
+    ['_rn-add-pos','_rn-add-neg','_rn-add-neu'].forEach(id=>{const el=document.getElementById(id); if(el)el.value='0';});
+    const p=document.getElementById('_rn-add-panel'); if(p)p.style.display='none';
+    await _rnHistLoad();  /* recarrega → recalcula totais, tabela e gráficos */
+    setTimeout(()=>set('',''),3000);
+  }catch(e){ console.error('[RN ADD]', e); set('Erro inesperado.','#ef4444'); }
 };
 
 window._rnHistPrint=function(){
