@@ -13688,7 +13688,9 @@ async function _n2BuildCidades(){
 }
 async function _n2Open(){
   if(!document.getElementById('sec-'+_N2_SEC)) _n2BuildSec();
-  await _n2BuildCidades(); _n2FillCidades(); _n2Render();
+  await _n2BuildCidades(); _n2LoadState();
+  const de=document.getElementById('n2-de'),at=document.getElementById('n2-ate'); if(de)de.value=_n2De; if(at)at.value=_n2Ate;
+  _n2FillCidades(); _n2SyncBtns(); _n2Render();
   if(!_n2AllRows().length){ _n2Status('Carregando cadastros...'); let n=0; const t=setInterval(()=>{ if(_n2AllRows().length||++n>20){ clearInterval(t); _n2Status(''); _n2Render(); } },500); }
 }
 function _n2FillCidades(){
@@ -13807,6 +13809,7 @@ function _n2TableHTML(report,rows,light){
 /* ---------- render na tela ---------- */
 window._n2Render=function(){
   if(!document.getElementById('sec-'+_N2_SEC))return;
+  _n2SaveState();
   const isLista=_n2Report==='lista';
   const showG=!isLista && document.getElementById('n2-show-grafico')?.checked!==false;
   const showL=isLista || document.getElementById('n2-show-lista')?.checked!==false;
@@ -13883,6 +13886,10 @@ window._n2SetCidade=function(){ _n2Cidade=document.getElementById('n2-cidade')?.
 window._n2SetTipo=function(t,btn){ _n2Tipo=t; document.querySelectorAll('.n2-tbtn').forEach(b=>b.classList.remove('n2-active')); if(btn)btn.classList.add('n2-active'); _n2Render(); };
 window._n2SetAgrupar=function(g,btn){ _n2Agrupar=g; _n2Cidade='todas'; document.querySelectorAll('.n2-gbtn').forEach(b=>b.classList.remove('n2-active')); if(btn)btn.classList.add('n2-active'); _n2FillCidades(); _n2Render(); };
 window._n2SetBusca=function(v){ _n2Busca=v||''; _n2Render(); };
+/* Lembrar último filtro (localStorage) + sincronizar botões ativos */
+function _n2SaveState(){ try{ localStorage.setItem('mq_n2_state', JSON.stringify({r:_n2Report,c:_n2Cidade,p:_n2Periodo,g:_n2Agrupar,t:_n2Tipo,de:_n2De,ate:_n2Ate})); }catch(_){ } }
+function _n2LoadState(){ try{ const s=JSON.parse(localStorage.getItem('mq_n2_state')||'null'); if(!s)return; _n2Report=s.r||'lista'; _n2Cidade=s.c||'todas'; _n2Periodo=s.p||'todos'; _n2Agrupar=s.g||'ambas'; _n2Tipo=s.t||'unicos'; _n2De=s.de||''; _n2Ate=s.ate||''; }catch(_){ } }
+function _n2SyncBtns(){ const set=(sel,val)=>document.querySelectorAll(sel).forEach(b=>{ const oc=b.getAttribute('onclick')||''; b.classList.toggle('n2-active', oc.indexOf("'"+val+"'")>=0); }); set('.n2-rbtn',_n2Report); set('.n2-pbtn',_n2Periodo); set('.n2-gbtn',_n2Agrupar); set('.n2-tbtn',_n2Tipo); }
 
 /* ---------- documento para exportar (light) ---------- */
 function _n2Fname(ext){ const r=_n2Report==='melhora'?'analise-melhora':_n2Report==='atend'?'atendimentos-local':_n2Report==='resumo'?'resumo-geral':'lista-pacientes'; const c=_n2Cidade==='todas'?'todas':_n2Cidade.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,'-').toLowerCase(); return `relatorio-${r}-${c}-${new Date().toISOString().slice(0,10)}.${ext}`; }
@@ -13987,6 +13994,31 @@ window._n2Pdf=async function(){
 /* ---------- boot ---------- */
 if(!_n2Init()){ const _t=setInterval(()=>{ if(_n2Init())clearInterval(_t); },600); setTimeout(()=>clearInterval(_t),30000); window.addEventListener('malaquias:profile-ready',function(){ _n2Init(); },{once:true}); }
 
+})();
+</script>
+
+<script>
+/* ============================================================
+   GUARDA DE DATAS — impede gravar ano inválido em QUALQUER <input type=date>
+   (cadastro, retorno, edição). Ano válido: 2024–2031. Corrige na origem:
+   se o ano sair do intervalo (ex: "20026", "0026", "62026"), limpa o campo
+   e avisa, pra colaboradora redigitar. NÃO altera dados existentes.
+   ============================================================ */
+(function(){
+  'use strict';
+  function _chkData(t){
+    if(!t || t.tagName!=='INPUT' || t.type!=='date' || !t.value) return;
+    const v=t.value; const dash=v.indexOf('-'); const y=dash>0?parseInt(v.slice(0,dash)):NaN;
+    const ok = v.length===10 && !isNaN(y) && y>=2024 && y<=2031;
+    if(!ok){
+      t.style.borderColor='#ef4444'; t.style.boxShadow='0 0 0 2px rgba(239,68,68,.25)';
+      try{ if(typeof showToast==='function') showToast('Data inválida (ano fora de 2024–2031). Confira e digite de novo.', true); }catch(_){}
+      t.value='';
+      setTimeout(()=>{ t.style.borderColor=''; t.style.boxShadow=''; }, 2500);
+    }
+  }
+  document.addEventListener('change', e=>_chkData(e.target), true);
+  document.addEventListener('blur',   e=>_chkData(e.target), true);
 })();
 </script>
 
