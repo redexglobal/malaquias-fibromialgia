@@ -11376,7 +11376,7 @@ function _seg(dt) {
 function _dom(seg) { const d=new Date(seg+'T12:00:00'); d.setDate(d.getDate()+6); return _dateBR(d); }
 function _ptBR(iso) { return iso ? new Date(iso+'T12:00:00').toLocaleDateString('pt-BR') : '—'; }
 
-let _rnBar=null, _rnPizza=null, _rnHistBar=null, _rnHistPct=null;
+let _rnBar=null, _rnPizza=null, _rnHistBar=null, _rnHistPct=null, _rnRank=null, _rnPctPonto=null;
 let _rnPontos=[], _rnAtend={}, _rnFb={};
 
 const _RN_HIST=[
@@ -11452,6 +11452,16 @@ function _injectSec() {
       <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:20px">
         <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:12px"><i class="fas fa-chart-pie" style="color:#a78bfa;margin-right:6px"></i>Distribuição de Feedbacks</div>
         <canvas id="_rn-chart-pizza"></canvas>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+      <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:20px">
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:12px"><i class="fas fa-trophy" style="color:#22c55e;margin-right:6px"></i>Ranking de Produtividade (por colaboradora)</div>
+        <canvas id="_rn-chart-rank"></canvas>
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:20px">
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:12px"><i class="fas fa-percentage" style="color:#4ade80;margin-right:6px"></i>% Positivo por Ponto</div>
+        <canvas id="_rn-chart-pctponto"></canvas>
       </div>
     </div>
     <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:14px;padding:20px;margin-bottom:16px">
@@ -11597,6 +11607,7 @@ window._rnRender = async function() {
 
   _rnKpis(inicio,fim);
   _rnCharts();
+  _rnExtraCharts();
   _rnTabela();
   _rnHistLoad();
   _rnStatus('');
@@ -11627,6 +11638,16 @@ function _rnCharts(){
   if(ctxB){if(_rnBar)_rnBar.destroy();_rnBar=new Chart(ctxB,{type:'bar',data:{labels,datasets:[{label:'Atendimentos',data:vals,backgroundColor:'rgba(0,200,83,0.65)',borderColor:'#00e676',borderWidth:1,borderRadius:5}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:_isMobW?10:13},color:'#cbd5e1',maxRotation:_isMobW?90:45,minRotation:_isMobW?90:45,autoSkip:false},grid:{display:false}},y:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.05)'},beginAtZero:true}}}});}
   const ctxP=document.getElementById('_rn-chart-pizza');
   if(ctxP){if(_rnPizza)_rnPizza.destroy();_rnPizza=new Chart(ctxP,{type:'doughnut',data:{labels:['Positivos','Negativos','Neutros'],datasets:[{data:[tP,tN,tNe],backgroundColor:['rgba(74,222,128,0.85)','rgba(239,68,68,0.85)','rgba(245,158,11,0.85)'],borderColor:['#4ade80','#ef4444','#f59e0b'],borderWidth:2}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:11}}}}}});}
+}
+/* Gráficos NOVOS (aditivos): ranking de produtividade por colaboradora + % positivo por ponto */
+function _rnExtraCharts(){
+  const _mob=window.innerWidth<=768;
+  const rank=_rnPontos.map(p=>({nome:p.nome_ponto||p.nome||('Pt '+p.numero_ponto),at:_rnAtend[p.id]||0})).filter(o=>o.at>0).sort((a,b)=>b.at-a.at).slice(0,15);
+  const ctxR=document.getElementById('_rn-chart-rank');
+  if(ctxR){ if(_rnRank)_rnRank.destroy(); _rnRank=new Chart(ctxR,{type:'bar',data:{labels:rank.map(o=>o.nome),datasets:[{label:'Atendimentos',data:rank.map(o=>o.at),backgroundColor:'rgba(34,197,94,0.65)',borderColor:'#22c55e',borderWidth:1,borderRadius:5}]},options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw+' atendimentos'}}},scales:{x:{beginAtZero:true,ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.05)'}},y:{ticks:{color:'#cbd5e1',font:{size:_mob?9:11}},grid:{display:false}}}}}); }
+  const pct=_rnPontos.map(p=>{const fb=_rnFb[p.id]||{pos:0,neg:0,neu:0};const t=fb.pos+fb.neg+fb.neu;return{nome:p.nome_ponto||p.nome||('Pt '+p.numero_ponto),pct:t?Math.round(fb.pos/t*100):0,t};}).filter(o=>o.t>0).sort((a,b)=>b.pct-a.pct);
+  const ctxP=document.getElementById('_rn-chart-pctponto');
+  if(ctxP){ if(_rnPctPonto)_rnPctPonto.destroy(); _rnPctPonto=new Chart(ctxP,{type:'bar',data:{labels:pct.map(o=>o.nome),datasets:[{label:'% Positivo',data:pct.map(o=>o.pct),backgroundColor:pct.map(o=>o.pct>=70?'rgba(74,222,128,0.75)':o.pct>=40?'rgba(245,158,11,0.75)':'rgba(239,68,68,0.75)'),borderWidth:1,borderRadius:5}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw+'% positivo'}}},scales:{x:{ticks:{color:'#cbd5e1',maxRotation:90,minRotation:45,font:{size:_mob?9:10},autoSkip:false},grid:{display:false}},y:{beginAtZero:true,max:100,ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.05)'}}}}}); }
 }
 
 function _rnTabela(){
@@ -11693,6 +11714,8 @@ window._rnBaixar = function(){
   const projN=proj==='fibro'?'Fibromialgia':proj==='oculos'?'Óculos':'Fibromialgia + Óculos';
   const barImg=document.getElementById('_rn-chart-bar')?.toDataURL('image/png')||'';
   const pizImg=document.getElementById('_rn-chart-pizza')?.toDataURL('image/png')||'';
+  const rankImg=document.getElementById('_rn-chart-rank')?.toDataURL('image/png')||'';
+  const pctPontoImg=document.getElementById('_rn-chart-pctponto')?.toDataURL('image/png')||'';
   const tot=Object.values(_rnAtend).reduce((a,b)=>a+b,0);
   let tP=0,tN=0,tNe=0,tRows='';
   _rnPontos.forEach(p=>{
@@ -11713,6 +11736,7 @@ window._rnBaixar = function(){
   <h1>Relatório Semanal de Atendimentos</h1><p class="sub">Período: ${_ptBR(inicio)} a ${_ptBR(fim)} &nbsp;|&nbsp; Projeto: ${projN} &nbsp;|&nbsp; Dr. Malaquias</p>
   <div class="kpis"><div class="kpi"><div class="kl">Total Atendimentos</div><div class="kv" style="color:#065f46">${tot}</div></div><div class="kpi"><div class="kl">Positivos</div><div class="kv" style="color:#16a34a">${Math.round(tP/tF*100)}%</div><div class="ks">${tP} registros</div></div><div class="kpi"><div class="kl">Negativos</div><div class="kv" style="color:#dc2626">${Math.round(tN/tF*100)}%</div><div class="ks">${tN} registros</div></div><div class="kpi"><div class="kl">Neutros</div><div class="kv" style="color:#d97706">${Math.round(tNe/tF*100)}%</div><div class="ks">${tNe} registros</div></div></div>
   <div class="charts"><div class="cb"><div class="ct">Atendimentos por Ponto</div>${barImg?`<img src="${barImg}">`:'N/D'}</div><div class="cb"><div class="ct">Distribuição de Feedbacks</div>${pizImg?`<img src="${pizImg}">`:'N/D'}</div></div>
+  <div class="charts"><div class="cb"><div class="ct">Ranking de Produtividade (por colaboradora)</div>${rankImg?`<img src="${rankImg}">`:'N/D'}</div><div class="cb"><div class="ct">% Positivo por Ponto</div>${pctPontoImg?`<img src="${pctPontoImg}">`:'N/D'}</div></div>
   <table><thead><tr><th>Ponto / Local</th><th style="text-align:center">Atendimentos</th><th style="text-align:center">Positivos</th><th style="text-align:center">Negativos</th><th style="text-align:center">Neutros</th><th style="text-align:center">% Positivo</th><th>Observações</th></tr></thead><tbody>${tRows}</tbody></table>
   <div class="ft">Gerado em ${new Date().toLocaleString('pt-BR')} — Sistema Dr. Malaquias</div>
   <script>window.onload=function(){window.print();}<\/script></body></html>`;
