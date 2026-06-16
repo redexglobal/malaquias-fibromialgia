@@ -13642,7 +13642,7 @@ async function _n2BuildCidades(){
   try{
     const {data}=await sb.from('profiles').select('id,nome,nome_ponto,numero_ponto').eq('papel','colaborador').eq('projeto','fibromialgia');
     const map={}, pn={};
-    (data||[]).forEach(p=>{ const nome=p.nome_ponto||p.nome||('Ponto '+p.numero_ponto); pn[p.id]=nome; const cid=(window._cidadeDoPonto?window._cidadeDoPonto(nome):nome)||'Outros'; (map[cid]=map[cid]||new Set()).add(p.id); });
+    (data||[]).forEach(p=>{ const nome=p.nome_ponto||p.nome||('Ponto '+p.numero_ponto); if(/desativ/i.test(nome)) return; /* ponto desativado não vira cidade */ pn[p.id]=nome; const cid=(window._cidadeDoPonto?window._cidadeDoPonto(nome):nome)||'Outros'; (map[cid]=map[cid]||new Set()).add(p.id); });
     _n2CidadeMap=map; _n2PontoNomeMap=pn; _n2CidadesReady=true;
   }catch(e){ console.warn('[N2] cidades',e?.message||e); }
 }

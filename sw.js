@@ -9,7 +9,7 @@
    - skipWaiting + clients.claim: SW novo assume na hora.
    Bump CACHE_VERSION pra invalidar o cache antigo num proximo deploy.
    ============================================================ */
-const CACHE_VERSION = 'mlq-fibro-v4';
+const CACHE_VERSION = 'mlq-fibro-v5';
 const SHELL_URL = '/';
 
 self.addEventListener('install', (event) => {
