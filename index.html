@@ -10166,17 +10166,18 @@ window._cidadeDoPonto = function(nome){
   s=s.split(/[:\-\/]/).pop();
   s=s.replace(/\bunidade\b/g,' ').replace(/ponto fixo\s*\d*/g,' ').replace(/\s+/g,' ').trim();
   if(/rio verde/.test(s))return 'Rio Verde';
-  if(/novo gama/.test(s))return 'Novo Gama';
-  if(/ocidental/.test(s))return 'Ocidental';
+  if(/mangalo/.test(s))return 'Mangalô';                       /* ANTES de goiania — clínica separada */
+  if(/renascer|goiania/.test(s))return 'Goiânia Viva - Renascer';
+  if(/ocidental/.test(s))return 'Cidade Ocidental';
   if(/cristalina/.test(s))return 'Cristalina';
-  if(/luziania|inga/.test(s))return 'Luziânia';
-  if(/val ?paraiso/.test(s))return 'Valparaíso';
+  if(/luziania|inga/.test(s))return 'Luziânia - Jardim Ingá';
+  if(/val ?paraiso|ceu azul/.test(s))return 'Valparaíso - Jd. Céu Azul';
   if(/caldas novas/.test(s))return 'Caldas Novas';
   if(/anapolis/.test(s))return 'Anápolis';
-  if(/formosa/.test(s))return 'Formosa';
   if(/vera cruz/.test(s))return 'Vera Cruz';
-  if(/mangalo|goiania/.test(s))return 'Goiânia';
-  if(/novo mundo/.test(s))return 'Jardim Novo Mundo';
+  if(/novo mundo/.test(s))return 'Novo Mundo';
+  if(/novo gama/.test(s))return 'Novo Gama';
+  if(/formosa/.test(s))return 'Formosa';
   if(!s)return 'Outros';
   return s.replace(/\b\w/g,c=>c.toUpperCase());
 };
@@ -13682,9 +13683,10 @@ function _n2Melhora(rows){
 }
 function _n2Atend(rows){
   const porCidade=new Map();
+  const seed=c=>{ if(!porCidade.has(c)) porCidade.set(c,{cidade:c,total:0,melh:0,estav:0,pior:0,comMelhora:0,dorSoma:0,dorN:0}); };
+  if(_n2Cidade==='todas') Object.keys(_n2CidadeMap).forEach(seed); /* todas as clínicas aparecem, mesmo com 0 */
   rows.forEach(p=>{
-    const c=_n2CidadeDe(p.cadastrado_por);
-    if(!porCidade.has(c)) porCidade.set(c,{cidade:c,total:0,melh:0,estav:0,pior:0,comMelhora:0,dorSoma:0,dorN:0});
+    const c=_n2CidadeDe(p.cadastrado_por); seed(c);
     const o=porCidade.get(c); o.total++;
     if(p.nivel_melhora!=null&&p.nivel_melhora!==''){ o.comMelhora++; o[_n2Cat(p.nivel_melhora)]++; }
     if(p.nivel_dor!=null&&p.nivel_dor!==''){ o.dorSoma+=parseFloat(p.nivel_dor)||0; o.dorN++; }
@@ -13727,8 +13729,9 @@ function _n2Kpis(report,rows,light){
   a.arr.forEach(o=>{dorSoma+=o.dorSoma;dorN+=o.dorN;melhTot+=o.melh;comM+=o.comMelhora;});
   const dorMedia=dorN?(dorSoma/dorN).toFixed(1):'—';
   const pctMelh=comM?Math.round(melhTot/comM*100):0;
-  return card('Atendimentos',a.total,_n2Cidade==='todas'?(a.arr.length+' cidades'):_n2Cidade,light?'#065f46':'var(--accent,#00e676)')
-    +card('Cidades',a.arr.length,'com atendimento',light?'#7c3aed':'#f0abfc')
+  const nAtivas=a.arr.filter(o=>o.total>0).length;
+  return card('Atendimentos',a.total,_n2Cidade==='todas'?(nAtivas+' de '+a.arr.length+' clínicas'):_n2Cidade,light?'#065f46':'var(--accent,#00e676)')
+    +card('Clínicas',a.arr.length,nAtivas+' com atendimento',light?'#7c3aed':'#f0abfc')
     +card('Dor média',dorMedia,'escala 0–10',light?'#d97706':'#f59e0b')
     +card('Melhorando',pctMelh+'%','dos avaliados',light?'#16a34a':'#22c55e');
 }
