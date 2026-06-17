@@ -12934,14 +12934,21 @@ async function _salvarRetorno(key,btnRef){
   /* Fecha modal de histórico também — usuário vê a lista atualizada com nova contagem */
   const histBg=document.getElementById('_phist-bg');
   if(histBg) histBg.style.display='none';
-  /* QW1: muta local + render leve em vez de loadData() cheio (realtime cobre os outros clientes) */
+  /* QW1: muta local (barato) já; re-render pesado é ADIADO. Em pontos com 1500+
+     pacientes (03/14) o re-render síncrono congelava a tela logo após salvar e
+     parecia que "não salvou". O retorno já foi gravado e o ✅ já apareceu — o
+     re-render acontece em segundo plano (idle), sem travar a colaboradora. */
   if (insertedRow && typeof window._applyRecordToLocal === 'function') {
     window._applyRecordToLocal('INSERT', insertedRow, null);
-    if (typeof window._renderLight === 'function') window._renderLight();
-  } else if (typeof loadData==='function') {
-    try{ await loadData(); }catch(e){ console.warn('[malaquias:retorno-reload]',e?.message||e); }
   }
-  if(typeof window._renderPacientesUnicos==='function') try{ window._renderPacientesUnicos(); }catch(e){ console.warn('[malaquias:retorno-render]',e?.message||e); }
+  const _rerenderRet=function(){
+    try{
+      if (insertedRow){ if (typeof window._renderLight === 'function') window._renderLight(); }
+      else if (typeof loadData==='function'){ loadData().catch(e=>console.warn('[malaquias:retorno-reload]',e?.message||e)); }
+      if(typeof window._renderPacientesUnicos==='function') window._renderPacientesUnicos();
+    }catch(e){ console.warn('[malaquias:retorno-render]',e?.message||e); }
+  };
+  (window.requestIdleCallback||function(f){setTimeout(f,60);})(_rerenderRet);
 }
 
 /* ============================================================
