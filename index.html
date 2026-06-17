@@ -14110,10 +14110,11 @@ window._rwRender=function(){
   const list=_rwList(); const today=_rwTodayISO();
   const cEl=document.getElementById('rw-count');
   const semTel=list.filter(p=>!(window._waDigits&&window._waDigits(p.whatsapp))).length;
-  if(cEl) cEl.innerHTML=`<b style="color:var(--text-primary)">${list.length}</b> retorno(s)`+(semTel?` · <span style="color:#f59e0b">${semTel} sem telefone válido</span>`:'');
+  const MAX=500; const show=list.length>MAX?list.slice(0,MAX):list;
+  if(cEl) cEl.innerHTML=`<b style="color:var(--text-primary)">${list.length}</b> retorno(s)`+(list.length>MAX?` · <span style="color:#f59e0b">mostrando ${MAX} (refine o filtro)</span>`:'')+(semTel?` · <span style="color:#f59e0b">${semTel} sem telefone</span>`:'');
   const wrap=document.getElementById('rw-list'); if(!wrap)return;
   if(!list.length){ wrap.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted)">Nenhum retorno nesse filtro. 🌱</div>'; return; }
-  wrap.innerHTML=list.map(p=>{
+  wrap.innerHTML=show.map(p=>{
     const dig=window._waDigits?window._waDigits(p.whatsapp):'';
     const dataBR=_rwBR(p.proximo_retorno);
     let bad,cor;
