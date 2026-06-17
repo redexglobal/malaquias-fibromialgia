@@ -3441,37 +3441,9 @@ window._checkDupWhileTyping = (function(){
   let t;
   return function(){ clearTimeout(t); t=setTimeout(window._doCheckDupTyping, 350); };
 })();
-window._doCheckDupTyping = function(){
-  const warn=document.getElementById('s1-dup-warn');
-  if(!warn) return;
-  const nomeRaw=(document.getElementById('s1-nome')?.value||'').trim();
-  const whats=(document.getElementById('s1-whats')?.value||'').replace(/\D/g,'');
-  const cpf=(document.getElementById('s1-cpf')?.value||'').replace(/\D/g,'');
-  if(nomeRaw.length<4){ warn.style.display='none'; return; }
-  const nn=window._normNomeDup?window._normNomeDup(nomeRaw):nomeRaw.toLowerCase();
-  const list=window.allPacientes||[];
-  let match=null, forte=false;
-  for(const p of list){
-    const pn=window._normNomeDup?window._normNomeDup(p.nome):'';
-    if(pn!==nn) continue;
-    const pw=(p.whatsapp||'').replace(/\D/g,'');
-    const pc=(p.cpf||'').replace(/\D/g,'');
-    if((whats&&pw&&whats===pw)||(cpf.length===11&&pc===cpf)){ match=p; forte=true; break; } /* nome + (whats ou cpf) = certeza */
-    if(!match) match=p; /* so o nome bate: candidato fraco, segue procurando algo mais forte */
-  }
-  if(!match){ warn.style.display='none'; return; }
-  const key=window._grupoKeyDe(match);
-  const esc=window._escHtml||(s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;'));
-  const titulo=forte?'Esse paciente já está cadastrado':'Já existe alguém com esse nome';
-  warn.style.display='block';
-  warn.innerHTML='<div style="background:rgba(245,158,11,.12);border:1px solid #f59e0b;border-radius:10px;padding:11px 13px;font-size:12.5px;color:#fde68a;line-height:1.5">'+
-    '<b>⚠️ '+titulo+':</b> '+esc(match.nome)+'.<br>'+
-    'Se for a <b>mesma pessoa voltando</b>, registre como <b>retorno</b> (não cadastre de novo — evita duplicar).'+
-    '<div style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap">'+
-      '<button type="button" onclick="window._abrirRetornoDoCadastro(\''+key.replace(/'/g,"\\'")+'\')" style="background:#16a34a;border:none;border-radius:7px;color:#fff;padding:8px 13px;font-size:12px;font-weight:700;cursor:pointer">+ Abrir retorno deste paciente</button>'+
-      '<button type="button" onclick="document.getElementById(\'s1-dup-warn\').style.display=\'none\'" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:7px;color:#fde68a;padding:8px 13px;font-size:12px;font-weight:600;cursor:pointer">É outra pessoa, continuar</button>'+
-    '</div></div>';
-};
+/* AVISO ENQUANTO DIGITA — DESLIGADO (regra Vilson 2026-06-17): nome igual é permitido,
+   não mostra mais "paciente já cadastrado". O único bloqueio é no salvar, só p/ nome+CPF idênticos. */
+window._doCheckDupTyping = function(){ const w=document.getElementById('s1-dup-warn'); if(w) w.style.display='none'; };
 window._abrirRetornoDoCadastro = function(key){
   try{
     if(typeof window._abrirHistoricoPaciente==='function'){
@@ -6139,15 +6111,14 @@ window._stgSave = async function() {
   if(!_dat.nome){_toast('Nome é obrigatório',true);_stgGo(1);return;}
   if(!_stgValidate(4)) return;
 
-  /* GUARD ANTI-DUPLICADO: se ja existe paciente com MESMO nome + MESMO CPF,
-     avisa antes de cadastrar. Mesmo CPF com nome diferente, ou mesmo nome com
-     CPF diferente, NAO bloqueia (regra do Vilson). Retorno legitimo: confirma. */
-  if (typeof window._acharDuplicado === 'function') {
-    const jaCadastrado = window._acharDuplicado(_dat.nome, _dat.cpf);
-    if (jaCadastrado) {
-      const prosseguir = await window._dupConfirm(_dat.nome);
-      if (!prosseguir) return; /* colaboradora confirmou que e o mesmo paciente */
-    }
+  /* ÚNICO bloqueio (regra Vilson 2026-06-17): só não cadastra quando MESMO nome
+     + MESMO CPF coincidem = é a mesma pessoa (CPF é único; não há data de nascimento
+     no sistema, o CPF já identifica). Nome igual com CPF diferente OU sem CPF: LIBERADO.
+     Sem aviso enquanto digita. (Só pega dentro dos cadastros da própria colaboradora — RLS.) */
+  if (typeof window._acharDuplicado === 'function' && window._acharDuplicado(_dat.nome, _dat.cpf)) {
+    const msg='Já existe um paciente com este MESMO nome e MESMO CPF (é a mesma pessoa). Se for um retorno, use a aba Retornos. Obs: nome igual com CPF diferente pode cadastrar normalmente.';
+    if (typeof showToast === 'function') showToast(msg, true); else alert(msg);
+    return;
   }
 
   const btn=document.getElementById('btn-finalizar');
