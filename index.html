@@ -14019,6 +14019,132 @@ if(!_n2Init()){ const _t=setInterval(()=>{ if(_n2Init())clearInterval(_t); },600
 </script>
 
 <script>
+/* ============================================================
+   ABA "RETORNOS VIA WHATSAPP" — pros colaboradores (e admins)
+   Lista os pacientes com retorno marcado (dos próprios cadastros, via RLS) com
+   botão WhatsApp 1-toque + mensagem pronta. Filtros: Hoje / Próx 7 dias /
+   Atrasados / Todos / data. Ignora retornos com data malformada. Só leitura.
+   ============================================================ */
+(function(){
+'use strict';
+const _RW_SEC='retornos-wpp';
+let _rwMode='7d', _rwBusca='';
+
+function _rwTodayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function _rwAddDays(iso,n){ const d=new Date(iso+'T12:00:00'); d.setDate(d.getDate()+n); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function _rwBR(iso){ return iso?iso.split('-').reverse().join('/'):'—'; }
+function _rwYearOk(v){ if(!v||v.length!==10)return false; const y=parseInt(v.slice(0,4)); return y>=2024 && y<=2031; }
+function _rwAll(){ return Array.isArray(window.allPacientes)?window.allPacientes:[]; }
+
+function _rwInit(){
+  if(typeof currentProfile==='undefined'||!currentProfile) return false;
+  const nav=document.querySelector('.sidebar .nav-section'); /* seção Principal (todos veem) */
+  if(nav && !document.getElementById('rw-nav')){
+    const ni=document.createElement('div'); ni.id='rw-nav'; ni.className='nav-item';
+    ni.setAttribute('data-section',_RW_SEC);
+    ni.innerHTML='<i class="fab fa-whatsapp" style="color:#25D366"></i> Retornos WhatsApp';
+    ni.onclick=function(){ window.showSection(_RW_SEC,this); setTimeout(_rwRender,50); };
+    nav.appendChild(ni);
+  }
+  if(document.querySelector('main.main') && !document.getElementById('sec-'+_RW_SEC)) _rwBuild();
+  return true;
+}
+
+function _rwBuild(){
+  const main=document.querySelector('main.main'); if(!main||document.getElementById('sec-'+_RW_SEC))return;
+  if(!document.getElementById('rw-styles')){
+    const st=document.createElement('style'); st.id='rw-styles';
+    st.textContent=`
+      .rw-chip{background:rgba(255,255,255,0.04);border:1px solid rgba(37,211,102,0.3);color:var(--text-muted);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
+      .rw-chip:hover{background:rgba(37,211,102,0.1);color:var(--text-primary)}
+      .rw-chip.rw-active{background:rgba(37,211,102,0.18);border-color:#25D366;color:#25D366}
+      .rw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+      .rw-card{background:var(--bg-card);border:1px solid var(--border-glass);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px}
+      .rw-wa{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:#25D366;color:#fff;text-decoration:none;padding:10px 14px;border-radius:9px;font-size:14px;font-weight:700}
+      .rw-wa:hover{background:#1ebe5b}
+      .rw-bad{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px}
+    `;
+    document.head.appendChild(st);
+  }
+  const sec=document.createElement('div'); sec.id='sec-'+_RW_SEC; sec.className='section';
+  sec.innerHTML=`
+    <h1 class="page-title"><i class="fab fa-whatsapp" style="color:#25D366"></i> Retornos via WhatsApp</h1>
+    <p class="page-subtitle">Lembre seus pacientes do retorno com 1 toque — abre o WhatsApp com a mensagem pronta. Mostra os retornos dos seus cadastros.</p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+      <button class="rw-chip" onclick="window._rwSet('hoje',this)">Hoje</button>
+      <button class="rw-chip rw-active" onclick="window._rwSet('7d',this)">Próximos 7 dias</button>
+      <button class="rw-chip" onclick="window._rwSet('atrasados',this)">Atrasados</button>
+      <button class="rw-chip" onclick="window._rwSet('todos',this)">Todos</button>
+      <input type="date" id="rw-data" onchange="window._rwRender()" title="Data específica" style="background:var(--bg-secondary);border:1px solid var(--border-glass);border-radius:8px;padding:7px 10px;color:var(--text-primary);font-size:13px">
+      <input type="text" id="rw-busca" placeholder="🔍 Buscar nome..." oninput="window._rwSetBusca(this.value)" style="background:var(--bg-secondary);border:1px solid var(--border-glass);border-radius:8px;padding:7px 12px;color:var(--text-primary);font-size:13px;min-width:180px">
+    </div>
+    <div id="rw-count" style="font-size:13px;color:var(--text-muted);margin-bottom:14px"></div>
+    <div id="rw-list" class="rw-grid"></div>
+  `;
+  main.appendChild(sec);
+}
+
+function _rwList(){
+  const today=_rwTodayISO();
+  const g=new Map();
+  _rwAll().forEach(p=>{
+    if(!_rwYearOk(p.proximo_retorno)) return;
+    const k=window._pdfPacKey?window._pdfPacKey(p):((p.nome||'').toLowerCase().trim()+'|'+(p.whatsapp||'').replace(/\D/g,''));
+    const cur=g.get(k);
+    if(!cur || (p.criado_em||'')>(cur.criado_em||'')) g.set(k,p);
+  });
+  let arr=[...g.values()];
+  const d=document.getElementById('rw-data')?.value;
+  if(d){ arr=arr.filter(p=>p.proximo_retorno===d); }
+  else if(_rwMode==='hoje'){ arr=arr.filter(p=>p.proximo_retorno===today); }
+  else if(_rwMode==='7d'){ const lim=_rwAddDays(today,7); arr=arr.filter(p=>p.proximo_retorno>=today&&p.proximo_retorno<=lim); }
+  else if(_rwMode==='atrasados'){ arr=arr.filter(p=>p.proximo_retorno<today); }
+  const q=(_rwBusca||'').toLowerCase().trim();
+  if(q) arr=arr.filter(p=>(p.nome||'').toLowerCase().includes(q));
+  arr.sort((a,b)=>(a.proximo_retorno||'').localeCompare(b.proximo_retorno||''));
+  return arr;
+}
+
+window._rwRender=function(){
+  if(!document.getElementById('sec-'+_RW_SEC))return;
+  const list=_rwList(); const today=_rwTodayISO();
+  const cEl=document.getElementById('rw-count');
+  const semTel=list.filter(p=>!(window._waDigits&&window._waDigits(p.whatsapp))).length;
+  if(cEl) cEl.innerHTML=`<b style="color:var(--text-primary)">${list.length}</b> retorno(s)`+(semTel?` · <span style="color:#f59e0b">${semTel} sem telefone válido</span>`:'');
+  const wrap=document.getElementById('rw-list'); if(!wrap)return;
+  if(!list.length){ wrap.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted)">Nenhum retorno nesse filtro. 🌱</div>'; return; }
+  wrap.innerHTML=list.map(p=>{
+    const dig=window._waDigits?window._waDigits(p.whatsapp):'';
+    const dataBR=_rwBR(p.proximo_retorno);
+    let bad,cor;
+    if(p.proximo_retorno<today){ bad='Atrasado'; cor='#ef4444'; }
+    else if(p.proximo_retorno===today){ bad='Hoje'; cor='#22c55e'; }
+    else { const dias=Math.round((new Date(p.proximo_retorno+'T12:00:00')-new Date(today+'T12:00:00'))/86400000); bad='Em '+dias+' dia'+(dias>1?'s':''); cor='#38bdf8'; }
+    const nome=(p.nome||'—').replace(/</g,'&lt;');
+    const tel=(p.whatsapp||'—');
+    const msg='Olá '+(p.nome||'')+'! Aqui é da equipe do Dr. Malaquias. Estamos lembrando do seu retorno marcado para '+dataBR+'. Podemos confirmar sua presença? 🙏';
+    const url=dig?('https://wa.me/'+dig+'?text='+encodeURIComponent(msg)):'';
+    const btn=url?`<a class="rw-wa" href="${url}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i> Chamar no WhatsApp</a>`:`<span style="text-align:center;color:#f59e0b;font-size:12px;padding:8px;border:1px dashed #f59e0b55;border-radius:8px">Sem telefone válido</span>`;
+    return `<div class="rw-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="font-size:15px;font-weight:700;color:var(--text-primary)">${nome}</div>
+        <span class="rw-bad" style="background:${cor}22;color:${cor}">${bad}</span>
+      </div>
+      <div style="font-size:13px;color:var(--text-muted)"><i class="fas fa-calendar-day" style="margin-right:6px;opacity:.7"></i>Retorno: <b style="color:var(--text-primary)">${dataBR}</b></div>
+      <div style="font-size:13px;color:var(--text-muted)"><i class="fas fa-phone" style="margin-right:6px;opacity:.7"></i>${tel}</div>
+      ${btn}
+    </div>`;
+  }).join('');
+};
+window._rwSet=function(m,btn){ _rwMode=m; const d=document.getElementById('rw-data'); if(d)d.value=''; document.querySelectorAll('.rw-chip').forEach(b=>b.classList.remove('rw-active')); if(btn)btn.classList.add('rw-active'); window._rwRender(); };
+window._rwSetBusca=function(v){ _rwBusca=v||''; window._rwRender(); };
+
+if(!_rwInit()){ const _t=setInterval(()=>{ if(_rwInit())clearInterval(_t); },600); setTimeout(()=>clearInterval(_t),30000); window.addEventListener('malaquias:profile-ready',function(){ _rwInit(); },{once:true}); }
+
+})();
+</script>
+
+<script>
 /* ============================
    AUTO-REFRESH ADMIN — garante dados sempre frescos
    - Wrap loadData pra atualizar timestamp em toda chamada (FORCE hooks, realtime, etc.)
