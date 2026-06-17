@@ -14032,19 +14032,18 @@ if(!_n2Init()){ const _t=setInterval(()=>{ if(_n2Init())clearInterval(_t); },600
   'use strict';
   function _chkData(t){
     if(!t || t.tagName!=='INPUT' || t.type!=='date' || !t.value) return;
-    const v=t.value; const dash=v.indexOf('-'); const y=dash>0?parseInt(v.slice(0,dash)):NaN;
-    /* Bloqueia só o claramente impossível (ano 5 dígitos tipo 62026/20026, ou <1900 / >2100).
-       NÃO restringe a 2024-2031 de propósito: o módulo Jurídico tem datas antigas legítimas. */
-    const ok = v.length<=10 && !isNaN(y) && y>=1900 && y<=2100;
-    if(!ok){
-      t.style.borderColor='#ef4444'; t.style.boxShadow='0 0 0 2px rgba(239,68,68,.25)';
-      try{ if(typeof showToast==='function') showToast('Data inválida (ano impossível). Confira e digite de novo.', true); }catch(_){}
+    /* SÓ bloqueia ano com 5+ dígitos (ex: 62026, 20026). Isso NUNCA acontece
+       digitando um ano normal de 4 dígitos — então NÃO atrapalha o preenchimento
+       de ninguém. Datas antigas (Jurídico) e qualquer ano de 4 dígitos passam. */
+    if(t.value.length>10){
+      try{ if(typeof showToast==='function') showToast('Ano com dígitos demais — confira a data.', true); }catch(_){}
+      t.style.borderColor='#ef4444';
       t.value='';
-      setTimeout(()=>{ t.style.borderColor=''; t.style.boxShadow=''; }, 2500);
+      setTimeout(()=>{ t.style.borderColor=''; }, 2000);
     }
   }
+  /* só no 'change' (valor já confirmado) — nunca durante a digitação */
   document.addEventListener('change', e=>_chkData(e.target), true);
-  document.addEventListener('blur',   e=>_chkData(e.target), true);
 })();
 </script>
 
