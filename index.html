@@ -1513,6 +1513,14 @@ tr:last-child td { border-bottom: none; }
           <div class="kpi-cmp neutral" id="kpi-dor-cmp"></div>
           <div class="kpi-sparkline-wrap"><canvas id="spark-dor"></canvas></div>
         </div>
+        <div class="kpi-card" title="Média de idade dos seus pacientes">
+          <div class="kpi-header">
+            <div class="kpi-icon"><i class="fas fa-user-clock"></i></div>
+          </div>
+          <div class="kpi-value" id="kpi-idade">—</div>
+          <div class="kpi-label">Idade Média</div>
+          <div class="kpi-cmp neutral" id="kpi-idade-sub"></div>
+        </div>
       </div>
 
       <div class="chart-grid">
@@ -1537,6 +1545,18 @@ tr:last-child td { border-bottom: none; }
           <div class="chart-title">Cadastros por Hora do Dia</div>
           <div class="chart-subtitle">Distribuição horária — últimos 30 dias</div>
           <div class="chart-container" style="height:360px"><canvas id="chart-hourly"></canvas></div>
+        </div>
+      </div>
+      <div class="chart-grid" style="margin-top:18px">
+        <div class="chart-card">
+          <div class="chart-title">Faixa Etária dos Pacientes</div>
+          <div class="chart-subtitle">Distribuição por idade — só do seu ponto</div>
+          <div class="chart-container"><canvas id="chart-idade"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Evolução dos Pacientes</div>
+          <div class="chart-subtitle">Melhorando · Estável · Piorando (feedback nos retornos)</div>
+          <div class="chart-container"><canvas id="chart-melhora"></canvas></div>
         </div>
       </div>
 
@@ -2517,10 +2537,29 @@ function enterApp() {
   }
 
   const hora = new Date().getHours();
-  const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
+  /* Saudação EDITÁVEL — o colaborador escolhe como quer ser chamado (localStorage,
+     por aparelho). "Bom dia, Natália ✏️" — ele se sente dono do sistema. */
+  if(!window._setGreeting){
+    window._setGreeting=function(){
+      const _dt=document.getElementById('dash-title'); if(!_dt)return;
+      const h=new Date().getHours();
+      const s=h<12?'Bom dia':h<18?'Boa tarde':'Boa noite';
+      let nome=''; try{ nome=localStorage.getItem('mq_greet_name')||''; }catch(_){}
+      if(!nome) nome=(typeof currentProfile!=='undefined'&&currentProfile&&currentProfile.nome)?currentProfile.nome.split(' ')[0]:'Usuário';
+      _dt.innerHTML=s+', '+String(nome).replace(/</g,'&lt;')+' <button onclick="window._editGreetName()" title="Editar seu nome na saudação" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.55em;margin-left:8px;vertical-align:middle"><i class="fas fa-pen"></i></button>';
+    };
+    window._editGreetName=function(){
+      let atual=''; try{ atual=localStorage.getItem('mq_greet_name')||''; }catch(_){}
+      if(!atual) atual=(typeof currentProfile!=='undefined'&&currentProfile&&currentProfile.nome)?currentProfile.nome.split(' ')[0]:'';
+      const novo=prompt('Como você quer ser chamado(a) na saudação? (ex: Natália)', atual);
+      if(novo==null)return;
+      try{ localStorage.setItem('mq_greet_name',(novo||'').trim()); }catch(_){}
+      window._setGreeting();
+      if(typeof showToast==='function') showToast('Saudação atualizada! 👋');
+    };
+  }
   try {
-    const _dt = document.getElementById('dash-title');
-    if (_dt) _dt.textContent = saudacao + ', ' + (currentProfile?.nome?.split(' ')[0] || 'Usuário');
+    window._setGreeting();
     const _dd = document.getElementById('dash-date');
     if (_dd) _dd.textContent = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   } catch(e){ console.warn('[malaquias:enterApp:title]', e?.message||e); }
@@ -2756,6 +2795,11 @@ function updateKPIs() {
   const dors = allPacientes.filter(p => p.nivel_dor).map(p => p.nivel_dor);
   const media = dors.length ? (dors.reduce((a,b) => a+b, 0) / dors.length).toFixed(1) : '—';
   document.getElementById('kpi-dor').textContent = media;
+  /* Idade média (dados do próprio ponto via RLS; recalcula a cada cadastro) */
+  const _ids = allPacientes.map(p=>parseInt(p.idade)).filter(n=>n>0&&n<120);
+  const _im = _ids.length ? Math.round(_ids.reduce((a,b)=>a+b,0)/_ids.length) : '—';
+  const _ki=document.getElementById('kpi-idade'); if(_ki)_ki.textContent=_im;
+  const _kis=document.getElementById('kpi-idade-sub'); if(_kis)_kis.textContent=_ids.length?('anos · '+_ids.length+' c/ idade'):'';
 }
 
 function updateTable() {
@@ -2883,6 +2927,24 @@ function updateCharts() {
     plugins: { legend: { position: 'right', labels: { boxWidth: 12, padding: 10, font: { size: 12 } } } },
     cutout: '60%',
   });
+
+  /* G_idade — Faixa Etária (só dados do ponto via RLS; recalcula a cada cadastro) */
+  const _faixas=[['0–20',0],['21–40',0],['41–60',0],['61–80',0],['81+',0]];
+  allPacientes.forEach(p=>{ const a=parseInt(p.idade); if(!(a>0&&a<120))return; const i=a<=20?0:a<=40?1:a<=60?2:a<=80?3:4; _faixas[i][1]++; });
+  const ctxIdade=document.getElementById('chart-idade');
+  if(ctxIdade) window._upsertChart('idade', ctxIdade, 'bar', {
+    labels:_faixas.map(f=>f[0]),
+    datasets:[{ label:'Pacientes', data:_faixas.map(f=>f[1]), backgroundColor:c.accentBg, borderColor:c.accent, borderWidth:1, borderRadius:6 }]
+  }, { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>i.raw+' paciente'+(i.raw===1?'':'s')}}}, scales:{ y:{beginAtZero:true,grid:{color:c.grid},ticks:{stepSize:1}}, x:{grid:{display:false}} } });
+
+  /* G_melhora — Evolução dos pacientes (melhorando/estável/piorando) */
+  let _melh=0,_estav=0,_pior=0;
+  allPacientes.forEach(p=>{ if(p.nivel_melhora==null||p.nivel_melhora==='')return; const v=parseInt(p.nivel_melhora); if(v>0)_melh++; else if(v<0)_pior++; else _estav++; });
+  const ctxMelh=document.getElementById('chart-melhora');
+  if(ctxMelh) window._upsertChart('melhora', ctxMelh, 'doughnut', {
+    labels:['Melhorando','Estável','Piorando'],
+    datasets:[{ data:[_melh,_estav,_pior], backgroundColor:['#22c55e','#9ca3af','#ef4444'], borderWidth:0 }]
+  }, { responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{legend:{position:'right',labels:{boxWidth:12,padding:10,font:{size:12}}},tooltip:{callbacks:{label:i=>i.label+': '+i.raw}}} });
 
   /* G3 + G4 — novos charts via funções dedicadas */
   if (typeof updateTopPontosChart === 'function') updateTopPontosChart(c);
@@ -10612,6 +10674,11 @@ window.updateKPIs = function() {
   const dors = filtered.filter(p => p.nivel_dor != null).map(p => p.nivel_dor);
   const media = dors.length ? (dors.reduce((a,b)=>a+b,0)/dors.length).toFixed(1) : '—';
   document.getElementById('kpi-dor').textContent = media;
+  /* Idade média (mesma métrica do painel do colaborador) */
+  const _ids = allPacientes.map(p=>parseInt(p.idade)).filter(n=>n>0&&n<120);
+  const _im = _ids.length ? Math.round(_ids.reduce((a,b)=>a+b,0)/_ids.length) : '—';
+  const _ki=document.getElementById('kpi-idade'); if(_ki)_ki.textContent=_im;
+  const _kis=document.getElementById('kpi-idade-sub'); if(_kis)_kis.textContent=_ids.length?('anos · '+_ids.length+' c/ idade'):'';
 
   // Comparison badges
   setCmp('kpi-total-cmp', filtered.length, prevPac.length, 'vs período anterior');
