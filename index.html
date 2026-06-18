@@ -1481,7 +1481,8 @@ tr:last-child td { border-bottom: none; }
             <div class="kpi-trend" id="kpi-total-trend" style="display:none"></div>
           </div>
           <div class="kpi-value" id="kpi-total">—</div>
-          <div class="kpi-label">Total de Pacientes</div>
+          <div class="kpi-label">Pacientes Únicos</div>
+          <div id="kpi-total-sub" style="font-size:11px;color:var(--text-muted);margin-top:2px"></div>
           <div class="kpi-cmp neutral" id="kpi-total-cmp"></div>
           <div class="kpi-sparkline-wrap"><canvas id="spark-total"></canvas></div>
         </div>
@@ -2773,6 +2774,9 @@ function updateKPIs() {
   const hoje = allPacientes.filter(p => _matchDayBR(p.criado_em,today)).length;
   const semana = allPacientes.filter(p => p.criado_em >= weekAgo).length;
   document.getElementById('kpi-total').textContent = total;
+  /* total de CADASTROS (linhas) — cresce a cada cadastro/retorno, atualiza ao vivo.
+     Únicos não sobe em retorno; este número mostra a atividade real (era o "parou em X"). */
+  const _st=document.getElementById('kpi-total-sub'); if(_st)_st.textContent='📋 '+allPacientes.length.toLocaleString('pt-BR')+' cadastros no total';
   document.getElementById('kpi-hoje').textContent = hoje;
   document.getElementById('kpi-semana').textContent = semana;
 
@@ -10628,6 +10632,7 @@ window.updateKPIs = function() {
   /* kpi-total = PACIENTES ÚNICOS (agrupa retornos do mesmo paciente por CPF).
      O filtro de período continua nas sparklines/comparações/charts. */
   animateCount('kpi-total', _contarPacientesUnicos(allPacientes));
+  const _st=document.getElementById('kpi-total-sub'); if(_st)_st.textContent='📋 '+allPacientes.length.toLocaleString('pt-BR')+' cadastros no total';
   animateCount('kpi-hoje', todayPac.length);
   animateCount('kpi-semana', weekPac.length);
 
