@@ -2681,39 +2681,12 @@ window._ensureFull = async function(rec){
    background. Usuario ve dados em <50ms em vez de esperar 500-2000ms.
    Como o cache eh por papel+projeto, ponto vs admin nao misturam. */
 window._cachedFetchAllRows = async function(tbl, ownId, cols){
-  /* cache key inclui 'cols' pra nao misturar enxuto x completo */
-  const cacheKey = 'mq_rows_' + tbl + '_' + (ownId || 'all') + (cols ? '_lean' : '');
-  const cacheAtKey = cacheKey + '_at';
-  try {
-    const cached = sessionStorage.getItem(cacheKey);
-    const cachedAt = parseInt(sessionStorage.getItem(cacheAtKey)||'0',10);
-    /* TTL 60s — dados frescos suficientes pra UI imediata */
-    if (cached && (Date.now() - cachedAt) < 60000) {
-      const parsed = JSON.parse(cached);
-      /* Refetch em background pra atualizar cache pro proximo refresh */
-      window._fetchAllRows(tbl, ownId, cols).then(fresh => {
-        try {
-          sessionStorage.setItem(cacheKey, JSON.stringify(fresh));
-          sessionStorage.setItem(cacheAtKey, String(Date.now()));
-          /* Atualiza allPacientes silenciosamente + dispara render leve */
-          if (Array.isArray(fresh) && fresh.length !== parsed.length) {
-            window.allPacientes = fresh;
-            if (typeof window._renderLight === 'function') window._renderLight();
-            /* re-enriquece os campos pesados pro novo conjunto */
-            if (typeof window._enrichHeavyInBackground === 'function') window._enrichHeavyInBackground(tbl, ownId);
-          }
-        } catch(_){}
-      }).catch(_=>{});
-      return parsed;
-    }
-  } catch(_){}
-  /* Cache miss ou stale: busca normal e grava */
-  const fresh = await window._fetchAllRows(tbl, ownId, cols);
-  try {
-    sessionStorage.setItem(cacheKey, JSON.stringify(fresh));
-    sessionStorage.setItem(cacheAtKey, String(Date.now()));
-  } catch(_){ /* quota exceeded — segue sem cache (enxuto ja ajuda a caber) */ }
-  return fresh;
+  /* CACHE DE LISTA REMOVIDO (2026-06-18): o sessionStorage podia devolver a lista
+     do DIA ANTERIOR (colaborador não tem realtime; a lista cacheada não atualizava)
+     → a pessoa "não via os cadastros do dia seguinte". Agora SEMPRE busca FRESCO.
+     Correção de dado > microssegundos de boot. Limpa também caches velhos de lista. */
+  try { Object.keys(sessionStorage).forEach(k=>{ if(k.indexOf('mq_rows_')===0) sessionStorage.removeItem(k); }); } catch(_){}
+  return await window._fetchAllRows(tbl, ownId, cols);
 };
 
 /* Helper para contagens server-side rapidas (count exato sem baixar dados).
