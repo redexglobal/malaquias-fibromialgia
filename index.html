@@ -3012,7 +3012,14 @@ window._renderRankCol = async function(elId, de, ate){
   try{
     const { data, error } = await sb.rpc('get_ranking_'+proj, { p_de: de, p_ate: ate });
     if(error){ el.innerHTML='<div style="padding:14px;color:var(--text-muted);font-size:12px">Ranking indisponível — rode <b>supabase/get_ranking.sql</b> no Supabase.</div>'; return; }
-    const rows = (data||[]).filter(r => (r.total||0) > 0);
+    let rows = (data||[]).filter(r => (r.total||0) > 0);
+    /* AJUSTE MANUAL (decisão Vilson 2026-06-18): só Natália/Jardim Ingá (ponto 3) fixa em 1º.
+       O resto segue a contagem real (Cidade Ocidental fica no 5º natural dela).
+       Motivo: a líder por contagem (Maria Clara) tem cadastros herdados (transfer Sara + AGF). */
+    const _pins = { 3: 1 };
+    const _pinned = rows.filter(r => _pins[r.numero_ponto]).sort((a,b)=>_pins[a.numero_ponto]-_pins[b.numero_ponto]);
+    rows = rows.filter(r => !_pins[r.numero_ponto]);
+    _pinned.forEach(r => { rows.splice(Math.min(_pins[r.numero_ponto]-1, rows.length), 0, r); });
     const meu = (typeof currentProfile!=='undefined' && currentProfile) ? currentProfile.numero_ponto : null;
     if(!rows.length){ el.innerHTML='<div style="padding:14px;color:var(--text-muted);font-size:12px">Sem cadastros nesse período.</div>'; return; }
     el.innerHTML = rows.slice(0,15).map((r,i)=>{
