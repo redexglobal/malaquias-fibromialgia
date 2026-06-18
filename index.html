@@ -2650,7 +2650,7 @@ async function doLogout() {
    precaucoes_clinicas, observacoes) + identidade extra carregam em 2o plano via
    _enrichHeavyInBackground, ou sob demanda via _ensureFull (ficha/edicao). */
 window._LEAN_COLS = 'id,nome,cpf,whatsapp,idade,nivel_dor,nivel_melhora,data_consulta,proximo_retorno,criado_em,cadastrado_por,avaliacao';
-window._HEAVY_COLS = 'id,sintomas,medicacoes,pontos_dor,tempo_sintomas,precaucoes_clinicas,observacoes,nome_mae,nome_pai,adultos_no_lar,estado_civil,cidade,origem,atualizado_em';
+window._HEAVY_COLS = 'id,sintomas,medicacoes,pontos_dor,tempo_sintomas,precaucoes_clinicas,observacoes,nome_mae,nome_pai,adultos_no_lar,estado_civil,cidade,origem,data_nascimento,atualizado_em';
 
 window._fetchAllRows = async function(tbl, ownId, cols){
   const SEL = cols || '*';
@@ -5754,13 +5754,20 @@ function _buildStg1() {
       <div id="s1-dup-warn" style="display:none;margin-bottom:14px"></div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Idade</label>
+          <label class="form-label">Data de Nascimento</label>
+          <input type="date" class="form-input" id="s1-nascimento" onchange="window._calcIdadeDeNasc&&window._calcIdadeDeNasc()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Idade <span style="color:var(--text-muted);font-size:11px;font-weight:400">(preenche pela data)</span></label>
           <input type="number" class="form-input" id="s1-idade" placeholder="Ex: 35" min="1" max="120" inputmode="numeric">
         </div>
+      </div>
+      <div class="form-row">
         <div class="form-group">
           <label class="form-label">CPF</label>
           <input type="text" class="form-input" id="s1-cpf" placeholder="000.000.000-00" maxlength="14" oninput="_maskCPF(this);window._checkDupWhileTyping&&window._checkDupWhileTyping()" inputmode="numeric" autocomplete="off">
         </div>
+        <div class="form-group"></div>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -6130,6 +6137,7 @@ function _stgCollect(s) {
     _dat.cpf=document.getElementById('s1-cpf')?.value.trim()||null;
     _dat.whatsapp=document.getElementById('s1-whats')?.value.trim()||null;
     _dat.idade=parseInt(document.getElementById('s1-idade')?.value)||null;
+    _dat.data_nascimento=document.getElementById('s1-nascimento')?.value||null;
     _dat.nome_mae=document.getElementById('s1-mae')?.value.trim()||null;
     _dat.nome_pai=document.getElementById('s1-pai')?.value.trim()||null;
     const _ad=parseInt(document.getElementById('s1-adultos')?.value);
@@ -6229,6 +6237,7 @@ window._stgSave = async function() {
     origem:_dat.origem||null,
     whatsapp:_dat.whatsapp||null,
     idade:_dat.idade||null,
+    data_nascimento:_dat.data_nascimento||null,
     precaucoes_clinicas:document.getElementById('s4-precaucoes')?.value.trim()||null,
     observacoes:document.getElementById('s4-obs')?.value.trim()||null,
     nivel_melhora:(()=>{const v=document.getElementById('s4-melhora')?.value;return v===''||v==null?null:parseInt(v);})(),
@@ -6262,7 +6271,7 @@ window._stgSave = async function() {
 
   /* Remove campos com coluna potencialmente faltando — tenta inserir, se falhar remove e tenta sem */
   const newCols = proj==='fibro'
-    ? ['cpf','nome_mae','nome_pai','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
+    ? ['cpf','nome_mae','nome_pai','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno','data_nascimento']
     : ['cpf','nome_mae','nome_pai','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
 
   /* QW1: .select().single() devolve a row com id/criado_em gerados pelo banco —
@@ -6315,6 +6324,15 @@ window._stgSave = async function() {
 };
 
 /* ---- Cor do slider de dor ---- */
+/* Calcula a idade a partir da Data de Nascimento (preenche o campo Idade sozinho). */
+window._calcIdadeDeNasc = function(){
+  const n=document.getElementById('s1-nascimento')?.value; if(!n||n.length!==10)return;
+  const y=parseInt(n.slice(0,4)); if(!(y>=1900&&y<=2026))return;
+  const hoje=new Date(); let idade=hoje.getFullYear()-y;
+  const mm=(hoje.getMonth()+1)-parseInt(n.slice(5,7)); const dd=hoje.getDate()-parseInt(n.slice(8,10));
+  if(mm<0||(mm===0&&dd<0)) idade--;
+  const el=document.getElementById('s1-idade'); if(el && idade>0 && idade<120) el.value=idade;
+};
 window._dorColor = function(v) {
   v=parseInt(v);
   const el=document.getElementById('s3-dor-display');
@@ -8617,6 +8635,10 @@ if (!document.getElementById('pfd-keyframes')) {
         <input type="text" class="form-input" id="em-nome" placeholder="Nome completo">
       </div>
       <div>
+        <label class="edit-label">Data de Nascimento</label>
+        <input type="date" class="form-input" id="em-nascimento">
+      </div>
+      <div>
         <label class="edit-label">Idade</label>
         <input type="number" class="form-input" id="em-idade" placeholder="Ex: 35">
       </div>
@@ -8858,6 +8880,7 @@ window._emOpen = async function(id) {
   $('em-id').value = id;
   $('em-nome').value = rec.nome||'';
   $('em-idade').value = rec.idade||'';
+  if($('em-nascimento')) $('em-nascimento').value = rec.data_nascimento||'';
   $('em-whats').value = rec.whatsapp||'';
   $('em-obs').value = rec.observacoes||'';
 
@@ -8888,6 +8911,7 @@ window._emSave = async function() {
   const payload = {
     nome:    $('em-nome')?.value.trim()||null,
     idade:   parseInt($('em-idade')?.value)||null,
+    data_nascimento: $('em-nascimento')?.value||null,
     whatsapp:$('em-whats')?.value.trim()||null,
     observacoes:$('em-obs')?.value.trim()||null,
   };
@@ -12319,6 +12343,7 @@ window._abrirFichaPaciente = async function(pid) {
   let corpo = sec('Identificação');
   corpo += row('Nome completo', p.nome);
   corpo += row('CPF', p.cpf);
+  corpo += row('Data de nascimento', p.data_nascimento ? new Date(p.data_nascimento+'T12:00:00').toLocaleDateString('pt-BR') : null);
   corpo += row('Idade', p.idade ? p.idade+' anos' : null);
   corpo += row('WhatsApp', p.whatsapp);
   if (window._waBtn && window._waBtn(p.whatsapp)) corpo += '<div style="padding:8px 0 2px">'+window._waBtn(p.whatsapp,'Chamar no WhatsApp')+'</div>';
@@ -12641,6 +12666,7 @@ window._abrirHistoricoPaciente=async function(key){
       <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent,#00e676);font-weight:700;margin-bottom:8px">Identificação</div>
       ${row('Nome',p.nome)}
       ${row('CPF',p.cpf)}
+      ${row('Data de nascimento',p.data_nascimento?new Date(p.data_nascimento+'T12:00:00').toLocaleDateString('pt-BR'):null)}
       ${row('Idade',p.idade?p.idade+' anos':null)}
       ${row('WhatsApp',p.whatsapp)}
       ${window._waBtn&&window._waBtn(p.whatsapp)?'<div style="padding:8px 0 2px">'+window._waBtn(p.whatsapp,'Chamar no WhatsApp')+'</div>':''}
@@ -12983,6 +13009,7 @@ async function _salvarRetorno(key,btnRef){
     origem: pBase.origem||null,
     whatsapp: pBase.whatsapp||null,
     idade: pBase.idade||null,
+    data_nascimento: pBase.data_nascimento||null,
     cadastrado_por: typeof currentUser!=='undefined'?currentUser.id:null,
     precaucoes_clinicas: document.getElementById('_pret-precaucoes')?.value.trim()||null,
     observacoes: document.getElementById('_pret-obs')?.value.trim()||null,
@@ -13021,7 +13048,7 @@ async function _salvarRetorno(key,btnRef){
 
   /* Mesmo padrão de graceful degradation do _stgSave: tenta com tudo, se coluna nova falhar, remove e tenta de novo */
   const newCols = proj==='fibro'
-    ? ['cpf','nome_mae','nome_pai','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno']
+    ? ['cpf','nome_mae','nome_pai','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno','data_nascimento']
     : ['cpf','nome_mae','nome_pai','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
 
   /* QW1: .select().single() pra mutar local em vez de loadData() cheio */
@@ -13103,6 +13130,7 @@ window._pEditOpen=async function(recordId){
     <div class="_ped-grupo"><label class="_ped-label">Nome</label><input type="text" id="_ped-nome" class="_ped-input" value="${esc(rec.nome)}"></div>
     <div class="_ped-row">
       <div class="_ped-grupo"><label class="_ped-label">CPF</label><input type="text" id="_ped-cpf" class="_ped-input" value="${esc(rec.cpf)}"></div>
+      <div class="_ped-grupo"><label class="_ped-label">Data de nascimento</label><input type="date" id="_ped-nascimento" class="_ped-input" value="${esc(rec.data_nascimento)}"></div>
       <div class="_ped-grupo"><label class="_ped-label">Idade</label><input type="number" id="_ped-idade" class="_ped-input" value="${esc(rec.idade)}"></div>
     </div>
     <div class="_ped-grupo"><label class="_ped-label">WhatsApp</label><input type="text" id="_ped-whats" class="_ped-input" value="${esc(rec.whatsapp)}"></div>
@@ -13236,6 +13264,7 @@ async function _pEditSave(recordId,btnRef){
     nome: txt('_ped-nome'),
     cpf: txt('_ped-cpf'),
     idade: parseInt(val('_ped-idade'))||null,
+    data_nascimento: val('_ped-nascimento')||null,
     whatsapp: txt('_ped-whats'),
     nome_mae: txt('_ped-mae'),
     nome_pai: txt('_ped-pai'),
@@ -13277,7 +13306,7 @@ async function _pEditSave(recordId,btnRef){
 
   if(btnRef){ btnRef.disabled=true; btnRef.textContent='Salvando...'; }
 
-  const _identCols=['cpf','nome_mae','nome_pai','estado_civil','adultos_no_lar','cidade','nivel_melhora','precaucoes_clinicas'];
+  const _identCols=['cpf','nome_mae','nome_pai','estado_civil','adultos_no_lar','cidade','nivel_melhora','precaucoes_clinicas','data_nascimento'];
   const newCols = proj==='fibro'
     ? [..._identCols,'tempo_sintomas','medicacoes','pontos_dor']
     : [..._identCols,'adicao','nome_medico','tipo_lente','tratamentos_lente','valor_pedido'];
