@@ -12457,6 +12457,15 @@ function _puAgrupar(){
 window._renderPacientesUnicos=function(){
   const body=document.getElementById('pu-body');
   if(!body) return;
+  /* Delegação de clique UMA vez — funciona inclusive pras linhas adicionadas
+     progressivamente depois (evita reatar listener por linha a cada render). */
+  if(!body._puClickHooked){
+    body._puClickHooked=true;
+    body.addEventListener('click', e=>{
+      const tr=e.target.closest('tr[data-pac-key]');
+      if(tr && typeof window._abrirHistoricoPaciente==='function') window._abrirHistoricoPaciente(tr.dataset.pacKey||'');
+    });
+  }
   const q=(document.getElementById('pu-search')?.value||'').toLowerCase().trim();
   const qDigits=q.replace(/\D/g,'');
   const dataF=document.getElementById('pu-search-data')?.value||'';
@@ -12471,15 +12480,16 @@ window._renderPacientesUnicos=function(){
   if(dataF) filtered=(typeof window._matchDataBusca==='function')?filtered.filter(g=>g.visitas.some(v=>window._matchDataBusca(v,dataF))):filtered;
   filtered.sort((a,b)=>(b.paciente.criado_em||'').localeCompare(a.paciente.criado_em||''));
 
+  const CAP=1500;
   const title=document.getElementById('pu-title');
-  if(title) title.textContent=filtered.length+' pacientes únicos';
+  if(title) title.textContent=filtered.length+' pacientes únicos'+(filtered.length>CAP?' · mostrando '+CAP+' (refine a busca)':'');
+  const show=filtered.slice(0,CAP);
 
-  body.innerHTML=filtered.slice(0,800).map(g=>{
+  const row=g=>{
     const p=g.paciente;
     const cpfShow=p.cpf||(g.visitas.find(v=>v.cpf)||{}).cpf||'';
     const ultima=p.criado_em?new Date(p.criado_em).toLocaleDateString('pt-BR'):'—';
     const nv=g.visitas.length;
-    /* XSS safe: dados escapados pra innerHTML, key tirado de dentro do onclick via data-pac-key */
     return `<tr style="cursor:pointer" data-pac-key="${_escHtml(g.key)}" title="Clique para ver histórico de retornos">
       <td style="font-weight:500;color:var(--text-primary)">${_escHtml(p.nome||'—')}</td>
       <td>${cpfShow?_escHtml(cpfShow):'<span style="color:var(--text-muted);font-size:11px">(sem CPF)</span>'}</td>
@@ -12488,14 +12498,23 @@ window._renderPacientesUnicos=function(){
       <td><span style="background:rgba(0,200,83,0.15);color:var(--accent);padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600">${nv} ${nv===1?'retorno':'retornos'}</span></td>
       <td>${_escHtml(ultima)}</td>
     </tr>`;
-  }).join('')||'<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">Nenhum paciente encontrado</td></tr>';
-  /* Listeners post-render: tirei o onclick inline pra evitar problemas se a key tiver caracter especial */
-  body.querySelectorAll('tr[data-pac-key]').forEach(tr => {
-    tr.addEventListener('click', () => {
-      const key = tr.dataset.pacKey || '';
-      if (typeof window._abrirHistoricoPaciente === 'function') window._abrirHistoricoPaciente(key);
-    });
-  });
+  };
+
+  if(!show.length){ body.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">Nenhum paciente encontrado</td></tr>'; return; }
+
+  /* Render PROGRESSIVO: 1º bloco pinta na hora (abre instantâneo mesmo no admin
+     com milhares), o resto entra em blocos no tempo ocioso — nunca trava. */
+  const FIRST=120, STEP=300;
+  body.innerHTML=show.slice(0,FIRST).map(row).join('');
+  let i=FIRST;
+  const idle=window.requestIdleCallback||(f=>setTimeout(f,30));
+  const _puRenderToken=(body._puToken=(body._puToken||0)+1); /* cancela render anterior se filtrar de novo */
+  const step=()=>{
+    if(body._puToken!==_puRenderToken || i>=show.length) return;
+    body.insertAdjacentHTML('beforeend', show.slice(i,i+STEP).map(row).join(''));
+    i+=STEP; idle(step);
+  };
+  if(show.length>FIRST) idle(step);
 };
 
 window._abrirHistoricoPaciente=async function(key){
