@@ -1535,16 +1535,22 @@ tr:last-child td { border-bottom: none; }
           <div class="chart-container"><canvas id="chart-dor"></canvas></div>
         </div>
       </div>
-      <div class="chart-grid" style="margin-top:18px">
-        <div class="chart-card">
-          <div class="chart-title">Top 10 Pontos com mais Cadastros</div>
-          <div class="chart-subtitle">Ranking acumulado (view v_pontos_*)</div>
-          <div class="chart-container" style="height:360px"><canvas id="chart-top-pontos"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-title">Cadastros por Hora do Dia</div>
-          <div class="chart-subtitle">Distribuição horária — últimos 30 dias</div>
-          <div class="chart-container" style="height:360px"><canvas id="chart-hourly"></canvas></div>
+      <!-- 🏆 RANKING DE CADASTROS (largura total) — Geral | Semana/Mês -->
+      <div class="chart-card" style="margin-top:18px">
+        <div class="chart-title">🏆 Ranking de Cadastros por Ponto</div>
+        <div class="chart-subtitle">Posição de cada ponto · atualiza sozinho · o seu fica destacado</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px">
+          <div>
+            <div style="font-size:12px;font-weight:800;color:var(--accent);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Geral (total)</div>
+            <div id="rank-geral"></div>
+          </div>
+          <div>
+            <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+              <button class="rank-tab" data-p="semana" onclick="window._setRankPeriodo('semana',this)" style="background:rgba(0,200,83,0.18);color:var(--accent);border:1px solid var(--accent);border-radius:7px;padding:4px 12px;font-size:11px;font-weight:800;cursor:pointer;text-transform:uppercase">Semana</button>
+              <button class="rank-tab" data-p="mes" onclick="window._setRankPeriodo('mes',this)" style="background:rgba(255,255,255,0.04);color:var(--text-muted);border:1px solid var(--border-glass);border-radius:7px;padding:4px 12px;font-size:11px;font-weight:800;cursor:pointer;text-transform:uppercase">Mês</button>
+            </div>
+            <div id="rank-periodo"></div>
+          </div>
         </div>
       </div>
       <div class="chart-grid" style="margin-top:18px">
@@ -1557,6 +1563,13 @@ tr:last-child td { border-bottom: none; }
           <div class="chart-title">Evolução dos Pacientes</div>
           <div class="chart-subtitle">Melhorando · Estável · Piorando (feedback nos retornos)</div>
           <div class="chart-container"><canvas id="chart-melhora"></canvas></div>
+        </div>
+      </div>
+      <div class="chart-grid" style="margin-top:18px">
+        <div class="chart-card">
+          <div class="chart-title">Cadastros por Hora do Dia</div>
+          <div class="chart-subtitle">Distribuição horária — últimos 30 dias</div>
+          <div class="chart-container" style="height:360px"><canvas id="chart-hourly"></canvas></div>
         </div>
       </div>
 
@@ -2947,7 +2960,7 @@ function updateCharts() {
   }, { responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{legend:{position:'right',labels:{boxWidth:12,padding:10,font:{size:12}}},tooltip:{callbacks:{label:i=>i.label+': '+i.raw}}} });
 
   /* G3 + G4 — novos charts via funções dedicadas */
-  if (typeof updateTopPontosChart === 'function') updateTopPontosChart(c);
+  if (typeof window._updateRanking === 'function') window._updateRanking();
   if (typeof updateHourlyChart === 'function') updateHourlyChart(c);
 
   /* Analytics charts (admin only) */
@@ -2987,6 +3000,46 @@ async function updateTopPontosChart(c) {
     });
   } catch (e) { console.error('[DASHBOARD G3 EXCEPTION]', e); }
 }
+
+/* 🏆 RANKING DE CADASTROS — agregado por ponto via RPC SECURITY DEFINER
+   (colaborador vê o ranking de TODOS sem ver pacientes). Mostra posição + nome,
+   SEM a quantidade. Destaca o ponto do próprio usuário. Atualiza sozinho. */
+let _rankPeriodo = 'semana';
+window._rankMedal = function(pos){ return pos===1?'🥇':pos===2?'🥈':pos===3?'🥉':(pos+'º'); };
+window._renderRankCol = async function(elId, de, ate){
+  const el = document.getElementById(elId); if(!el) return;
+  const proj = (typeof currentProject!=='undefined' && currentProject==='oculos') ? 'oculos' : 'fibro';
+  try{
+    const { data, error } = await sb.rpc('get_ranking_'+proj, { p_de: de, p_ate: ate });
+    if(error){ el.innerHTML='<div style="padding:14px;color:var(--text-muted);font-size:12px">Ranking indisponível — rode <b>supabase/get_ranking.sql</b> no Supabase.</div>'; return; }
+    const rows = (data||[]).filter(r => (r.total||0) > 0);
+    const meu = (typeof currentProfile!=='undefined' && currentProfile) ? currentProfile.numero_ponto : null;
+    if(!rows.length){ el.innerHTML='<div style="padding:14px;color:var(--text-muted);font-size:12px">Sem cadastros nesse período.</div>'; return; }
+    el.innerHTML = rows.slice(0,15).map((r,i)=>{
+      const pos=i+1, ehMeu=(meu!=null && r.numero_ponto===meu);
+      const nome=String(r.nome_ponto||('Ponto '+r.numero_ponto)).replace(/</g,'&lt;');
+      return `<div style="display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:7px;margin-bottom:4px;${ehMeu?'background:rgba(0,200,83,0.14);border:1px solid var(--accent)':'background:rgba(255,255,255,0.02)'}">
+        <span style="font-size:14px;font-weight:800;min-width:30px;text-align:center;color:${pos<=3?'#eab308':'var(--text-muted)'}">${window._rankMedal(pos)}</span>
+        <span style="flex:1;font-size:12.5px;font-weight:${ehMeu?'800':'600'};color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nome}${ehMeu?' <span style="color:var(--accent);font-size:10px">(você)</span>':''}</span>
+      </div>`;
+    }).join('');
+  }catch(e){ console.warn('[ranking]', e?.message||e); el.innerHTML='<div style="padding:14px;color:var(--text-muted)">Erro ao carregar ranking.</div>'; }
+};
+window._updateRanking = function(){
+  const ate = new Date().toISOString().slice(0,10);
+  window._renderRankCol('rank-geral', '2020-01-01', ate);
+  const dias = _rankPeriodo==='mes' ? 30 : 7;
+  const de = new Date(Date.now()-dias*86400000).toISOString().slice(0,10);
+  window._renderRankCol('rank-periodo', de, ate);
+};
+window._setRankPeriodo = function(p, btn){
+  _rankPeriodo = p;
+  document.querySelectorAll('.rank-tab').forEach(b=>{ b.style.background='rgba(255,255,255,0.04)'; b.style.color='var(--text-muted)'; b.style.borderColor='var(--border-glass)'; });
+  if(btn){ btn.style.background='rgba(0,200,83,0.18)'; btn.style.color='var(--accent)'; btn.style.borderColor='var(--accent)'; }
+  const ate=new Date().toISOString().slice(0,10);
+  const de=new Date(Date.now()-(p==='mes'?30:7)*86400000).toISOString().slice(0,10);
+  window._renderRankCol('rank-periodo', de, ate);
+};
 
 /* G4 — Cadastros por hora do dia (barras verticais) */
 async function updateHourlyChart(c) {
