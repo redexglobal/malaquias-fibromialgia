@@ -1408,7 +1408,7 @@ tr:last-child td { border-bottom: none; }
       </div>
     </div>
 
-    <div class="nav-section">
+    <div class="nav-section" id="nav-principal-section">
       <div class="nav-section-title">Principal</div>
       <div class="nav-item active" data-section="dashboard" onclick="showSection('dashboard', this)">
         <i class="fas fa-chart-line"></i> Dashboard
@@ -1429,6 +1429,9 @@ tr:last-child td { border-bottom: none; }
 
     <div class="nav-section" id="nav-juridico-section" style="display:none">
       <div class="nav-section-title" style="display:flex;align-items:center;justify-content:space-between;padding-right:4px">Jurídico<button id="jur-bell" onclick="jurAlertsOpen()" title="Ver alertas de prazo" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:14px;padding:2px 5px;position:relative;line-height:1"><i class="fas fa-bell"></i><span id="jur-bell-count" style="display:none;position:absolute;top:-5px;right:-3px;background:#ef4444;color:#fff;border-radius:8px;font-size:9px;font-weight:700;padding:0 4px;min-width:14px;text-align:center;line-height:14px"></span></button></div>
+      <div class="nav-item" id="nav-jdash" data-section="juridico-dash" onclick="showSection('juridico-dash', this)" style="display:none">
+        <i class="fas fa-chart-pie"></i> Painel Jurídico
+      </div>
       <div class="nav-item" data-section="juridico" onclick="showSection('juridico', this)">
         <i class="fas fa-gavel"></i> Atendimento Jurídico
       </div>
@@ -1878,6 +1881,56 @@ tr:last-child td { border-bottom: none; }
             <div id="pdf-preview-content" style="color:var(--text-secondary);font-size:12px;line-height:1.6"></div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- ===== PAINEL JURÍDICO (DASHBOARD DR. JOÃO) ===== -->
+    <div class="section" id="sec-juridico-dash">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:8px">
+        <div>
+          <h1 class="page-title" id="jdash-title">Painel Jurídico</h1>
+          <p class="page-subtitle">Visão completa dos processos — <span id="jdash-date"></span></p>
+        </div>
+        <button class="btn-primary" onclick="showSection('juridico',document.querySelector('[data-section=juridico]'))"><i class="fas fa-plus"></i> Novo Atendimento</button>
+      </div>
+
+      <div class="kpi-grid" style="margin-top:18px">
+        <div class="kpi-card">
+          <div class="kpi-header"><div class="kpi-icon"><i class="fas fa-folder-open"></i></div></div>
+          <div class="kpi-value" id="jd-kpi-total">—</div>
+          <div class="kpi-label">Processos no Total</div>
+          <div id="jd-kpi-total-sub" style="font-size:11px;color:var(--text-muted);margin-top:2px"></div>
+        </div>
+        <div class="kpi-card gold">
+          <div class="kpi-header"><div class="kpi-icon"><i class="fas fa-gavel"></i></div></div>
+          <div class="kpi-value" id="jd-kpi-andamento">—</div>
+          <div class="kpi-label">Processos em Andamento</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-header"><div class="kpi-icon"><i class="fas fa-award"></i></div></div>
+          <div class="kpi-value" id="jd-kpi-concedido">—</div>
+          <div class="kpi-label">Benefícios Concedidos</div>
+          <div id="jd-kpi-concedido-sub" style="font-size:11px;color:var(--text-muted);margin-top:2px"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-header"><div class="kpi-icon"><i class="fas fa-hourglass-half"></i></div></div>
+          <div class="kpi-value" id="jd-kpi-prazos">—</div>
+          <div class="kpi-label">Prazos nos Próximos 30 dias</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:18px;margin-top:18px">
+        <div class="chart-card"><div class="chart-title">Status do Benefício (INSS)</div><div style="height:260px"><canvas id="jd-chart-beneficio"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Status do Processo</div><div style="height:260px"><canvas id="jd-chart-processo"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Tipo de Benefício</div><div style="height:260px"><canvas id="jd-chart-tipo"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Origem / Derivações</div><div style="height:260px"><canvas id="jd-chart-origem"></canvas></div></div>
+      </div>
+
+      <div class="chart-card" style="margin-top:18px"><div class="chart-title">Entradas de Processos por Mês</div><div style="height:240px"><canvas id="jd-chart-mes"></canvas></div></div>
+
+      <div class="chart-card" style="margin-top:18px">
+        <div class="chart-title" style="display:flex;align-items:center;justify-content:space-between"><span><i class="fas fa-bell" style="color:#ef4444"></i> Próximos Prazos &amp; Retornos</span><span id="jd-prazos-count" style="font-size:12px;color:var(--text-muted)"></span></div>
+        <div id="jd-prazos-list" style="margin-top:10px"></div>
       </div>
     </div>
 
@@ -2537,6 +2590,7 @@ function enterApp() {
   document.getElementById('app-shell').style.display = 'block';
 
   const isAdmin = currentProfile?.papel === 'admin';
+  const isJuridico = currentProfile?.papel === 'juridico';
   const header = document.getElementById('app-header');
   header.className = 'header ' + (isAdmin ? 'header-admin' : 'header-colab');
   document.getElementById('user-name').textContent = currentProfile?.nome || currentUser.email;
@@ -2547,6 +2601,26 @@ function enterApp() {
     /* alerts-section removido — antes acessava .style.display de null e dava
        TypeError que abortava enterApp, sumindo com as abas do juridico
        (IIFEs esperavam evento profile-ready que nunca chegava) */
+  }
+
+  /* ===== PAPEL JURÍDICO (Dr. João): só vê a área jurídica + o painel dele ===== */
+  if (isJuridico) {
+    document.body.classList.add('juridico-mode');
+    /* esconde o nav Principal (cadastro de pacientes) — ele não cuida disso */
+    const np = document.getElementById('nav-principal-section');
+    if (np) np.style.display = 'none';
+    /* garante que o nav jurídico esteja visível (normalmente o _jurInit já faz) */
+    const nj = document.getElementById('nav-juridico-section');
+    if (nj) nj.style.display = 'block';
+    const njd = document.getElementById('nav-jdash');
+    if (njd) njd.style.display = '';
+    /* cai direto no Painel Jurídico, não no dashboard de pacientes */
+    setTimeout(function(){
+      try {
+        const navP = document.querySelector('[data-section="juridico-dash"]');
+        if (typeof showSection === 'function') showSection('juridico-dash', navP);
+      } catch(e){ console.warn('[enterApp:juridico]', e&&e.message); }
+    }, 250);
   }
 
   const hora = new Date().getHours();
@@ -2583,7 +2657,7 @@ function enterApp() {
      automaticamente ao entrar — se falhar (rede instavel, supabase warmup),
      tenta de novo sem travar UI. Antes: loadData sincrono podia rejeitar
      e deixar a tela vazia ate o usuario refrescar. */
-  (async function bootLoad(){
+  if (!isJuridico) (async function bootLoad(){
     try { await loadData(); }
     catch (e) {
       console.warn('[malaquias:boot:loadData]', e?.message||e);
@@ -4080,6 +4154,11 @@ document.getElementById('detalheOverlay').addEventListener('keydown',function(e)
 .adv-present-btn{background:none;border:1px solid var(--border-glass);color:var(--text-secondary);padding:5px 10px;border-radius:8px;cursor:pointer;font-size:16px;transition:all .2s;line-height:1;}
 .adv-present-btn:hover{border-color:var(--gold);color:var(--gold);}
 body.adv-presenting .sidebar{display:none!important;}
+/* MODO JURÍDICO (Dr. João): só a área jurídica fica visível */
+body.juridico-mode #nav-principal-section,
+body.juridico-mode #nav-admin-section,
+body.juridico-mode #project-switch,
+body.juridico-mode #filter-bar{display:none!important;}
 body.adv-presenting .main{margin-left:0!important;}
 
 /* SEC COMPARAR */
@@ -14781,6 +14860,132 @@ function _jurInit(){
 if(typeof currentProfile!=='undefined'&&currentProfile)_jurInit();
 window.addEventListener('malaquias:profile-ready',_jurInit,{once:true});
 setTimeout(()=>{if(typeof currentProfile!=='undefined'&&currentProfile)_jurInit();},2500);
+})();
+</script>
+
+<script>
+/* ---- PAINEL JURÍDICO (Dashboard Dr. João) v1 ---- */
+(function(){
+'use strict';
+const PROJ=typeof window.PROJ!=='undefined'?window.PROJ:'fibromialgia';
+const _charts={};
+let _jdRows=null,_jdLoading=false;
+const _esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const _cap=s=>{s=String(s||'').trim();return s?s.charAt(0).toUpperCase()+s.slice(1):'';};
+const _LBL_BEN={aguardando:'Aguardando',aprovado:'Aprovado',negado:'Negado',recurso:'Em Recurso'};
+const _LBL_PROC={em_andamento:'Em Andamento',concluido:'Concluído',arquivado:'Arquivado'};
+const _PAL=['#3b82f6','#22c55e','#ef4444','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#14b8a6','#a3a3a3','#f97316'];
+function _isJurOrAdm(){const p=window.currentProfile;return !!(p&&(p.papel==='juridico'||p.papel==='admin'));}
+function _parseD(s){if(!s)return null;const d=new Date(s.length<=10?s+'T00:00:00':s);return isNaN(d)?null:d;}
+
+function _mkChart(id,cfg){
+  const cv=document.getElementById(id);if(!cv||typeof Chart==='undefined')return;
+  if(_charts[id]){try{_charts[id].destroy();}catch(e){}}
+  _charts[id]=new Chart(cv.getContext('2d'),cfg);
+}
+function _countBy(rows,fn,labelMap){
+  const m={};rows.forEach(r=>{let k=fn(r);if(k==null||k==='')k='(não informado)';m[k]=(m[k]||0)+1;});
+  const entries=Object.entries(m).sort((a,b)=>b[1]-a[1]);
+  return{labels:entries.map(e=>labelMap&&labelMap[e[0]]?labelMap[e[0]]:_cap(e[0])),data:entries.map(e=>e[1])};
+}
+function _doughnut(id,agg,colors){
+  _mkChart(id,{type:'doughnut',data:{labels:agg.labels,datasets:[{data:agg.data,backgroundColor:colors||_PAL,borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}}},cutout:'58%'}});
+}
+function _bar(id,agg,color){
+  _mkChart(id,{type:'bar',data:{labels:agg.labels,datasets:[{data:agg.data,backgroundColor:color||'#3b82f6',borderRadius:6,maxBarThickness:46}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+}
+
+function _render(){
+  const rows=_jdRows||[];
+  const $=id=>document.getElementById(id);
+  if($('jd-kpi-total'))$('jd-kpi-total').textContent=rows.length;
+  const andamento=rows.filter(r=>(r.status_processo||'em_andamento')==='em_andamento').length;
+  const concedido=rows.filter(r=>r.status_beneficio==='aprovado').length;
+  const negado=rows.filter(r=>r.status_beneficio==='negado').length;
+  if($('jd-kpi-andamento'))$('jd-kpi-andamento').textContent=andamento;
+  if($('jd-kpi-concedido'))$('jd-kpi-concedido').textContent=concedido;
+  if($('jd-kpi-concedido-sub'))$('jd-kpi-concedido-sub').textContent=negado?negado+' negado(s)':'';
+  if($('jd-kpi-total-sub'))$('jd-kpi-total-sub').textContent=PROJ==='fibromialgia'?'Fibromialgia':'Óculos';
+
+  /* Prazos: proxima_data OU data_decisao futura nos próximos 30 dias */
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const lim=new Date(hoje);lim.setDate(lim.getDate()+30);
+  const prazos=rows.map(r=>({r,d:_parseD(r.proxima_data)})).filter(x=>x.d&&x.d>=hoje&&x.d<=lim).sort((a,b)=>a.d-b.d);
+  const atrasados=rows.map(r=>({r,d:_parseD(r.proxima_data)})).filter(x=>x.d&&x.d<hoje);
+  if($('jd-kpi-prazos'))$('jd-kpi-prazos').textContent=prazos.length;
+
+  /* gráficos */
+  _doughnut('jd-chart-beneficio',_countBy(rows,r=>r.status_beneficio||'aguardando',_LBL_BEN),['#f59e0b','#22c55e','#ef4444','#3b82f6','#a3a3a3']);
+  _doughnut('jd-chart-processo',_countBy(rows,r=>r.status_processo||'em_andamento',_LBL_PROC),['#3b82f6','#22c55e','#a3a3a3']);
+  _bar('jd-chart-tipo',_countBy(rows,r=>(r.tipo_beneficio||'').trim().toLowerCase()?r.tipo_beneficio.trim():''),'#8b5cf6');
+  _bar('jd-chart-origem',_countBy(rows,r=>(r.origem||'').trim().toLowerCase()?r.origem.trim():''),'#06b6d4');
+
+  /* entradas por mês (12 meses) */
+  const meses={};const fmt=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  rows.forEach(r=>{const d=_parseD(r.data_entrada)||_parseD(r.criado_em);if(d)meses[fmt(d)]=(meses[fmt(d)]||0)+1;});
+  const keys=Object.keys(meses).sort().slice(-12);
+  const MM=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  _bar('jd-chart-mes',{labels:keys.map(k=>{const[y,m]=k.split('-');return MM[+m-1]+'/'+y.slice(2);}),data:keys.map(k=>meses[k])},'#3b82f6');
+
+  /* lista de prazos */
+  const list=$('jd-prazos-list'),cnt=$('jd-prazos-count');
+  if(list){
+    const all=[...atrasados.map(x=>({...x,late:true})),...prazos.map(x=>({...x,late:false}))];
+    if(cnt)cnt.textContent=all.length?(atrasados.length?atrasados.length+' atrasado(s) · ':'')+prazos.length+' nos próximos 30 dias':'sem prazos próximos';
+    if(!all.length){list.innerHTML='<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Nenhum prazo nos próximos 30 dias. 👌</div>';}
+    else{
+      list.innerHTML=all.slice(0,40).map(x=>{
+        const d=x.d,ds=d.toLocaleDateString('pt-BR');
+        const dias=Math.round((d-hoje)/86400000);
+        const tag=x.late?`<span style="color:#ef4444;font-weight:700">⚠ atrasado ${Math.abs(dias)}d</span>`:(dias===0?'<span style="color:#f59e0b;font-weight:700">hoje</span>':`<span style="color:var(--text-muted)">em ${dias}d</span>`);
+        return `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border-glass)">
+          <div style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(x.r.paciente_nome||'(sem nome)')}</div>
+          <div style="font-size:11px;color:var(--text-muted)">${_esc(_LBL_PROC[x.r.status_processo]||_cap(x.r.status_processo)||'—')} · ${_esc(x.r.advogado_nome||'sem advogado')}</div></div>
+          <div style="text-align:right;white-space:nowrap;font-size:12px">${ds}<br>${tag}</div></div>`;
+      }).join('');
+    }
+  }
+}
+
+async function _load(force){
+  if(typeof sb==='undefined')return;
+  if(_jdRows&&!force){_render();return;}
+  if(_jdLoading)return;_jdLoading=true;
+  try{
+    const{data,error}=await sb.from('atendimentos_juridicos').select('*').eq('projeto',PROJ).limit(5000);
+    if(error){console.warn('[jdash]',error.message);}
+    _jdRows=data||[];
+  }catch(e){console.warn('[jdash]',e&&e.message);_jdRows=_jdRows||[];}
+  _jdLoading=false;
+  _render();
+}
+window._jdashReload=()=>_load(true);
+
+function _init(){
+  /* mostra o item de menu "Painel Jurídico" só pro advogado/admin */
+  const nav=document.getElementById('nav-jdash');
+  if(nav&&_isJurOrAdm())nav.style.display='';
+  const dd=document.getElementById('jdash-date');
+  if(dd)dd.textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  /* título personalizado */
+  const t=document.getElementById('jdash-title');
+  if(t){const p=window.currentProfile;const nome=p&&p.nome?p.nome:'';
+    const h=new Date().getHours();const sd=h<12?'Bom dia':h<18?'Boa tarde':'Boa noite';
+    t.textContent=nome?(sd+', '+nome):'Painel Jurídico';}
+  /* hook showSection pra carregar ao abrir */
+  if(!window.showSection._jdHk&&typeof window.showSection==='function'){
+    const _p=window.showSection;
+    window.showSection=function(id,el){_p.call(this,id,el);if(id==='juridico-dash')setTimeout(()=>_load(false),60);};
+    window.showSection._jdHk=true;
+  }
+  /* se o advogado loga, já cai no painel */
+  if(window.currentProfile&&window.currentProfile.papel==='juridico'){setTimeout(()=>_load(true),300);}
+}
+if(typeof currentProfile!=='undefined'&&currentProfile)_init();
+window.addEventListener('malaquias:profile-ready',_init,{once:true});
+setTimeout(()=>{if(typeof currentProfile!=='undefined'&&currentProfile)_init();},2500);
 })();
 </script>
 
