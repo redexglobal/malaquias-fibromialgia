@@ -14657,12 +14657,21 @@ window.jurSalvarWizard=async function(){
     if(typeof showToast==='function')showToast('Erro ao salvar: '+(err.message||'desconhecido'),true);
     return;
   }
-  if(typeof showToast==='function')showToast('Cadastro salvo com sucesso!');
+  if(typeof showToast==='function')showToast('Cadastro salvo com sucesso! 🎉');
   try{jurResetForm();}catch(e){console.error('[jur:save v2] reset',e);}
   try{
-    const navCad=document.querySelector('[data-section="juridico-cadastrados"]');
-    if(typeof showSection==='function')showSection('juridico-cadastrados',navCad);
-    setTimeout(_jurCadLoad,150);
+    if(_jurIsAdmArea()){
+      /* Administração (admin/André) vê a lista de dados após salvar */
+      const navCad=document.querySelector('[data-section="juridico-cadastrados"]');
+      if(typeof showSection==='function')showSection('juridico-cadastrados',navCad);
+      setTimeout(_jurCadLoad,150);
+    } else {
+      /* Atendente NÃO vê dados de paciente: volta ao formulário (já resetado) e
+         atualiza o contador dela. Sem acesso à lista/dados dos clientes. */
+      if(typeof window._jdashReload==='function')window._jdashReload();
+      const _t=document.querySelector('#sec-juridico .page-subtitle');
+      if(_t)_t.textContent='Cadastro registrado! Pode iniciar o próximo. ✅';
+    }
   }catch(e){console.error('[jur:save v2] redirect',e);}
 };
 
@@ -14725,7 +14734,7 @@ td{padding:5px 10px;vertical-align:top}td.lb{font-weight:600;color:#374151;width
 @media print{body{padding:1cm}@page{margin:1cm}}</style></head>
 <body><h1>Processo Jurídico</h1>
 <p class="sub">Sistema Dr. Malaquias &nbsp;·&nbsp; Gerado em ${new Date().toLocaleString('pt-BR')}</p>
-<h3>Dados do Paciente</h3><table>${row('Nome',x.paciente_nome)}${row('CPF',x.paciente_cpf)}${row('Endereço',x.paciente_endereco)}${row('Cidade',x.paciente_cidade)}</table>
+<h3>Dados do Paciente</h3><table>${row('Nome',x.paciente_nome)}${row('CPF',x.paciente_cpf)}${row('Telefone',x.paciente_telefone)}${row('E-mail',x.paciente_email)}${row('Endereço',x.paciente_endereco)}${row('Cidade',x.paciente_cidade)}</table>
 <h3>Entrada</h3><table>${row('Data de Entrada',x.data_entrada)}${row('Origem',x.origem)}${row('Protocolo',x.numero_protocolo)}${row('Observações',x.observacoes_entrada)}</table>
 <h3>Aposentadoria / Benefício</h3><table>${row('Tipo de Benefício',x.tipo_beneficio)}${row('NIT / PIS',x.nit_pis)}${row('Número do Benefício',x.numero_beneficio)}${row('Entrada no INSS',x.data_entrada_inss)}${row('Status',sl[x.status_beneficio]||x.status_beneficio)}${row('Data da Decisão',x.data_decisao)}</table>
 <h3>Saúde</h3><table>${row('Diagnóstico',x.diagnostico)}${row('CID',x.cid)}${row('Histórico Médico',x.historico_medico)}</table>
@@ -14740,8 +14749,8 @@ td{padding:5px 10px;vertical-align:top}td.lb{font-weight:600;color:#374151;width
 window.jurExportCSV=function(){
   const fd=_jurGetFiltered();
   if(!fd.length){if(typeof showToast==='function')showToast('Nenhum dado para exportar',true);return;}
-  const cols=['paciente_nome','paciente_cpf','paciente_cidade','paciente_endereco','data_entrada','origem','numero_protocolo','tipo_beneficio','nit_pis','numero_beneficio','data_entrada_inss','status_beneficio','data_decisao','diagnostico','cid','advogado_nome','advogado_oab','advogado_contato','proxima_data','status_processo','andamento_processual','observacoes_controle','criado_em'];
-  const hdrs=['Nome','CPF','Cidade','Endereço','Data Entrada','Origem','Protocolo','Tipo Benefício','NIT/PIS','Nº Benefício','Entrada INSS','Status INSS','Data Decisão','Diagnóstico','CID','Advogado','OAB','Contato Advogado','Próxima Data','Status Processo','Andamento','Observações','Cadastrado em'];
+  const cols=['paciente_nome','paciente_cpf','paciente_telefone','paciente_email','paciente_cidade','paciente_endereco','data_entrada','origem','numero_protocolo','tipo_beneficio','nit_pis','numero_beneficio','data_entrada_inss','status_beneficio','data_decisao','diagnostico','cid','advogado_nome','advogado_oab','advogado_contato','proxima_data','status_processo','andamento_processual','observacoes_controle','criado_em'];
+  const hdrs=['Nome','CPF','Telefone','E-mail','Cidade','Endereço','Data Entrada','Origem','Protocolo','Tipo Benefício','NIT/PIS','Nº Benefício','Entrada INSS','Status INSS','Data Decisão','Diagnóstico','CID','Advogado','OAB','Contato Advogado','Próxima Data','Status Processo','Andamento','Observações','Cadastrado em'];
   const q=v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`;
   const csv=[hdrs.map(q).join(','),...fd.map(r=>cols.map(c=>q(r[c]||'')).join(','))].join('\n');
   const a=document.createElement('a');
