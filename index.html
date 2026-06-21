@@ -15018,12 +15018,44 @@ async function _load(force){
   _jdLoading=false;
   _render();
 }
-window._jdashReload=()=>_load(true);
+/* ===== VISÃO DO ATENDENTE (colaborador): só contador + gráficos de números,
+   via RPC agregado get_juridico_meus_stats (zero dado de paciente). ===== */
+function _renderAtendente(stats){
+  const $=id=>document.getElementById(id);
+  stats=stats||{total:0,por_mes:[],por_status:[]};
+  const t=$('jdash-title');
+  if(t){const p=window.currentProfile;const nome=(p&&p.nome)?String(p.nome).split(' ')[0]:'';t.textContent=nome?('Seu resumo jurídico, '+nome):'Seu resumo jurídico';}
+  const sub=document.querySelector('#sec-juridico-dash .page-subtitle');
+  if(sub)sub.textContent='Pacientes que você encaminhou ao jurídico';
+  if($('jd-kpi-total'))$('jd-kpi-total').textContent=(stats.total==null?'—':stats.total);
+  const tot=$('jd-kpi-total'),card=tot?tot.closest('.kpi-card'):null;
+  const lbl=card?card.querySelector('.kpi-label'):null; if(lbl)lbl.textContent='Pacientes que você encaminhou';
+  if($('jd-kpi-total-sub'))$('jd-kpi-total-sub').textContent='ao jurídico';
+  ['jd-kpi-andamento','jd-kpi-concedido','jd-kpi-prazos'].forEach(id=>{const e=$(id);if(e){const c=e.closest('.kpi-card');if(c)c.style.display='none';}});
+  const MM=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const pm=stats.por_mes||[];
+  _bar('jd-chart-mes',{labels:pm.map(x=>{const a=String(x.mes).split('-');return (MM[+a[1]-1]||x.mes)+'/'+String(a[0]).slice(2);}),data:pm.map(x=>x.n)},'#3b82f6');
+  const ps=stats.por_status||[];
+  _doughnut('jd-chart-beneficio',{labels:ps.map(x=>_LBL_BEN[x.status]||_cap(x.status)),data:ps.map(x=>x.n)},['#f59e0b','#22c55e','#ef4444','#3b82f6','#a3a3a3']);
+  /* esconde tudo que mostraria DADO de paciente */
+  ['jd-chart-processo','jd-chart-tipo','jd-chart-origem'].forEach(id=>{const e=$(id);if(e){const c=e.closest('.chart-card');if(c)c.style.display='none';}});
+  const pl=$('jd-prazos-list');if(pl){const c=pl.closest('.chart-card');if(c)c.style.display='none';}
+}
+async function _loadAtendente(){
+  if(typeof sb==='undefined')return;
+  try{
+    const{data,error}=await sb.rpc('get_juridico_meus_stats');
+    if(error){console.warn('[jdash:atendente]',error.message);_renderAtendente({total:'—',por_mes:[],por_status:[]});return;}
+    _renderAtendente(data||{});
+  }catch(e){console.warn('[jdash:atendente]',e&&e.message);_renderAtendente({total:'—',por_mes:[],por_status:[]});}
+}
+window._jdashReload=()=>{ if(_isJurOrAdm())_load(true); else _loadAtendente(); };
 
 function _init(){
-  /* mostra o item de menu "Painel Jurídico" só pro advogado/admin */
+  /* Painel Jurídico: Administração (admin/André) vê o painel completo;
+     atendente vê só o resumo dela (contador + gráficos de números). Item visível p/ todos. */
   const nav=document.getElementById('nav-jdash');
-  if(nav&&_isJurOrAdm())nav.style.display='';
+  if(nav)nav.style.display='';
   const dd=document.getElementById('jdash-date');
   if(dd)dd.textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   /* título personalizado */
@@ -15034,10 +15066,10 @@ function _init(){
   /* hook showSection pra carregar ao abrir */
   if(!window.showSection._jdHk&&typeof window.showSection==='function'){
     const _p=window.showSection;
-    window.showSection=function(id,el){_p.call(this,id,el);if(id==='juridico-dash')setTimeout(()=>_load(false),60);};
+    window.showSection=function(id,el){_p.call(this,id,el);if(id==='juridico-dash')setTimeout(()=>{ if(_isJurOrAdm())_load(false); else _loadAtendente(); },60);};
     window.showSection._jdHk=true;
   }
-  /* se o advogado loga, já cai no painel */
+  /* se o advogado loga, já cai no painel completo */
   if(window.currentProfile&&window.currentProfile.papel==='juridico'){setTimeout(()=>_load(true),300);}
 }
 if(typeof currentProfile!=='undefined'&&currentProfile)_init();
