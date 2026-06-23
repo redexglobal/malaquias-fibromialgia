@@ -6304,10 +6304,14 @@ window._stgSave = async function() {
      + MESMO CPF coincidem = é a mesma pessoa (CPF é único; não há data de nascimento
      no sistema, o CPF já identifica). Nome igual com CPF diferente OU sem CPF: LIBERADO.
      Sem aviso enquanto digita. (Só pega dentro dos cadastros da própria colaboradora — RLS.) */
+  /* SOFT (regra Vilson 2026-06-23): NÃO bloqueia mais o salvar — a colaboradora NUNCA
+     fica presa. Só avisa que parece duplicado e manda resolver depois na aba Pacientes
+     ("Resolver duplicado"). Antes era um bloqueio HARD que, junto com a busca sensível a
+     acento, prendia a colaboradora (não achava o paciente E não conseguia salvar). */
   if (typeof window._acharDuplicado === 'function' && window._acharDuplicado(_dat.nome, _dat.cpf)) {
-    const msg='Já existe um paciente com este MESMO nome e MESMO CPF (é a mesma pessoa). Se for um retorno, use a aba Retornos. Obs: nome igual com CPF diferente pode cadastrar normalmente.';
-    if (typeof showToast === 'function') showToast(msg, true); else alert(msg);
-    return;
+    const msg='⚠️ Esse paciente parece já existir (mesmo nome e CPF). Vou salvar mesmo assim — depois é só usar "Resolver duplicado" na aba Pacientes pra juntar. Dica: na próxima visita, use a aba Retornos.';
+    if (typeof showToast === 'function') showToast(msg, false);
+    /* segue e SALVA (sem return) */
   }
 
   const btn=document.getElementById('btn-finalizar');
@@ -12673,13 +12677,19 @@ window._renderPacientesUnicos=function(){
       if(tr && typeof window._abrirHistoricoPaciente==='function') window._abrirHistoricoPaciente(tr.dataset.pacKey||'');
     });
   }
-  const q=(document.getElementById('pu-search')?.value||'').toLowerCase().trim();
-  const qDigits=q.replace(/\D/g,'');
+  /* Busca SEM ACENTO (fix 2026-06-23): digitar "jose" acha "JOSÉ". Usa a mesma
+     normalização do bloqueio de duplicata (_normNomeDup) pra busca e cadastro
+     enxergarem o paciente do MESMO jeito — era essa diferença que gerava as duplicatas. */
+  const _rawq=(document.getElementById('pu-search')?.value||'').trim();
+  const _nrm=s=>window._normNomeDup?window._normNomeDup(s):(s||'').toLowerCase().trim();
+  const q=_nrm(_rawq);
+  const qDigits=_rawq.replace(/\D/g,'');
   const dataF=document.getElementById('pu-search-data')?.value||'';
   const groups=_puAgrupar();
   let filtered=q
     ? groups.filter(g=>
-        (g.paciente.nome||'').toLowerCase().includes(q)||
+        _nrm(g.paciente.nome).includes(q)||
+        g.visitas.some(v=>_nrm(v.nome).includes(q))||
         (qDigits && g.visitas.some(v=>(v.cpf||'').replace(/\D/g,'').includes(qDigits)))||
         (qDigits && g.visitas.some(v=>(v.whatsapp||'').replace(/\D/g,'').includes(qDigits)))
       )
@@ -15923,6 +15933,212 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[sw] registro falhou:', e && e.message); });
   });
 }
+</script>
+
+<script>
+/* ============================================================
+   DETECTOR DE CPF EM CONFLITO (mesmo CPF em 2+ pessoas diferentes)
+   Aviso na aba Pacientes + modal pra colaboradora resolver sozinha:
+   botão "limpar CPF do outro" (1 toque) + link "editar ficha".
+   100% aditivo. Usa window.allPacientes (RLS = só os pacientes dela).
+   ============================================================ */
+(function(){
+'use strict';
+
+const norm = s => (s||'').toString().toLowerCase().trim().replace(/\s+/g,' ');
+const dig  = s => (s||'').toString().replace(/\D/g,'');
+const cpfValido = c => (window._cpfValido ? window._cpfValido(dig(c)) : (dig(c).length===11));
+const idKeyDe = p => norm(p.nome)+'|'+dig(p.whatsapp);
+function fmtCpf(c){ const d=dig(c); return d.length===11 ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4') : c; }
+function tabela(){ return (typeof currentProject!=='undefined' && currentProject==='oculos') ? 'pacientes_oculos' : 'pacientes_fibro'; }
+
+/* Acha CPFs válidos que aparecem em 2+ pessoas DIFERENTES (nome+zap distintos). */
+window._cpfConflitos = function(){
+  const list = window.allPacientes || [];
+  const porCpf = new Map(); // cpf -> Map(idKey -> {nome,whatsapp,ids:[],n})
+  list.forEach(p=>{
+    const c = dig(p.cpf);
+    if(!cpfValido(c)) return;
+    if(!porCpf.has(c)) porCpf.set(c, new Map());
+    const pessoas = porCpf.get(c);
+    const k = idKeyDe(p);
+    if(!pessoas.has(k)) pessoas.set(k, {nome:p.nome||'(sem nome)', whatsapp:p.whatsapp||'', ids:[], n:0});
+    const pe = pessoas.get(k);
+    pe.ids.push(p.id); pe.n++;
+  });
+  const out=[];
+  porCpf.forEach((pessoas,cpf)=>{ if(pessoas.size>=2) out.push({cpf, pessoas:[...pessoas.values()].sort((a,b)=>b.n-a.n)}); });
+  return out;
+};
+function confSet(){ try{ return new Set(window._cpfConflitos().map(c=>c.cpf)); }catch(e){ return new Set(); } }
+
+/* ---------- AÇÃO: limpar o CPF das pessoas que NÃO são o dono ---------- */
+async function limparCpfDosOutros(cpf, donoKey, btn){
+  const conf = (window._cpfConflitos()||[]).find(c=>c.cpf===cpf);
+  if(!conf){ if(window.showToast) showToast('Conflito já resolvido ✅'); fecharModal(); atualizarTudo(); return; }
+  const alvos = conf.pessoas.filter(p => idKeyDe(p)!==donoKey);
+  const ids = alvos.flatMap(p=>p.ids);
+  if(!ids.length){ if(window.showToast) showToast('Nada a corrigir.'); return; }
+  if(btn){ btn.disabled=true; btn.textContent='Corrigindo...'; }
+  const table = tabela();
+  let ok=0, err=0;
+  for(const id of ids){
+    try{
+      const { error } = await sb.from(table).update({ cpf:null }).eq('id', id);
+      if(error){ err++; console.warn('[cpf-conflito]',error.message); }
+      else{
+        ok++;
+        const idx=(window.allPacientes||[]).findIndex(p=>String(p.id)===String(id));
+        if(idx>=0) window.allPacientes[idx]={...window.allPacientes[idx], cpf:null};
+      }
+    }catch(e){ err++; console.warn('[cpf-conflito]',e&&e.message); }
+  }
+  if(window.showToast) showToast(err? ('Corrigido '+ok+', falhou '+err+' (tente de novo)') : ('✅ Resolvido! O outro paciente agora tem CPF em branco.'), !!err);
+  fecharModal();
+  atualizarTudo();
+}
+
+/* ---------- MODAL ---------- */
+function fecharModal(){ const bg=document.getElementById('cpf-conf-bg'); if(bg) bg.style.display='none'; }
+
+window._resolverCpfConflito = function(cpf){
+  cpf = dig(cpf);
+  const conf = (window._cpfConflitos()||[]).find(c=>c.cpf===cpf);
+  if(!conf){ if(window.showToast) showToast('Esse conflito já foi resolvido ✅'); atualizarTudo(); return; }
+
+  let bg = document.getElementById('cpf-conf-bg');
+  if(!bg){
+    bg = document.createElement('div');
+    bg.id='cpf-conf-bg';
+    bg.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
+    bg.addEventListener('click', e=>{ if(e.target===bg) fecharModal(); });
+    document.body.appendChild(bg);
+  }
+  bg.style.display='flex';
+
+  const dono0 = idKeyDe(conf.pessoas[0]); // padrão: quem tem mais registros
+  const linhas = conf.pessoas.map((p,i)=>{
+    const k = idKeyDe(p);
+    const zap = p.whatsapp ? ('zap '+p.whatsapp) : 'sem WhatsApp';
+    return ''
+      +'<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;cursor:pointer">'
+      +  '<input type="radio" name="cpf-dono" value="'+encodeURIComponent(k)+'" '+(i===0?'checked':'')+' style="width:18px;height:18px">'
+      +  '<span style="flex:1">'
+      +    '<b style="color:#0f172a">'+(p.nome||'(sem nome)')+'</b><br>'
+      +    '<span style="font-size:12px;color:#64748b">'+zap+' · '+p.n+' registro'+(p.n===1?'':'s')+'</span>'
+      +  '</span>'
+      +  '<button type="button" data-edit="'+(p.ids[0]||'')+'" style="background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer">✏️ Editar ficha</button>'
+      +'</label>';
+  }).join('');
+
+  bg.innerHTML = ''
+    +'<div style="background:#fff;border-radius:16px;max-width:460px;width:96%;max-height:88vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +  '<div style="padding:16px 18px;border-bottom:1px solid #f1f5f9">'
+    +    '<div style="font-size:16px;font-weight:800;color:#b45309">⚠️ Resolver CPF repetido</div>'
+    +    '<div style="font-size:12.5px;color:#64748b;margin-top:4px">O CPF <b>'+fmtCpf(cpf)+'</b> está em '+conf.pessoas.length+' pessoas diferentes. Marque de quem é o CPF — o sistema limpa o CPF da(s) outra(s).</div>'
+    +  '</div>'
+    +  '<div style="padding:16px 18px">'+linhas+'</div>'
+    +  '<div style="padding:12px 18px;border-top:1px solid #f1f5f9;display:flex;gap:10px;justify-content:flex-end">'
+    +    '<button type="button" id="cpf-conf-cancel" style="background:#f1f5f9;color:#334155;border:none;border-radius:10px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer">Cancelar</button>'
+    +    '<button type="button" id="cpf-conf-ok" style="background:#16a34a;color:#fff;border:none;border-radius:10px;padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer">✅ Confirmar (limpar o outro)</button>'
+    +  '</div>'
+    +'</div>';
+
+  bg.querySelector('#cpf-conf-cancel').addEventListener('click', fecharModal);
+  bg.querySelectorAll('button[data-edit]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const id=b.getAttribute('data-edit');
+      fecharModal();
+      if(typeof window._pEditOpen==='function' && id) window._pEditOpen(id);
+      else if(window.showToast) showToast('Abra a ficha do paciente pra editar o CPF',false);
+    });
+  });
+  bg.querySelector('#cpf-conf-ok').addEventListener('click', (e)=>{
+    const sel = bg.querySelector('input[name="cpf-dono"]:checked');
+    const donoKey = sel ? decodeURIComponent(sel.value) : dono0;
+    limparCpfDosOutros(cpf, donoKey, e.currentTarget);
+  });
+};
+
+/* ---------- BANNER no topo da aba Pacientes ---------- */
+function atualizarBanner(){
+  const body = document.getElementById('pu-body');
+  const table = body && body.closest('table');
+  let banner = document.getElementById('cpf-conflito-banner');
+  if(!banner){
+    if(!table || !table.parentNode) return;
+    banner = document.createElement('div');
+    banner.id='cpf-conflito-banner';
+    banner.style.cssText='margin:0 0 12px';
+    table.parentNode.insertBefore(banner, table);
+  }
+  const confs = window._cpfConflitos();
+  if(!confs.length){ banner.style.display='none'; banner.innerHTML=''; return; }
+  banner.style.display='block';
+  const n = confs.length;
+  banner.innerHTML = ''
+    +'<div style="background:#fff7ed;border:1px solid #fdba74;border-left:4px solid #f97316;border-radius:10px;padding:12px 14px;color:#7c2d12;font-size:13px">'
+    +  '<b>⚠️ '+n+' '+(n===1?'CPF está repetido':'CPFs estão repetidos')+' em mais de uma pessoa.</b> '
+    +  'Isso pode travar o retorno. Clique para resolver:'
+    +  '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">'
+    +    confs.map(c=>'<button type="button" onclick="window._resolverCpfConflito(\''+c.cpf+'\')" style="background:#f97316;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">Resolver '+fmtCpf(c.cpf)+'</button>').join('')
+    +  '</div>'
+    +'</div>';
+}
+
+/* ---------- BADGE nas linhas (inclui linhas do render progressivo) ---------- */
+function decorarLinhas(){
+  const set = confSet();
+  document.querySelectorAll('#pu-body tr[data-pac-key]').forEach(tr=>{
+    const key = tr.getAttribute('data-pac-key')||'';
+    if(!key.startsWith('cpf:')) return;
+    const cpf = key.slice(4);
+    if(set.has(cpf) && !tr.querySelector('.cpf-conf-badge')){
+      const td = tr.querySelector('td');
+      if(td){
+        const b = document.createElement('span');
+        b.className='cpf-conf-badge';
+        b.title='Este CPF está em 2 pessoas diferentes — clique para resolver';
+        b.style.cssText='display:inline-block;margin-left:6px;background:#fde68a;color:#92400e;border-radius:8px;padding:1px 7px;font-size:11px;font-weight:700;cursor:pointer';
+        b.textContent='⚠️ CPF repetido';
+        b.addEventListener('click', ev=>{ ev.stopPropagation(); window._resolverCpfConflito(cpf); });
+        td.appendChild(b);
+      }
+    }
+  });
+}
+
+let _obsOn=false;
+function startObserver(){
+  const body=document.getElementById('pu-body');
+  if(!body || _obsOn) return;
+  _obsOn=true;
+  try{ new MutationObserver(()=>{ try{ decorarLinhas(); }catch(e){} }).observe(body,{childList:true}); }catch(e){}
+}
+
+function atualizarTudo(){ try{ atualizarBanner(); }catch(e){} try{ decorarLinhas(); }catch(e){} try{ startObserver(); }catch(e){} }
+
+/* ---------- wrap do render da aba Pacientes (sem alterar o original) ---------- */
+function instalar(){
+  if(typeof window._renderPacientesUnicos!=='function') return false;
+  if(window._renderPacientesUnicos.__cpfWrapped) return true;
+  const orig = window._renderPacientesUnicos;
+  window._renderPacientesUnicos = function(){
+    const r = orig.apply(this, arguments);
+    setTimeout(atualizarTudo, 0);
+    return r;
+  };
+  window._renderPacientesUnicos.__cpfWrapped = true;
+  setTimeout(atualizarTudo, 300);
+  return true;
+}
+if(!instalar()){
+  const t=setInterval(()=>{ if(instalar()) clearInterval(t); }, 600);
+  setTimeout(()=>clearInterval(t), 30000);
+  window.addEventListener('malaquias:profile-ready', ()=>{ instalar(); }, {once:true});
+}
+
+})();
 </script>
 </body>
 </html>
