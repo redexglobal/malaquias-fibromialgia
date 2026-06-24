@@ -2732,7 +2732,7 @@ window._HEAVY_COLS = 'id,sintomas,medicacoes,pontos_dor,tempo_sintomas,precaucoe
 window._fetchAllRows = async function(tbl, ownId, cols){
   const SEL = cols || '*';
   const PAGE = 1000;
-  const MAX_ROWS = 5000;
+  const MAX_ROWS = 20000; /* era 5000: cortava o admin (tabela já passou de 7 mil linhas) → contador travava no teto. 2026-06-24 */
   try {
     /* Etapa 1: count exato server-side (head:true nao baixa dados) */
     let countQ = sb.from(tbl).select('id', { count: 'exact', head: true });
@@ -16163,6 +16163,33 @@ if(!instalar()){
   window.addEventListener('malaquias:profile-ready', ()=>{ instalar(); }, {once:true});
 }
 
+})();
+</script>
+
+<script>
+/* ============================================================
+   BATIDA DE SEGURANÇA DOS CONTADORES (admin) — garante total de cadastros
+   e pacientes únicos ATUALIZADOS em tempo real em TODOS os painéis de admin,
+   mesmo se o websocket do realtime cair. A cada 30s (só admin, só aba visível):
+   consulta LEVE (count, head:true, não baixa linhas). Atualiza o "total" na hora;
+   se o servidor divergir do carregado, faz 1 loadData pra re-sincronizar tudo.
+   100% aditivo. ============================================================ */
+(function(){
+'use strict';
+window._kpiHeartbeat = async function(){
+  if (document.hidden) return;
+  if (typeof currentProfile === 'undefined' || currentProfile?.papel !== 'admin') return;
+  try {
+    const tbl = (typeof currentProject!=='undefined' && currentProject==='oculos') ? 'pacientes_oculos' : 'pacientes_fibro';
+    const { count } = await sb.from(tbl).select('id', { count:'exact', head:true });
+    if (typeof count !== 'number') return;
+    const sub = document.getElementById('kpi-total-sub');
+    if (sub) sub.textContent = '📋 ' + count.toLocaleString('pt-BR') + ' cadastros no total';
+    const local = Array.isArray(window.allPacientes) ? window.allPacientes.length : 0;
+    if (count !== local && typeof loadData === 'function') loadData();
+  } catch(e){ /* silencioso: é só uma rede de segurança */ }
+};
+setInterval(function(){ try{ window._kpiHeartbeat(); }catch(e){} }, 30000);
 })();
 </script>
 </body>
