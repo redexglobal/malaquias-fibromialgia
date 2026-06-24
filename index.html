@@ -3617,9 +3617,34 @@ window._checkDupWhileTyping = (function(){
   let t;
   return function(){ clearTimeout(t); t=setTimeout(window._doCheckDupTyping, 350); };
 })();
-/* AVISO ENQUANTO DIGITA — DESLIGADO (regra Vilson 2026-06-17): nome igual é permitido,
-   não mostra mais "paciente já cadastrado". O único bloqueio é no salvar, só p/ nome+CPF idênticos. */
-window._doCheckDupTyping = function(){ const w=document.getElementById('s1-dup-warn'); if(w) w.style.display='none'; };
+/* AVISO ENQUANTO DIGITA — RELIGADO (pedido Vilson 2026-06-24): ao digitar nome OU CPF
+   que já existe nos cadastros dela (RLS), mostra aviso inline + botão "abrir retorno".
+   NÃO bloqueia (homônimo com CPF diferente pode cadastrar) — só avisa pra evitar duplicado. */
+window._doCheckDupTyping = function(){
+  const w=document.getElementById('s1-dup-warn'); if(!w) return;
+  const all=window.allPacientes; if(!Array.isArray(all)){ w.style.display='none'; return; }
+  const nomeEl=document.getElementById('s1-nome');
+  const cpfEl=document.getElementById('s1-cpf');
+  const nrm=window._normNomeDup||(s=>(s||'').toLowerCase().trim());
+  const nn=nrm(nomeEl&&nomeEl.value);
+  const cc=((cpfEl&&cpfEl.value)||'').replace(/\D/g,'');
+  let found=null, motivo='';
+  if(cc.length===11){ found=all.find(p=>(p.cpf||'').replace(/\D/g,'')===cc); if(found) motivo='cpf'; }
+  if(!found && nn.length>=4){ found=all.find(p=>nrm(p.nome)===nn); if(found) motivo='nome'; }
+  if(!found){ w.style.display='none'; w.innerHTML=''; return; }
+  const key=(window._grupoKeyDe?window._grupoKeyDe(found):'');
+  const nomeP=(found.nome||'paciente').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const msg = motivo==='cpf'
+    ? '⚠️ <b>Já existe um paciente com este CPF</b> ('+nomeP+'). É a mesma pessoa — se for uma nova visita, use <b>Retorno</b>.'
+    : '⚠️ <b>Já existe um paciente com este nome</b> ('+nomeP+'). Se for a MESMA pessoa, use <b>Retorno</b>. Se for outra pessoa (homônimo), pode cadastrar normalmente.';
+  w.style.display='block';
+  w.innerHTML='<div style="background:#fff7ed;border:1px solid #fdba74;border-left:4px solid #f97316;border-radius:10px;padding:10px 12px;color:#7c2d12;font-size:13px">'
+    + msg
+    + '<div style="margin-top:8px"><button type="button" id="s1-dup-retorno" style="background:#f97316;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">+ Abrir retorno deste paciente</button></div>'
+    + '</div>';
+  const btn=document.getElementById('s1-dup-retorno');
+  if(btn) btn.addEventListener('click', function(){ if(window._abrirRetornoDoCadastro) window._abrirRetornoDoCadastro(key); });
+};
 window._abrirRetornoDoCadastro = function(key){
   try{
     if(typeof window._abrirHistoricoPaciente==='function'){
