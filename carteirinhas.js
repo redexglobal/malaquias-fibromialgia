@@ -373,9 +373,104 @@ function _injetar(){
   return true;
 }
 
-if(!_injetar()){
-  const t=setInterval(()=>{ if(_injetar()) clearInterval(t); },600);
+/* ============================================================
+   GESTÃO DE CARTEIRINHAS (admin): listar / buscar / reimprimir / revogar
+   ============================================================ */
+function _statusCart(c){
+  const hoje=new Date().toISOString().slice(0,10);
+  if(c.ativo===false) return {txt:'Revogada',cor:'#b91c1c',bg:'#fee2e2'};
+  if(c.validade && String(c.validade).slice(0,10)<hoje) return {txt:'Vencida',cor:'#b45309',bg:'#fef3c7'};
+  return {txt:'Ativa',cor:'#15803d',bg:'#dcfce7'};
+}
+async function _gestaoLoad(){
+  const tb=document.getElementById('gc-body'); if(!tb) return;
+  tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#94a3b8">Carregando...</td></tr>';
+  try{ const { data }=await sb.from('carteirinhas').select('*').order('criado_em',{ascending:false}).limit(3000); window._gcRows=data||[]; }
+  catch(e){ tb.innerHTML='<tr><td colspan="7" style="color:#b91c1c;padding:20px;text-align:center">Erro ao carregar (a tabela carteirinhas existe?)</td></tr>'; return; }
+  _gestaoRender();
+}
+function _gestaoRender(){
+  const tb=document.getElementById('gc-body'); if(!tb) return;
+  const q=nrm(document.getElementById('gc-busca')?.value||''); const qd=dig(q);
+  let rows=window._gcRows||[];
+  if(q) rows=rows.filter(c=> nrm(c.nome).includes(q) || (c.numero||'').toLowerCase().includes(q.toLowerCase()) || (qd&&dig(c.cpf).includes(qd)));
+  const cont=document.getElementById('gc-count'); if(cont) cont.textContent=rows.length+' carteirinha(s)';
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#94a3b8">Nenhuma carteirinha encontrada</td></tr>'; return; }
+  tb.innerHTML=rows.slice(0,500).map(c=>{
+    const s=_statusCart(c);
+    return `<tr>
+      <td style="padding:7px 8px;font-weight:800;color:#0f766e">${esc(c.numero||'—')}</td>
+      <td style="padding:7px 8px">${esc(c.nome||'—')}</td>
+      <td style="padding:7px 8px">${c.tipo==='cronicas'?'Doenças Crônicas':'Fibromialgia'}</td>
+      <td style="padding:7px 8px;text-align:center">${fmtData(c.emitida_em)}</td>
+      <td style="padding:7px 8px;text-align:center">${fmtData(c.validade)}</td>
+      <td style="padding:7px 8px;text-align:center"><span style="background:${s.bg};color:${s.cor};padding:2px 9px;border-radius:8px;font-size:11px;font-weight:800">${s.txt}</span></td>
+      <td style="padding:7px 8px;white-space:nowrap">
+        <button class="gc-act" data-act="reimp" data-id="${c.id}" style="background:#0ea5e9;color:#fff;border:none;border-radius:6px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer;margin-right:4px">🖨️ Reimprimir</button>
+        <button class="gc-act" data-act="${c.ativo===false?'reativar':'revogar'}" data-id="${c.id}" style="background:${c.ativo===false?'#16a34a':'#ef4444'};color:#fff;border:none;border-radius:6px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer">${c.ativo===false?'✅ Reativar':'🚫 Revogar'}</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+function _gestaoReimprimir(cart){
+  const p=(window.allPacientes||[]).find(x=>x.id===cart.paciente_id);
+  _tipo = cart.tipo==='cronicas'?'cronicas':'fibromialgia'; _syncTipoBtns();
+  if(p){ _preencheDe(p); } else { _sel={id:cart.paciente_id,nome:cart.nome,cpf:cart.cpf,whatsapp:''}; }
+  const set=(id,v)=>{ const e=document.getElementById('ct-'+id); if(e) e.value=v||''; };
+  set('nome',cart.nome); set('cpf',fmtCpf(cart.cpf));
+  set('emissao',fmtData(cart.emitida_em)); set('validade',fmtData(cart.validade));
+  _token=cart.id;
+  if(typeof showSection==='function') showSection('carteirinhas', document.querySelector('[data-section=carteirinhas]'));
+  _renderPreview();
+  const stN=document.getElementById('ct-numero'); if(stN) stN.textContent='Nº '+(cart.numero||'');
+  const st=document.getElementById('ct-status'); if(st){ st.textContent='2ª via carregada (mesmo QR). É só imprimir / baixar.'; st.style.color='#0f766e'; }
+}
+async function _gestaoAcao(act,id){
+  const cart=(window._gcRows||[]).find(c=>c.id===id); if(!cart) return;
+  if(act==='reimp'){ _gestaoReimprimir(cart); return; }
+  if(act==='revogar' && !confirm('Revogar a carteirinha '+(cart.numero||'')+' de '+(cart.nome||'')+'?\nO QR passará a mostrar "inválida". (Dá pra reativar depois.)')) return;
+  try{
+    await sb.from('carteirinhas').update({ ativo: act==='reativar' }).eq('id',id);
+    cart.ativo = (act==='reativar'); _gestaoRender();
+    if(window.showToast) showToast(act==='reativar'?'Carteirinha reativada ✅':'Carteirinha revogada 🚫');
+  }catch(e){ if(window.showToast) showToast('Erro ao atualizar',true); }
+}
+function _gestaoInjetar(){
+  if(document.getElementById('sec-gestao-carteirinhas')) return true;
+  const nav=document.getElementById('nav-admin-section'); const main=document.querySelector('main.main');
+  if(!nav||!main) return false;
+  const ni=document.createElement('div'); ni.className='nav-item'; ni.setAttribute('data-section','gestao-carteirinhas');
+  ni.innerHTML='<i class="fas fa-id-card-alt"></i> Gestão Carteirinhas';
+  ni.onclick=function(){ if(typeof showSection==='function') showSection('gestao-carteirinhas',ni); _gestaoLoad(); };
+  nav.appendChild(ni);
+  const sec=document.createElement('div'); sec.className='section'; sec.id='sec-gestao-carteirinhas';
+  sec.innerHTML=`
+    <h1 class="page-title"><i class="fas fa-id-card-alt"></i> Gestão de Carteirinhas</h1>
+    <p style="color:var(--text-muted);margin:-6px 0 14px;font-size:13px">Todas as carteirinhas emitidas (por qualquer admin ou colaborador). Busque, reimprima a 2ª via (mesmo QR) ou revogue uma perdida/cancelada.</p>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <input id="gc-busca" class="ct-inp" style="max-width:340px;margin:0" placeholder="Buscar por número, nome ou CPF...">
+      <button id="gc-refresh" style="background:#475569;color:#fff;border:none;border-radius:8px;padding:9px 14px;font-weight:700;cursor:pointer">🔄 Atualizar</button>
+      <span id="gc-count" style="color:var(--text-muted);font-size:13px"></span>
+    </div>
+    <div style="overflow:auto;border:1px solid #e2e8f0;border-radius:10px">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;color:#111">
+        <thead><tr style="background:#f1f5f9;color:#334155;font-size:12px">
+          <th style="padding:8px;text-align:left">Número</th><th style="padding:8px;text-align:left">Nome</th><th style="padding:8px;text-align:left">Tipo</th><th style="padding:8px">Emissão</th><th style="padding:8px">Validade</th><th style="padding:8px">Status</th><th style="padding:8px">Ações</th>
+        </tr></thead>
+        <tbody id="gc-body"></tbody>
+      </table>
+    </div>`;
+  main.appendChild(sec);
+  document.getElementById('gc-busca').addEventListener('input',_gestaoRender);
+  document.getElementById('gc-refresh').onclick=_gestaoLoad;
+  document.getElementById('gc-body').addEventListener('click',e=>{ const b=e.target.closest('.gc-act'); if(b) _gestaoAcao(b.getAttribute('data-act'), b.getAttribute('data-id')); });
+  return true;
+}
+
+function _initAll(){ const a=_injetar(); const b=_gestaoInjetar(); return a&&b; }
+if(!_initAll()){
+  const t=setInterval(()=>{ if(_initAll()) clearInterval(t); },600);
   setTimeout(()=>clearInterval(t),30000);
-  window.addEventListener('malaquias:profile-ready',()=>_injetar(),{once:true});
+  window.addEventListener('malaquias:profile-ready',()=>_initAll(),{once:true});
 }
 })();
