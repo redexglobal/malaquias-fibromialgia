@@ -293,7 +293,7 @@ function _injetar(){
     .ct-hit-gen{flex:none;margin-right:8px;background:#16a34a;color:#fff;border:none;border-radius:7px;padding:6px 10px;font-size:11px;font-weight:800;cursor:pointer}
     .ct-btn{width:100%;padding:11px;border:none;border-radius:10px;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:8px;color:#fff}
     .ct-btn-go{background:#16a34a}.ct-btn-2{background:#0ea5e9}.ct-btn-3{background:#6366f1}.ct-btn-4{background:#475569}.ct-btn-zap{background:#25D366}
-    .ct-card{width:540px;max-width:100%;background:#fff;border:1px solid #cbd5e1;border-radius:16px;padding:16px 18px;margin-bottom:18px;font-family:Arial,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+    .ct-card{width:540px;max-width:100%;background:#fff;border:1px solid #cbd5e1;border-radius:16px;padding:16px 18px;margin-bottom:18px;font-family:Arial,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.08);color:#111}
     .ct-f-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
     .ct-f-lead{font-size:11px;color:#334155;font-weight:700}
     .ct-f-titulo{font-size:34px;font-weight:900;line-height:1.05}
@@ -314,11 +314,11 @@ function _injetar(){
     .ct-v-ico{background:#fff;color:#1f3a5f;border-radius:50%;padding:0 5px;margin-right:4px}
     .ct-v-table{width:100%;border-collapse:collapse;font-size:10px}
     .ct-v-table th{background:#5a7a3f;color:#fff;font-size:8px;padding:4px 3px;border:1px solid #cbd5e1;font-weight:800}
-    .ct-v-table td{border:1px solid #cbd5e1;height:18px;padding:2px 4px;text-align:center}
+    .ct-v-table td{border:1px solid #cbd5e1;height:18px;padding:2px 4px;text-align:center;color:#111}
     .ct-v-table .ct-sess{background:#f1f5f9;font-weight:800;color:#1f3a5f}
     .ct-v-obs{padding:8px 12px 14px}
     .ct-v-obs>span{background:#1f3a5f;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:4px;display:inline-block;margin-bottom:5px}
-    .ct-v-obsbox{border:1px solid #1f3a5f;border-radius:8px;min-height:54px}
+    .ct-v-obsbox{border:1px solid #1f3a5f;border-radius:8px;min-height:54px;color:#111;padding:4px 6px}
   `;
   document.head.appendChild(st);
 
