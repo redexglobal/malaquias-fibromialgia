@@ -12735,13 +12735,22 @@ window._renderPacientesUnicos=function(){
   if(dataF) filtered=(typeof window._matchDataBusca==='function')?filtered.filter(g=>g.visitas.some(v=>window._matchDataBusca(v,dataF))):filtered;
   filtered.sort((a,b)=>(b.paciente.criado_em||'').localeCompare(a.paciente.criado_em||''));
 
-  /* LISTA ILIMITADA (2026-06-25): sem teto de exibição. Mostra TODOS os pacientes
-     via scroll incremental (render sob demanda) — o navegador só desenha o que a
-     pessoa rola até ver, então escala pra dezenas de milhares sem travar. A busca
-     filtra o banco inteiro ANTES, então achar qualquer um continua instantâneo. */
+  /* PAGINAÇÃO (2026-06-25, pedido Vilson): mostra TODOS os pacientes em páginas de
+     1.500, com botões Anterior/Próxima. Cadastro é ilimitado; isto é só a EXIBIÇÃO.
+     A busca filtra o banco inteiro ANTES de paginar — achar qualquer um é direto. */
+  const PAGE_SIZE=1500;
+  const totalPages=Math.max(1, Math.ceil(filtered.length/PAGE_SIZE));
+  /* volta pra página 1 só quando a busca/filtro muda (não ao trocar de página) */
+  const _sig=_rawq+'|'+dataF;
+  if(body._puSig!==_sig){ body._puPage=1; body._puSig=_sig; }
+  if(!Number.isInteger(body._puPage)||body._puPage<1) body._puPage=1;
+  if(body._puPage>totalPages) body._puPage=totalPages;
+  const page=body._puPage;
+  const start=(page-1)*PAGE_SIZE;
+  const show=filtered.slice(start, start+PAGE_SIZE);
+
   const title=document.getElementById('pu-title');
   if(title) title.textContent=filtered.length+' pacientes únicos';
-  const show=filtered;
 
   const row=g=>{
     const p=g.paciente;
@@ -12758,45 +12767,36 @@ window._renderPacientesUnicos=function(){
     </tr>`;
   };
 
-  if(!show.length){ body.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">Nenhum paciente encontrado</td></tr>'; return; }
-
-  /* Render SOB DEMANDA (scroll infinito): pinta o 1º bloco na hora e vai anexando
-     os próximos conforme a pessoa rola perto do fim (IntersectionObserver). Assim a
-     lista é ilimitada mas o DOM só cresce com o scroll — nunca trava no boot nem em
-     volume alto. Fallback: navegador sem IntersectionObserver renderiza em blocos
-     no tempo ocioso (requestIdleCallback). */
-  const FIRST=200, STEP=300;
-  const _puRenderToken=(body._puToken=(body._puToken||0)+1); /* cancela render anterior se filtrar de novo */
-  if(body._puObs){ try{ body._puObs.disconnect(); }catch(_){} body._puObs=null; }
-  body.innerHTML=show.slice(0,FIRST).map(row).join('');
-  let i=FIRST;
-  if(i<show.length){
-    const IO=window.IntersectionObserver;
-    const appendNext=()=>{
-      if(body._puToken!==_puRenderToken || i>=show.length) return false;
-      body.insertAdjacentHTML('beforeend', show.slice(i,i+STEP).map(row).join(''));
-      i+=STEP;
-      return true;
-    };
-    if(IO){
-      const observeTail=()=>{
-        if(body._puObs){ try{ body._puObs.disconnect(); }catch(_){} body._puObs=null; }
-        if(body._puToken!==_puRenderToken || i>=show.length) return;
-        const linhas=body.querySelectorAll('tr[data-pac-key]');
-        const alvo=linhas[Math.max(0, linhas.length-15)]; /* sentinela ~15 linhas antes do fim */
-        if(!alvo) return;
-        body._puObs=new IO(ents=>{
-          if(ents.some(e=>e.isIntersecting)){ if(appendNext()) observeTail(); }
-        }, {rootMargin:'600px 0px'}); /* pré-carrega antes de chegar no fim */
-        body._puObs.observe(alvo);
-      };
-      observeTail();
-    } else {
-      const idle=window.requestIdleCallback||(f=>setTimeout(f,30));
-      const step=()=>{ if(appendNext()) idle(step); };
-      idle(step);
-    }
+  const _puRenderToken=(body._puToken=(body._puToken||0)+1); /* cancela render anterior se paginar/filtrar de novo */
+  if(!show.length){
+    body.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">Nenhum paciente encontrado</td></tr>';
+  } else {
+    /* Render progressivo DENTRO da página (até 1.500): 1º bloco na hora, resto no
+       tempo ocioso — abre instantâneo e não trava nem com a página cheia. */
+    const FIRST=200, STEP=300;
+    body.innerHTML=show.slice(0,FIRST).map(row).join('');
+    let i=FIRST;
+    const idle=window.requestIdleCallback||(f=>setTimeout(f,30));
+    const step=()=>{ if(body._puToken!==_puRenderToken||i>=show.length) return; body.insertAdjacentHTML('beforeend', show.slice(i,i+STEP).map(row).join('')); i+=STEP; idle(step); };
+    if(show.length>FIRST) idle(step);
   }
+
+  /* Controles de página (Anterior / Próxima) embaixo da tabela */
+  (function(){
+    const card=body.closest('.table-card')||body.parentElement; if(!card) return;
+    let pager=card.querySelector('#pu-pager');
+    if(totalPages<=1){ if(pager){ pager.style.display='none'; pager.innerHTML=''; } return; }
+    if(!pager){ pager=document.createElement('div'); pager.id='pu-pager'; card.appendChild(pager); }
+    pager.style.cssText='display:flex;align-items:center;justify-content:center;gap:14px;padding:16px;flex-wrap:wrap;border-top:1px solid var(--border,rgba(255,255,255,0.08))';
+    const ini=start+1, fim=Math.min(start+PAGE_SIZE, filtered.length);
+    const btn=(id,txt,dis)=>`<button id="${id}" ${dis?'disabled':''} style="background:${dis?'rgba(255,255,255,0.04)':'var(--accent,#00c853)'};color:${dis?'var(--text-muted,#888)':'#062a13'};border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:${dis?'default':'pointer'};opacity:${dis?'0.5':'1'}">${txt}</button>`;
+    pager.innerHTML=btn('pu-prev','◀ Anterior',page<=1)
+      +`<span style="font-size:13px;color:var(--text-secondary,#aaa);font-weight:600">Página ${page} de ${totalPages} · ${ini}–${fim} de ${filtered.length}</span>`
+      +btn('pu-next','Próxima ▶',page>=totalPages);
+    const go=d=>{ const np=body._puPage+d; if(np>=1&&np<=totalPages){ body._puPage=np; window._renderPacientesUnicos(); try{ card.scrollIntoView({behavior:'smooth',block:'start'}); }catch(_){} } };
+    pager.querySelector('#pu-prev')?.addEventListener('click',()=>go(-1));
+    pager.querySelector('#pu-next')?.addEventListener('click',()=>go(1));
+  })();
 };
 
 window._abrirHistoricoPaciente=async function(key){
