@@ -6427,6 +6427,10 @@ window._stgSave = async function() {
   if (insertedRow && typeof window._applyRecordToLocal === 'function') {
     window._applyRecordToLocal('INSERT', insertedRow, null);
     if (typeof window._renderLight === 'function') window._renderLight();
+    /* Garante que o paciente RECEM-CADASTRADO ja apareca na aba Pacientes na hora
+       (fix 2026-06-25: _renderLight nao re-renderiza a lista de unicos; a colaboradora
+       cadastrava e nao via o paciente ao ir conferir). Aditivo, barato, sem fetch. */
+    if (typeof window._renderPacientesUnicos === 'function') { try { window._renderPacientesUnicos(); } catch(_){} }
   }
 
   /* Segura o "✔ Salvo!" visivel por ~0,9s, depois limpa o form pro proximo paciente.
@@ -12709,12 +12713,21 @@ window._renderPacientesUnicos=function(){
   const _nrm=s=>window._normNomeDup?window._normNomeDup(s):(s||'').toLowerCase().trim();
   const q=_nrm(_rawq);
   const qDigits=_rawq.replace(/\D/g,'');
+  /* Busca por PALAVRAS / TOKENS (fix 2026-06-25): em vez de exigir o texto digitado
+     GRUDADO no nome (substring contígua), exige que TODAS as palavras digitadas
+     existam no nome, em QUALQUER ordem. Assim "ivonete santos" acha
+     "IVONETE RIBEIRO DOS SANTOS" (antes não achava — 93% dos nomes falhavam).
+     Nunca esconde o que a busca antiga achava (tokens ⊇ substring). */
+  const qTokens=q.split(' ').filter(Boolean);
+  const _grpNomeMatch=g=>{
+    const cands=[g.paciente.nome, ...g.visitas.map(v=>v.nome)];
+    return cands.some(nm=>{ const n=_nrm(nm); return qTokens.every(t=>n.includes(t)); });
+  };
   const dataF=document.getElementById('pu-search-data')?.value||'';
   const groups=_puAgrupar();
   let filtered=q
     ? groups.filter(g=>
-        _nrm(g.paciente.nome).includes(q)||
-        g.visitas.some(v=>_nrm(v.nome).includes(q))||
+        (qTokens.length && _grpNomeMatch(g))||
         (qDigits && g.visitas.some(v=>(v.cpf||'').replace(/\D/g,'').includes(qDigits)))||
         (qDigits && g.visitas.some(v=>(v.whatsapp||'').replace(/\D/g,'').includes(qDigits)))
       )
