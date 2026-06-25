@@ -12735,12 +12735,13 @@ window._renderPacientesUnicos=function(){
   if(dataF) filtered=(typeof window._matchDataBusca==='function')?filtered.filter(g=>g.visitas.some(v=>window._matchDataBusca(v,dataF))):filtered;
   filtered.sort((a,b)=>(b.paciente.criado_em||'').localeCompare(a.paciente.criado_em||''));
 
-  const CAP=3000; /* 2026-06-25: era 1500 e o ponto 03 (Natália) já tinha 1366 únicos
-                     (74 cadastros/dia) — ia estourar em dias e "sumir" pacientes da lista.
-                     Render é progressivo (não trava). Busca filtra antes do cap. */
+  /* LISTA ILIMITADA (2026-06-25): sem teto de exibição. Mostra TODOS os pacientes
+     via scroll incremental (render sob demanda) — o navegador só desenha o que a
+     pessoa rola até ver, então escala pra dezenas de milhares sem travar. A busca
+     filtra o banco inteiro ANTES, então achar qualquer um continua instantâneo. */
   const title=document.getElementById('pu-title');
-  if(title) title.textContent=filtered.length+' pacientes únicos'+(filtered.length>CAP?' · mostrando '+CAP+' (refine a busca)':'');
-  const show=filtered.slice(0,CAP);
+  if(title) title.textContent=filtered.length+' pacientes únicos';
+  const show=filtered;
 
   const row=g=>{
     const p=g.paciente;
@@ -12759,19 +12760,43 @@ window._renderPacientesUnicos=function(){
 
   if(!show.length){ body.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">Nenhum paciente encontrado</td></tr>'; return; }
 
-  /* Render PROGRESSIVO: 1º bloco pinta na hora (abre instantâneo mesmo no admin
-     com milhares), o resto entra em blocos no tempo ocioso — nunca trava. */
-  const FIRST=120, STEP=300;
+  /* Render SOB DEMANDA (scroll infinito): pinta o 1º bloco na hora e vai anexando
+     os próximos conforme a pessoa rola perto do fim (IntersectionObserver). Assim a
+     lista é ilimitada mas o DOM só cresce com o scroll — nunca trava no boot nem em
+     volume alto. Fallback: navegador sem IntersectionObserver renderiza em blocos
+     no tempo ocioso (requestIdleCallback). */
+  const FIRST=200, STEP=300;
+  const _puRenderToken=(body._puToken=(body._puToken||0)+1); /* cancela render anterior se filtrar de novo */
+  if(body._puObs){ try{ body._puObs.disconnect(); }catch(_){} body._puObs=null; }
   body.innerHTML=show.slice(0,FIRST).map(row).join('');
   let i=FIRST;
-  const idle=window.requestIdleCallback||(f=>setTimeout(f,30));
-  const _puRenderToken=(body._puToken=(body._puToken||0)+1); /* cancela render anterior se filtrar de novo */
-  const step=()=>{
-    if(body._puToken!==_puRenderToken || i>=show.length) return;
-    body.insertAdjacentHTML('beforeend', show.slice(i,i+STEP).map(row).join(''));
-    i+=STEP; idle(step);
-  };
-  if(show.length>FIRST) idle(step);
+  if(i<show.length){
+    const IO=window.IntersectionObserver;
+    const appendNext=()=>{
+      if(body._puToken!==_puRenderToken || i>=show.length) return false;
+      body.insertAdjacentHTML('beforeend', show.slice(i,i+STEP).map(row).join(''));
+      i+=STEP;
+      return true;
+    };
+    if(IO){
+      const observeTail=()=>{
+        if(body._puObs){ try{ body._puObs.disconnect(); }catch(_){} body._puObs=null; }
+        if(body._puToken!==_puRenderToken || i>=show.length) return;
+        const linhas=body.querySelectorAll('tr[data-pac-key]');
+        const alvo=linhas[Math.max(0, linhas.length-15)]; /* sentinela ~15 linhas antes do fim */
+        if(!alvo) return;
+        body._puObs=new IO(ents=>{
+          if(ents.some(e=>e.isIntersecting)){ if(appendNext()) observeTail(); }
+        }, {rootMargin:'600px 0px'}); /* pré-carrega antes de chegar no fim */
+        body._puObs.observe(alvo);
+      };
+      observeTail();
+    } else {
+      const idle=window.requestIdleCallback||(f=>setTimeout(f,30));
+      const step=()=>{ if(appendNext()) idle(step); };
+      idle(step);
+    }
+  }
 };
 
 window._abrirHistoricoPaciente=async function(key){
