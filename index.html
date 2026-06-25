@@ -12735,7 +12735,9 @@ window._renderPacientesUnicos=function(){
   if(dataF) filtered=(typeof window._matchDataBusca==='function')?filtered.filter(g=>g.visitas.some(v=>window._matchDataBusca(v,dataF))):filtered;
   filtered.sort((a,b)=>(b.paciente.criado_em||'').localeCompare(a.paciente.criado_em||''));
 
-  const CAP=1500;
+  const CAP=3000; /* 2026-06-25: era 1500 e o ponto 03 (Natália) já tinha 1366 únicos
+                     (74 cadastros/dia) — ia estourar em dias e "sumir" pacientes da lista.
+                     Render é progressivo (não trava). Busca filtra antes do cap. */
   const title=document.getElementById('pu-title');
   if(title) title.textContent=filtered.length+' pacientes únicos'+(filtered.length>CAP?' · mostrando '+CAP+' (refine a busca)':'');
   const show=filtered.slice(0,CAP);
