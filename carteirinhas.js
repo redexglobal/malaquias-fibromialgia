@@ -467,7 +467,39 @@ function _gestaoInjetar(){
   return true;
 }
 
-function _initAll(){ const a=_injetar(); const b=_gestaoInjetar(); return a&&b; }
+/* ---------- ACESSO RÁPIDO: botão 🪪 nas linhas de Pacientes e Cadastrados ----------
+   As duas listas usam tr[data-pac-key]. Adiciona um botão que leva pra aba
+   Carteirinhas com o paciente JÁ carregado e a carteirinha JÁ gerada (QR pronto). */
+window._ctAbrirPaciente=function(key){
+  const all=window.allPacientes||[]; let p=null;
+  if(key && key.indexOf('cpf:')===0){ const c=key.slice(4); p=all.find(x=>dig(x.cpf)===c); }
+  else if(key && key.indexOf('nw:')===0){ const parts=key.slice(3).split('|'); p=all.find(x=>nrm(x.nome)===parts[0] && dig(x.whatsapp)===(parts[1]||'')); }
+  if(!p){ if(window.showToast) showToast('Paciente não encontrado',true); return; }
+  if(typeof showSection==='function') showSection('carteirinhas', document.querySelector('[data-section=carteirinhas]'));
+  _preencheDe(p);
+  try{ window.scrollTo(0,0); }catch(e){}
+  _gerar(null); /* já gera a carteirinha (QR pronto) */
+};
+function _decorarRows(){
+  document.querySelectorAll('tr[data-pac-key]').forEach(tr=>{
+    if(tr.querySelector('.ct-row-btn')) return;
+    const tds=tr.querySelectorAll('td'); if(!tds.length) return;
+    const b=document.createElement('button');
+    b.className='ct-row-btn'; b.type='button'; b.title='Gerar carteirinha deste paciente'; b.textContent='🪪';
+    b.style.cssText='margin-left:6px;background:#16a34a;color:#fff;border:none;border-radius:6px;padding:2px 7px;font-size:12px;cursor:pointer;vertical-align:middle';
+    b.addEventListener('click',function(ev){ ev.stopPropagation(); window._ctAbrirPaciente(tr.getAttribute('data-pac-key')); });
+    tds[tds.length-1].appendChild(b);
+  });
+}
+let _ctObs=false;
+function _startRowObserver(){
+  if(_ctObs) return; const main=document.querySelector('main.main'); if(!main) return; _ctObs=true;
+  let to=null;
+  try{ new MutationObserver(()=>{ clearTimeout(to); to=setTimeout(()=>{ try{_decorarRows();}catch(e){} },300); }).observe(main,{childList:true,subtree:true}); }catch(e){}
+  setTimeout(()=>{ try{_decorarRows();}catch(e){} },600);
+}
+
+function _initAll(){ const a=_injetar(); const b=_gestaoInjetar(); if(a) _startRowObserver(); return a&&b; }
 if(!_initAll()){
   const t=setInterval(()=>{ if(_initAll()) clearInterval(t); },600);
   setTimeout(()=>clearInterval(t),30000);
