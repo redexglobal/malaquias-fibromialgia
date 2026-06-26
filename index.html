@@ -6006,7 +6006,7 @@ function _buildStg2Oculos() {
 }
 
 function _buildStg3Fibro() {
-  const pontos=['Cabeça','Pescoço','Ombros','Costas sup.','Costas inf.','Braços','Antebraços','Quadris','Coxas','Joelhos','Pernas','Pés'];
+  const pontos=['Cabeça','Pescoço','Ombros','Costas sup.','Costas inf.','Braços','Antebraços','Punho Esquerdo','Punho Direito','Quadris','Coxas','Joelhos','Pernas','Pés'];
   return `
     <div class="stg-card">
       <div class="stg-section-title">Avaliação de Dor</div>
@@ -12958,7 +12958,7 @@ window._abrirRetornoModal=function(key){
   if(!g){ if(typeof showToast==='function') showToast('Paciente não encontrado',true); return; }
   const pBase=g.paciente;
   const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
-  const pontos=['Cabeça','Pescoço','Ombros','Costas sup.','Costas inf.','Braços','Antebraços','Quadris','Coxas','Joelhos','Pernas','Pés'];
+  const pontos=['Cabeça','Pescoço','Ombros','Costas sup.','Costas inf.','Braços','Antebraços','Punho Esquerdo','Punho Direito','Quadris','Coxas','Joelhos','Pernas','Pés'];
   const trts=['Antirreflexo','Blue Light','Fotossensível','Polarizado','UV 400','Anti-risco','Espelhado'];
   const hojeBR=_todayBR();
 
@@ -13292,7 +13292,7 @@ window._pEditOpen=async function(recordId){
   if (typeof window._ensureFull === 'function') await window._ensureFull(rec);
   const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
   const esc=s=>(s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  const pontos=['Cabeça','Pescoço','Ombros','Costas sup.','Costas inf.','Braços','Antebraços','Quadris','Coxas','Joelhos','Pernas','Pés'];
+  const pontos=['Cabeça','Pescoço','Ombros','Costas sup.','Costas inf.','Braços','Antebraços','Punho Esquerdo','Punho Direito','Quadris','Coxas','Joelhos','Pernas','Pés'];
   const trts=['Antirreflexo','Blue Light','Fotossensível','Polarizado','UV 400','Anti-risco','Espelhado'];
   const pdSet=new Set((rec.pontos_dor||'').split(',').map(s=>s.trim()).filter(Boolean));
   const trtSet=new Set((rec.tratamentos_lente||'').split(',').map(s=>s.trim()).filter(Boolean));
