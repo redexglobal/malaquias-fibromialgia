@@ -3917,6 +3917,15 @@ sb.channel('fibro-changes')
       /* Mutacao incremental + render leve em vez de loadData() cheio */
       window._applyRecordToLocal(ev, payload.new, payload.old);
       window._renderLight();
+    } else if (currentProfile?.papel === 'colaborador') {
+      /* TEMPO REAL pro COLABORADOR (2026-06-26, login compartilhado ponto 9):
+         a RLS garante que só chegam mudanças dos cadastros DESTE login — então quando
+         a outra colaboradora do mesmo login cadastra, aparece NA HORA aqui (sem os 15s).
+         _applyRecordToLocal é idempotente: não duplica o próprio insert já aplicado. */
+      const ev = payload.eventType;
+      window._applyRecordToLocal(ev, payload.new, payload.old);
+      if (typeof window._renderLight === 'function') window._renderLight();
+      if (typeof window._renderPacientesUnicos === 'function') { try { window._renderPacientesUnicos(); } catch(_){} }
     }
   })
   .subscribe((status) => {
