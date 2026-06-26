@@ -13421,6 +13421,9 @@ window._pEditClose=function(){ const bg=document.getElementById('_ped-bg'); if(b
 async function _pEditSave(recordId,btnRef){
   const proj=typeof currentProject!=='undefined'?currentProject:'fibro';
   const table=proj==='oculos'?'pacientes_oculos':'pacientes_fibro';
+  /* snapshot da identidade ANTES do update — pra manter o paciente unido se a identidade mudar */
+  const _origRec=(window.allPacientes||[]).find(p=>String(p.id)===String(recordId))||null;
+  const _origIdent=(_origRec&&typeof window._grupoKeyDe==='function')?{nome:_origRec.nome,cpf:_origRec.cpf,whatsapp:_origRec.whatsapp,key:window._grupoKeyDe(_origRec)}:null;
   const val=id=>{const e=document.getElementById(id);return e?e.value:undefined;};
   const txt=id=>{const v=val(id);return v!=null&&String(v).trim()!==''?String(v).trim():null;};
 
@@ -13485,6 +13488,29 @@ async function _pEditSave(recordId,btnRef){
 
   if(btnRef){ btnRef.disabled=false; btnRef.textContent='💾 Salvar Alterações'; }
   if(error){ console.error('[malaquias:edit]',error); if(typeof showToast==='function') showToast('Erro ao salvar: '+error.message,true); return; }
+
+  /* MANTÉM O PACIENTE UNIDO (fix 2026-06-26): editar a identidade (nome/CPF/WhatsApp) de
+     UM registro fazia o paciente "rachar" — a linha editada saía do grupo e virava um
+     "paciente novo" com parte dos retornos. Se a identidade mudou, propaga nome/CPF/WhatsApp
+     pra TODAS as linhas do mesmo paciente; assim cada paciente segue com os seus retornos. */
+  try{
+    if(_origIdent){
+      const lc=s=>(s||'').toString().toLowerCase().trim();
+      const mudou = lc(_origIdent.nome)!==lc(payload.nome)
+        || (_origIdent.cpf||'').replace(/\D/g,'')!==(payload.cpf||'').replace(/\D/g,'')
+        || (_origIdent.whatsapp||'').replace(/\D/g,'')!==(payload.whatsapp||'').replace(/\D/g,'');
+      if(mudou){
+        const irmaos=(window.allPacientes||[]).filter(p=>String(p.id)!==String(recordId) && window._grupoKeyDe(p)===_origIdent.key);
+        if(irmaos.length){
+          const ident={nome:payload.nome,cpf:payload.cpf,whatsapp:payload.whatsapp};
+          const ids=irmaos.map(p=>p.id);
+          const up=await sb.from(table).update(ident).in('id',ids);
+          if(up.error) console.warn('[malaquias:edit-propaga]',up.error.message);
+          else irmaos.forEach(p=>{ const k=(window.allPacientes||[]).findIndex(x=>String(x.id)===String(p.id)); if(k>=0) window.allPacientes[k]={...window.allPacientes[k],...ident}; });
+        }
+      }
+    }
+  }catch(e){ console.warn('[malaquias:edit-propaga]',e?.message||e); }
 
   const idx=(window.allPacientes||[]).findIndex(p=>String(p.id)===String(recordId));
   if(idx>=0) window.allPacientes[idx]={...window.allPacientes[idx],...payload};
