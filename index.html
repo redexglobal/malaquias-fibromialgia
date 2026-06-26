@@ -16255,7 +16255,13 @@ if(!instalar()){
 'use strict';
 window._kpiHeartbeat = async function(){
   if (document.hidden) return;
-  if (typeof currentProfile === 'undefined' || currentProfile?.papel !== 'admin') return;
+  if (typeof currentProfile === 'undefined' || !currentProfile) return;
+  const _papel = currentProfile.papel;
+  /* ATUALIZAÇÃO AUTOMÁTICA (2026-06-26): liberada tbm pro COLABORADOR — pedido Vilson
+     pro login compartilhado (ponto 9 = 2 Ivones lado a lado): quando uma cadastra,
+     o count do login muda e a lista da OUTRA atualiza sozinha. Egress mínimo: só
+     conta (head:true, não baixa linhas); só refaz loadData SE alguém cadastrou. */
+  if (_papel !== 'admin' && _papel !== 'colaborador') return;
   try {
     const tbl = (typeof currentProject!=='undefined' && currentProject==='oculos') ? 'pacientes_oculos' : 'pacientes_fibro';
     const { count } = await sb.from(tbl).select('id', { count:'exact', head:true });
@@ -16263,7 +16269,11 @@ window._kpiHeartbeat = async function(){
     const sub = document.getElementById('kpi-total-sub');
     if (sub) sub.textContent = '📋 ' + count.toLocaleString('pt-BR') + ' cadastros no total';
     const local = Array.isArray(window.allPacientes) ? window.allPacientes.length : 0;
-    if (count !== local && typeof loadData === 'function') loadData();
+    if (count !== local && typeof loadData === 'function') {
+      await loadData();
+      /* mostra o cadastro novo (ex: o que a outra colaboradora do mesmo login fez) na hora */
+      if (typeof window._renderPacientesUnicos === 'function') { try { window._renderPacientesUnicos(); } catch(_){} }
+    }
   } catch(e){ /* silencioso: é só uma rede de segurança */ }
 };
 setInterval(function(){ try{ window._kpiHeartbeat(); }catch(e){} }, 30000);
