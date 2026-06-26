@@ -2861,7 +2861,7 @@ function _contarPacientesUnicos(list) {
   const keys = new Set();
   (list || []).forEach(p => {
     const cpf = (p.cpf || '').replace(/\D/g, '');
-    const cpfOK = window._cpfValido && window._cpfValido(cpf);
+    const cpfOK = window._cpfValidoForte && window._cpfValidoForte(cpf);
     const key = cpfOK ? ('cpf:' + cpf) : ('nw:' + ((p.nome||'').toLowerCase().trim()) + '|' + ((p.whatsapp||'').replace(/\D/g,'')));
     keys.add(key);
   });
@@ -3636,7 +3636,7 @@ window._dupConfirm = function(nome){
 /* Chave de grupo igual a do _puAgrupar (pra abrir o historico certo). */
 window._grupoKeyDe = function(p){
   const cpf=(p.cpf||'').replace(/\D/g,'');
-  const cpfOK=window._cpfValido && window._cpfValido(cpf);
+  const cpfOK=window._cpfValidoForte && window._cpfValidoForte(cpf);
   return cpfOK ? 'cpf:'+cpf : 'nw:'+((p.nome||'').toLowerCase().trim())+'|'+((p.whatsapp||'').replace(/\D/g,''));
 };
 window._checkDupWhileTyping = (function(){
@@ -5312,7 +5312,7 @@ window.updateTable = function() {
     const groupMap = new Map();
     list.forEach(p => {
       const cpf = (p.cpf || '').replace(/\D/g, '');
-      const cpfOK = window._cpfValido && window._cpfValido(cpf);
+      const cpfOK = window._cpfValidoForte && window._cpfValidoForte(cpf);
       const key = cpfOK ? 'cpf:' + cpf : 'nw:' + ((p.nome||'').toLowerCase().trim()) + '|' + ((p.whatsapp||'').replace(/\D/g,''));
       if (!groupMap.has(key)) groupMap.set(key, {key, nome: p.nome||'—', idade: p.idade, whatsapp: p.whatsapp||'', visitas:[]});
       groupMap.get(key).visitas.push(p);
@@ -8976,7 +8976,7 @@ window._renderCadastrosAgrupadoAdmin = function(records) {
   const groups = new Map();
   (records||[]).forEach(p => {
     const cpf = (p.cpf||'').replace(/\D/g,'');
-    const cpfOK = window._cpfValido && window._cpfValido(cpf);
+    const cpfOK = window._cpfValidoForte && window._cpfValidoForte(cpf);
     const key = cpfOK ? 'cpf:'+cpf : 'nw:'+((p.nome||'').toLowerCase().trim())+'|'+((p.whatsapp||'').replace(/\D/g,''));
     if (!groups.has(key)) groups.set(key, { key, paciente: p, visitas: [] });
     const g = groups.get(key);
@@ -10476,7 +10476,7 @@ window._pdfPopulatePontos = async function(){
 /* Chave de identidade do paciente (igual ao agrupamento das abas Pacientes). */
 window._pdfPacKey = function(p){
   const cpf=(p.cpf||'').replace(/\D/g,'');
-  const cpfOK=window._cpfValido && window._cpfValido(cpf);
+  const cpfOK=window._cpfValidoForte && window._cpfValidoForte(cpf);
   return cpfOK ? 'cpf:'+cpf : 'nw:'+((p.nome||'').toLowerCase().trim())+'|'+((p.whatsapp||'').replace(/\D/g,''));
 };
 
@@ -12728,7 +12728,7 @@ function _puAgrupar(){
   const groups=new Map();
   list.forEach(p=>{
     const cpf=(p.cpf||'').replace(/\D/g,'');
-    const cpfOK=window._cpfValido&&window._cpfValido(cpf);
+    const cpfOK=window._cpfValidoForte&&window._cpfValidoForte(cpf);
     const key=cpfOK
       ? 'cpf:'+cpf
       : 'nw:'+((p.nome||'').toLowerCase().trim())+'|'+((p.whatsapp||'').replace(/\D/g,''));
@@ -15801,7 +15801,7 @@ window._rdLoad=async function(){
   const grupo=new Map();
   (rows||[]).forEach(r=>{
     const cpfRaw=(r.cpf||'').replace(/\D/g,'');
-    const cpfOK=window._cpfValido&&window._cpfValido(cpfRaw);
+    const cpfOK=window._cpfValidoForte&&window._cpfValidoForte(cpfRaw);
     const key=cpfOK?'cpf:'+cpfRaw:'nw:'+((r.nome||'').toLowerCase().trim())+'|'+((r.whatsapp||'').replace(/\D/g,''));
     if(!grupo.has(key))grupo.set(key,r);
     else{
