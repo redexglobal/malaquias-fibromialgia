@@ -6387,6 +6387,17 @@ window._stgSave = async function() {
     });
   }
 
+  /* Esse paciente já existe? (mesma identidade = vai AGRUPAR como retorno na ficha dele,
+     não vira paciente novo). Detecta ANTES do insert pra avisar a colaboradora certo —
+     era a confusão "adicionei retorno e virou cadastro novo". */
+  let _jaExiste=null;
+  try{
+    if(typeof window._grupoKeyDe==='function' && Array.isArray(window.allPacientes)){
+      const _k=window._grupoKeyDe(payload);
+      _jaExiste=window.allPacientes.find(p=>window._grupoKeyDe(p)===_k)||null;
+    }
+  }catch(_){}
+
   /* Remove campos com coluna potencialmente faltando — tenta inserir, se falhar remove e tenta sem */
   const newCols = proj==='fibro'
     ? ['cpf','nome_mae','nome_pai','adultos_no_lar','estado_civil','cidade','origem','nivel_melhora','precaucoes_clinicas','tempo_sintomas','medicacoes','pontos_dor','proximo_retorno','data_nascimento']
@@ -6421,7 +6432,7 @@ window._stgSave = async function() {
 
   /* SUCESSO: feedback verde bem visivel no proprio botao (✔ Salvo!) */
   if(btn){ btn.classList.remove('is-saving'); btn.classList.add('is-saved'); btn.disabled=true; btn.innerHTML='✔ Salvo com sucesso!'; }
-  _toast(proj==='oculos'?'Pedido cadastrado com sucesso!':'Paciente cadastrado com sucesso!');
+  _toast(_jaExiste ? ('✅ Retorno adicionado a '+(_jaExiste.nome||'este paciente')+' — entrou na ficha dele (não criou paciente novo)') : (proj==='oculos'?'Pedido cadastrado com sucesso!':'Paciente cadastrado com sucesso!'));
 
   /* Atualiza os dados JA (lista local + admin via realtime), sem mexer no form ainda */
   if (insertedRow && typeof window._applyRecordToLocal === 'function') {
