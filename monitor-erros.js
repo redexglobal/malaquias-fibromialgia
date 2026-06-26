@@ -18,7 +18,12 @@ function _logErro(msg, origem){
     if(typeof sb==='undefined') return;
     msg=(msg||'').toString().slice(0,600);
     if(!msg) return;
-    if(/ResizeObserver loop|Script error\.?$|Non-Error promise/i.test(msg)) return; /* ruído inofensivo */
+    origem=(origem||'').toString();
+    /* RUÍDO IGNORADO (2026-06-26): erros de EXTENSÕES do navegador da pessoa —
+       MetaMask/carteiras cripto, tradutores, etc. — NÃO são do sistema e poluíam o
+       painel. Também ruídos inofensivos do browser. Só registramos erro REAL do app. */
+    const _ruido=/ResizeObserver loop|Script error\.?$|Non-Error promise|metamask|ethereum|web3|wallet|solana|phantom|coinbase|evmask|inpage\.js|contentscript|chrome-extension:\/\/|moz-extension:\/\/|safari-web-extension|extension context invalidated|cannot redefine property|requestprovider|failed to connect to metamask|object\.connect/i;
+    if(_ruido.test(msg) || _ruido.test(origem)) return;
     const key=msg.slice(0,120);
     if(SEEN.has(key)) return; SEEN.add(key);
     if(_count++>=MAX) return;
