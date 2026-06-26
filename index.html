@@ -3474,6 +3474,32 @@ window._cpfValido = function(cpf){
   return true;
 };
 
+/* CPF válido DE VERDADE (com dígito verificador) + rejeita placeholder "XYZ+zeros".
+   Usado pra AVISAR no cadastro quando digitam um CPF falso/errado (não bloqueia). */
+window._cpfValidoForte = function(cpf){
+  const d = String(cpf||'').replace(/\D/g,'');
+  if(d.length !== 11) return false;
+  if(/^(\d)\1{10}$/.test(d)) return false;
+  if(/0{7}$/.test(d)) return false;
+  let s=0; for(let i=0;i<9;i++) s+=parseInt(d[i],10)*(10-i);
+  let r=(s*10)%11; if(r===10) r=0; if(r!==parseInt(d[9],10)) return false;
+  s=0; for(let i=0;i<10;i++) s+=parseInt(d[i],10)*(11-i);
+  r=(s*10)%11; if(r===10) r=0; if(r!==parseInt(d[10],10)) return false;
+  return true;
+};
+
+/* Aviso de CPF inválido enquanto digita no Novo Cadastro — NÃO bloqueia, só alerta
+   (CPF não é obrigatório; mas se digitar, avisa quando estiver errado/falso). */
+window._checkCpfValido = function(){
+  const el=document.getElementById('s1-cpf'); const w=document.getElementById('s1-cpf-warn');
+  if(!el||!w) return;
+  const d=(el.value||'').replace(/\D/g,'');
+  if(d.length<11){ w.style.display='none'; w.innerHTML=''; return; } /* vazio/incompleto: não atrapalha */
+  if(window._cpfValidoForte(d)){ w.style.display='none'; w.innerHTML=''; return; } /* válido */
+  w.style.display='block';
+  w.innerHTML='<span style="color:#b45309;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:4px 8px;display:inline-block">⚠️ CPF inválido — confira os números.</span>';
+};
+
 /* Helper: detecta WhatsApp invalido.
    Aceita 10 digitos (fixo com DDD) ou 11 digitos (movel com DDD).
    Rejeita todos digitos iguais (1111111111, 9999999999, etc). */
@@ -5888,7 +5914,8 @@ function _buildStg1() {
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">CPF</label>
-          <input type="text" class="form-input" id="s1-cpf" placeholder="000.000.000-00" maxlength="14" oninput="_maskCPF(this);window._checkDupWhileTyping&&window._checkDupWhileTyping()" inputmode="numeric" autocomplete="off">
+          <input type="text" class="form-input" id="s1-cpf" placeholder="000.000.000-00" maxlength="14" oninput="_maskCPF(this);window._checkCpfValido&&window._checkCpfValido();window._checkDupWhileTyping&&window._checkDupWhileTyping()" inputmode="numeric" autocomplete="off">
+          <div id="s1-cpf-warn" style="display:none;margin-top:4px;font-size:12px;font-weight:600"></div>
         </div>
         <div class="form-group"></div>
       </div>
