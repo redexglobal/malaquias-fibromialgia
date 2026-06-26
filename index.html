@@ -16058,27 +16058,59 @@ if ('serviceWorker' in navigator) {
 
 const norm = s => (s||'').toString().toLowerCase().trim().replace(/\s+/g,' ');
 const dig  = s => (s||'').toString().replace(/\D/g,'');
-const cpfValido = c => (window._cpfValido ? window._cpfValido(dig(c)) : (dig(c).length===11));
+/* CPF VÁLIDO DE VERDADE (dígito verificador) — 2026-06-26: o aviso "CPF repetido"
+   acusava CPFs FALSOS/placeholder (ex: 176.000.000-00 = "3 dígitos + zeros") porque
+   o validador antigo só via 11 dígitos. Agora confere o dígito verificador: CPF de
+   mentira é ignorado e só sobra conflito REAL (mesmo CPF VÁLIDO em pessoas diferentes). */
+function cpfValido(c){
+  const d = dig(c);
+  if(d.length !== 11) return false;
+  if(/^(\d)\1{10}$/.test(d)) return false;
+  if(/0{7}$/.test(d)) return false; /* placeholder "XYZ + sequência de zeros" (CPF de mentira) — não acusa repetição */
+  let s=0; for(let i=0;i<9;i++) s+=parseInt(d[i],10)*(10-i);
+  let r=(s*10)%11; if(r===10) r=0; if(r!==parseInt(d[9],10)) return false;
+  s=0; for(let i=0;i<10;i++) s+=parseInt(d[i],10)*(11-i);
+  r=(s*10)%11; if(r===10) r=0; if(r!==parseInt(d[10],10)) return false;
+  return true;
+}
 const idKeyDe = p => norm(p.nome)+'|'+dig(p.whatsapp);
 function fmtCpf(c){ const d=dig(c); return d.length===11 ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4') : c; }
 function tabela(){ return (typeof currentProject!=='undefined' && currentProject==='oculos') ? 'pacientes_oculos' : 'pacientes_fibro'; }
 
 /* Acha CPFs válidos que aparecem em 2+ pessoas DIFERENTES (nome+zap distintos). */
+/* "Mesma pessoa?" pelo nome — tolera erro de digitação (José/Jose, Souza/Sousa,
+   sobrenome a mais). É a mesma pessoa se um nome estiver contido no outro OU se
+   compartilharem 2+ palavras. Assim CPF igual com nome só "digitado diferente"
+   NÃO vira falso "CPF repetido" — só acusa quando os nomes são DE VERDADE diferentes. */
+function _mesmaPessoaNome(tokens, tokenSet, clusterTokenSet){
+  if(tokens.length && tokens.every(t=>clusterTokenSet.has(t))) return true; /* novo contido no cluster */
+  let compart=0; tokenSet.forEach(t=>{ if(clusterTokenSet.has(t)) compart++; });
+  return compart>=2;
+}
 window._cpfConflitos = function(){
   const list = window.allPacientes || [];
-  const porCpf = new Map(); // cpf -> Map(idKey -> {nome,whatsapp,ids:[],n})
+  const porCpf = new Map(); // cpf -> array de registros (só CPF válido cheio)
   list.forEach(p=>{
     const c = dig(p.cpf);
     if(!cpfValido(c)) return;
-    if(!porCpf.has(c)) porCpf.set(c, new Map());
-    const pessoas = porCpf.get(c);
-    const k = idKeyDe(p);
-    if(!pessoas.has(k)) pessoas.set(k, {nome:p.nome||'(sem nome)', whatsapp:p.whatsapp||'', ids:[], n:0});
-    const pe = pessoas.get(k);
-    pe.ids.push(p.id); pe.n++;
+    if(!porCpf.has(c)) porCpf.set(c, []);
+    porCpf.get(c).push(p);
   });
   const out=[];
-  porCpf.forEach((pessoas,cpf)=>{ if(pessoas.size>=2) out.push({cpf, pessoas:[...pessoas.values()].sort((a,b)=>b.n-a.n)}); });
+  porCpf.forEach((rows,cpf)=>{
+    /* agrupa os registros do MESMO CPF em PESSOAS por similaridade de nome */
+    const clusters=[]; // {nome,nomeNorm,whatsapp,ids:[],n,tokens:Set}
+    rows.forEach(p=>{
+      const toks=norm(p.nome).split(' ').filter(Boolean);
+      const tset=new Set(toks);
+      let alvo=clusters.find(cl=> cl.nomeNorm===norm(p.nome) || _mesmaPessoaNome(toks,tset,cl.tokens) );
+      if(!alvo){ alvo={nome:p.nome||'(sem nome)', nomeNorm:norm(p.nome), whatsapp:p.whatsapp||'', ids:[], n:0, tokens:new Set()}; clusters.push(alvo); }
+      alvo.ids.push(p.id); alvo.n++; toks.forEach(t=>alvo.tokens.add(t));
+      if(!alvo.whatsapp && p.whatsapp) alvo.whatsapp=p.whatsapp;
+    });
+    /* só é conflito REAL se sobrarem 2+ pessoas diferentes (CPF em gente distinta) */
+    if(clusters.length>=2) out.push({cpf, pessoas:clusters.map(c=>({nome:c.nome,whatsapp:c.whatsapp,ids:c.ids,n:c.n})).sort((a,b)=>b.n-a.n)});
+  });
   return out;
 };
 function confSet(){ try{ return new Set(window._cpfConflitos().map(c=>c.cpf)); }catch(e){ return new Set(); } }
