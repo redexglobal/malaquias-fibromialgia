@@ -5904,7 +5904,7 @@ function _buildStg1() {
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Data de Nascimento</label>
-          <input type="date" class="form-input" id="s1-nascimento" onchange="window._calcIdadeDeNasc&&window._calcIdadeDeNasc()">
+          <input type="date" class="form-input" id="s1-nascimento" oninput="window._calcIdadeDeNasc&&window._calcIdadeDeNasc()" onchange="window._calcIdadeDeNasc&&window._calcIdadeDeNasc()">
         </div>
         <div class="form-group">
           <label class="form-label">Idade <span style="color:var(--text-muted);font-size:11px;font-weight:400">(preenche pela data)</span></label>
@@ -6496,7 +6496,7 @@ window._stgSave = async function() {
 /* Calcula a idade a partir da Data de Nascimento (preenche o campo Idade sozinho). */
 window._calcIdadeDeNasc = function(){
   const n=document.getElementById('s1-nascimento')?.value; if(!n||n.length!==10)return;
-  const y=parseInt(n.slice(0,4)); if(!(y>=1900&&y<=2026))return;
+  const y=parseInt(n.slice(0,4)); if(!(y>=1900&&y<=new Date().getFullYear()))return;
   const hoje=new Date(); let idade=hoje.getFullYear()-y;
   const mm=(hoje.getMonth()+1)-parseInt(n.slice(5,7)); const dd=hoje.getDate()-parseInt(n.slice(8,10));
   if(mm<0||(mm===0&&dd<0)) idade--;
@@ -16330,6 +16330,14 @@ window._kpiHeartbeat = async function(){
      o count do login muda e a lista da OUTRA atualiza sozinha. Egress mínimo: só
      conta (head:true, não baixa linhas); só refaz loadData SE alguém cadastrou. */
   if (_papel !== 'admin' && _papel !== 'colaborador') return;
+  /* AUTO-CURA DO DISPLAY (2026-06-30): recomputa os contadores (únicos + total)
+     a partir do array local TODA batida. Cobre o caso real do Vilson — o realtime
+     aplicou o cadastro na memória (local já = N+1) mas o repaint (_renderLight) foi
+     pulado por throttle/rajada → servidor == local → não havia divergência pra
+     disparar loadData → o contador na tela ficava parado até dar F5. Recalcular do
+     array local a cada 15s faz os números voltarem a bater sozinhos. Barato, sem
+     rede; animateCount tem guarda start===target → zero flicker quando nada mudou. */
+  try { if (typeof updateKPIs === 'function') updateKPIs(); } catch(_){}
   try {
     const tbl = (typeof currentProject!=='undefined' && currentProject==='oculos') ? 'pacientes_oculos' : 'pacientes_fibro';
     const { count } = await sb.from(tbl).select('id', { count:'exact', head:true });
@@ -16340,6 +16348,7 @@ window._kpiHeartbeat = async function(){
     if (count !== local && typeof loadData === 'function') {
       await loadData();
       /* mostra o cadastro novo (ex: o que a outra colaboradora do mesmo login fez) na hora */
+      if (typeof updateKPIs === 'function') { try { updateKPIs(); } catch(_){} }
       if (typeof window._renderPacientesUnicos === 'function') { try { window._renderPacientesUnicos(); } catch(_){} }
     }
   } catch(e){ /* silencioso: é só uma rede de segurança */ }
