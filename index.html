@@ -6494,14 +6494,25 @@ window._stgSave = async function() {
 
 /* ---- Cor do slider de dor ---- */
 /* Calcula a idade a partir da Data de Nascimento (preenche o campo Idade sozinho). */
-window._calcIdadeDeNasc = function(){
-  const n=document.getElementById('s1-nascimento')?.value; if(!n||n.length!==10)return;
+window._calcIdadeDeNasc = function(nascId, idadeId){
+  nascId = nascId || 's1-nascimento'; idadeId = idadeId || 's1-idade';
+  const n=document.getElementById(nascId)?.value; if(!n||n.length!==10)return;
   const y=parseInt(n.slice(0,4)); if(!(y>=1900&&y<=new Date().getFullYear()))return;
   const hoje=new Date(); let idade=hoje.getFullYear()-y;
   const mm=(hoje.getMonth()+1)-parseInt(n.slice(5,7)); const dd=hoje.getDate()-parseInt(n.slice(8,10));
   if(mm<0||(mm===0&&dd<0)) idade--;
-  const el=document.getElementById('s1-idade'); if(el && idade>0 && idade<120) el.value=idade;
+  const el=document.getElementById(idadeId); if(el && idade>0 && idade<120) el.value=idade;
 };
+/* IDADE AUTO p/ TODOS os formularios (cadastro novo + edicao admin "em-" + editar "_ped-"),
+   colaboradores E admins. Listener delegado no document → pega ate campos injetados via innerHTML.
+   So dispara quando o USUARIO mexe no nascimento (nao no render), entao registros antigos ficam intactos. */
+(function(){
+  if(window._idadeAutoHooked) return; window._idadeAutoHooked = true;
+  const MAP = {'s1-nascimento':'s1-idade','em-nascimento':'em-idade','_ped-nascimento':'_ped-idade'};
+  const h = e => { const id = e.target && e.target.id; if(id && MAP[id]) try{ window._calcIdadeDeNasc(id, MAP[id]); }catch(_){} };
+  document.addEventListener('input', h, true);
+  document.addEventListener('change', h, true);
+})();
 window._dorColor = function(v) {
   v=parseInt(v);
   const el=document.getElementById('s3-dor-display');
