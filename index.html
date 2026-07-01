@@ -16404,6 +16404,7 @@ function _prof(){try{return (typeof currentProfile!=='undefined'&&currentProfile
 function _isJurOrAdm(){const p=_prof();return !!(p&&(p.papel==='juridico'||p.papel==='admin'));}
 let _rows=[],_chart=null,_chartStatus=null,_chartBenef=null,_groupBy='cidade',_sel=new Set(),_search='',_loaded=false,_loading=false;
 let _profMap={},_pontos=[];
+let _lastCount=null,_novos=0,_hbTimer=null;
 
 /* normaliza a cidade digitada (texto livre) → nome canônico exibível */
 function _normCidade(txt){
@@ -16445,7 +16446,7 @@ async function _load(){
     if(pr&&!pr.error&&Array.isArray(pr.data)){_profMap={};pr.data.forEach(p=>{_profMap[p.id]=p;});
       _pontos=pr.data.filter(p=>p&&p.numero_ponto!=null&&!/desativ/i.test(p.nome_ponto||''));}
   }catch(e){}
-  _loading=false;_loaded=true;_render();
+  _loading=false;_loaded=true;_lastCount=_rows.length;_render();
 }
 window._jcidReload=function(){_loaded=false;_load();};
 
@@ -16603,13 +16604,43 @@ function _printKeys(keys){
   const w=window.open('','_blank');
   if(w){w.document.write(html);w.document.close();}else if(window.showToast){showToast('Permita pop-ups para imprimir',true);}
 }
+/* ═══ NOTIFICAÇÕES quase em tempo real (SEM SQL) — heartbeat 15s ═══
+   Detecta novo cadastro jurídico (as colaboradoras salvam → chega no André): toast + selo no menu + relatório atualiza ao vivo. */
+async function _countRows(){
+  try{const r=await sb.from('atendimentos_juridicos').select('id',{count:'exact',head:true}).eq('projeto',PROJ);return typeof r.count==='number'?r.count:null;}catch(e){return null;}
+}
+function _updateBadge(){
+  const nav=document.getElementById('nav-jcidades');if(!nav)return;
+  let b=nav.querySelector('.jcid-badge');
+  if(_novos>0){if(!b){b=document.createElement('span');b.className='jcid-badge';b.style.cssText='background:#ef4444;color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:6px;vertical-align:middle';nav.appendChild(b);}b.textContent=_novos;}
+  else if(b){b.remove();}
+}
+async function _heartbeat(){
+  if(document.hidden||!_isJurOrAdm())return;
+  const c=await _countRows();if(c==null)return;
+  if(_lastCount==null){_lastCount=c;return;}
+  if(c>_lastCount){
+    const delta=c-_lastCount;_lastCount=c;_novos+=delta;
+    if(window.showToast)showToast('🆕 '+delta+' novo'+(delta>1?'s':'')+' paciente'+(delta>1?'s':'')+' no jurídico');
+    _updateBadge();
+    const sec=document.getElementById('sec-juridico-cidades');
+    if(sec&&getComputedStyle(sec).display!=='none'){_loaded=false;await _load();_novos=0;_updateBadge();}
+  }else if(c<_lastCount){_lastCount=c;}
+}
+function _startHeartbeat(){
+  if(_hbTimer)return;
+  _hbTimer=setInterval(_heartbeat,15000);
+  setTimeout(()=>{if(_lastCount==null)_countRows().then(c=>{if(c!=null&&_lastCount==null)_lastCount=c;});},1500);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)_heartbeat();});
+}
 function _init(){
   if(!_isJurOrAdm())return;
   const nav=document.getElementById('nav-jcidades');if(nav)nav.style.display='';
+  _startHeartbeat();
   if(!window.showSection)return;
   if(!window.showSection._jcidHk){
     const _p=window.showSection;
-    window.showSection=function(id,el){_p.call(this,id,el);if(id==='juridico-cidades'){if(!_loaded)_load();else _render();}};
+    window.showSection=function(id,el){_p.call(this,id,el);if(id==='juridico-cidades'){_novos=0;_updateBadge();if(!_loaded)_load();else _render();}};
     window.showSection._jcidHk=true;
   }
 }
