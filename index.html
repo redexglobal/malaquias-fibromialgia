@@ -1432,6 +1432,9 @@ tr:last-child td { border-bottom: none; }
       <div class="nav-item" id="nav-jdash" data-section="juridico-dash" onclick="showSection('juridico-dash', this)" style="display:none">
         <i class="fas fa-chart-pie"></i> Painel Jurídico
       </div>
+      <div class="nav-item" id="nav-jcidades" data-section="juridico-cidades" onclick="showSection('juridico-cidades', this)" style="display:none">
+        <i class="fas fa-city"></i> Cidades &amp; Impressão
+      </div>
       <div class="nav-item" data-section="juridico" onclick="showSection('juridico', this)">
         <i class="fas fa-gavel"></i> Atendimento Jurídico
       </div>
@@ -1932,6 +1935,18 @@ tr:last-child td { border-bottom: none; }
         <div class="chart-title" style="display:flex;align-items:center;justify-content:space-between"><span><i class="fas fa-bell" style="color:#ef4444"></i> Próximos Prazos &amp; Retornos</span><span id="jd-prazos-count" style="font-size:12px;color:var(--text-muted)"></span></div>
         <div id="jd-prazos-list" style="margin-top:10px"></div>
       </div>
+    </div>
+
+    <!-- ===== CIDADES & IMPRESSÃO (Dr. André / Admin) ===== -->
+    <div class="section" id="sec-juridico-cidades">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:8px">
+        <div>
+          <h1 class="page-title"><i class="fas fa-city" style="color:var(--accent)"></i> Cidades &amp; Impressão</h1>
+          <p class="page-subtitle">Pacientes do jurídico agrupados por cidade e região — selecione e imprima <span id="jcid-date"></span></p>
+        </div>
+        <button class="btn-limpar" onclick="window._jcidReload&&window._jcidReload()"><i class="fas fa-sync"></i> Atualizar</button>
+      </div>
+      <div id="jcid-root"></div>
     </div>
 
     <!-- ===== ATENDIMENTO JURÍDICO — WIZARD ===== -->
@@ -14667,12 +14682,15 @@ const _badge=s=>`<span class="jur-badge ${_esc(s||'')}">${_esc(_sLbl[s]||s||'—
 const _isAdm=()=>typeof currentProfile!=='undefined'&&currentProfile?.papel==='admin';
 /* Administração = admin OU diretor jurídico (André, papel 'juridico'). Atendente = colaborador. */
 const _jurIsAdmArea=()=>{const p=(typeof currentProfile!=='undefined')?currentProfile:null;return !!(p&&(p.papel==='admin'||p.papel==='juridico'));};
-/* Atendente só preenche até a etapa 4 (Saúde); Advogado(5)/Controle(6) são só da Administração. */
-const _jurLastStep=()=>_jurIsAdmArea()?_JUR_STEPS:4;
-/* Validação dos campos imprescindíveis (Nome/CPF/Endereço/Cidade/Telefone/Tipo de Benefício/Diagnóstico). */
+/* Atendente (colaborador) preenche SÓ etapa 1 (Dados) e 2 (Entrada) e salva → cai no painel da Administração.
+   Etapas 3-6 (Aposentadoria/Saúde/Advogado/Controle) são só da Administração (admin/André). */
+const _jurLastStep=()=>_jurIsAdmArea()?_JUR_STEPS:2;
+/* Validação dos campos imprescindíveis, só até a última etapa do papel (atendente não é cobrado de Benefício/Diagnóstico). */
 function _jurValidateRequired(){
   const req=[['paciente_nome','Nome',1],['paciente_cpf','CPF',1],['paciente_endereco','Endereço',1],['paciente_cidade','Cidade',1],['paciente_telefone','Telefone',1],['tipo_beneficio','Tipo de Benefício',3],['diagnostico','Diagnóstico',4]];
+  const _last=_jurLastStep();
   for(const [id,lbl,step] of req){
+    if(step>_last)continue; /* campo de etapa que este papel nem preenche → não cobra */
     const el=document.getElementById('jf-'+id);
     if(!el||!el.value.trim()){
       if(typeof showToast==='function')showToast('Campo obrigatório: '+lbl,true);
@@ -15045,10 +15063,10 @@ function _jurInit(){
   if(nav&&nav.style.display==='none')nav.style.display='block';
   if(_isAdm()){const dt=document.getElementById('jur-cad-tab-dash');if(dt)dt.style.display='inline-flex';}
   /* ===== Atendente (colaborador) x Administração (admin/André) =====
-     Atendente só vê o cadastro até a etapa 4 (Saúde) e NÃO vê Cadastrados/Retorno.
-     Adv(5)/Controle(6), Cadastrados e Retorno são só da Administração. */
+     Atendente só vê o cadastro até a etapa 2 (Entrada) e NÃO vê Cadastrados/Retorno.
+     Etapas 3-6, Cadastrados e Retorno são só da Administração. */
   if(!_jurIsAdmArea()){
-    ['jur-si-5','jur-si-6','jur-sl-4','jur-sl-5','jur-step-5','jur-step-6'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
+    ['jur-si-3','jur-si-4','jur-si-5','jur-si-6','jur-sl-2','jur-sl-3','jur-sl-4','jur-sl-5','jur-step-3','jur-step-4','jur-step-5','jur-step-6'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
     const navCad=document.querySelector('[data-section="juridico-cadastrados"]');if(navCad)navCad.style.display='none';
     const navRet=document.querySelector('[data-section="juridico-retornos"]');if(navRet)navRet.style.display='none';
     const sub=document.querySelector('#sec-juridico .page-subtitle');if(sub)sub.textContent='Preencha as etapas e clique em Salvar';
@@ -16365,6 +16383,180 @@ window._kpiHeartbeat = async function(){
   } catch(e){ /* silencioso: é só uma rede de segurança */ }
 };
 setInterval(function(){ try{ window._kpiHeartbeat(); }catch(e){} }, 15000);
+})();
+</script>
+
+<!-- Cidades & Impressão — painel interativo do Dr. André / Admin (jurídico) -->
+<script>
+(function(){
+'use strict';
+const PROJ=(typeof window.PROJ!=='undefined')?window.PROJ:'fibromialgia';
+const _esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const _PAL=['#3b82f6','#22c55e','#ef4444','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#14b8a6','#a3a3a3','#f97316'];
+function _isJurOrAdm(){const p=window.currentProfile;return !!(p&&(p.papel==='juridico'||p.papel==='admin'));}
+let _rows=[],_chart=null,_groupBy='cidade',_sel=new Set(),_search='',_loaded=false,_loading=false;
+
+/* normaliza a cidade digitada (texto livre) → nome canônico exibível */
+function _normCidade(txt){
+  const s=(txt||'').trim();
+  if(!s)return '(sem cidade)';
+  const n=s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const map=[[/jardim ?inga|jd ?inga|\binga\b/,'Jardim Ingá'],[/luziania/,'Luziânia'],[/caldas novas/,'Caldas Novas'],[/cristalina/,'Cristalina'],[/ocidental/,'Cidade Ocidental'],[/valparaiso|val ?paraiso/,'Valparaíso'],[/^df$|distrito federal|brasilia/,'DF / Brasília'],[/rio verde/,'Rio Verde'],[/anapolis/,'Anápolis'],[/goiania/,'Goiânia'],[/santa helena/,'Santa Helena'],[/pirenopolis/,'Pirenópolis']];
+  for(const it of map){if(it[0].test(n))return it[1];}
+  return s.replace(/\s+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+}
+/* mapa cidade→região (fácil de ajustar); cidade fora do mapa cai em "Outras" */
+const _REGIAO={'Jardim Ingá':'Entorno DF','Luziânia':'Entorno DF','Cidade Ocidental':'Entorno DF','Valparaíso':'Entorno DF','Cristalina':'Entorno DF','DF / Brasília':'Entorno DF','Caldas Novas':'Sul Goiano','Rio Verde':'Sul Goiano','Santa Helena':'Sul Goiano','Goiânia':'Metropolitana de Goiânia','Anápolis':'Metropolitana de Goiânia','Pirenópolis':'Metropolitana de Goiânia'};
+function _regiaoDe(c){return _REGIAO[c]||'Outras';}
+function _keyDe(r){const c=_normCidade(r.paciente_cidade);return _groupBy==='regiao'?_regiaoDe(c):c;}
+
+function _grupos(){
+  const q=_search.trim().toLowerCase();
+  const filt=q?_rows.filter(r=>((r.paciente_nome||'')+' '+(r.paciente_cpf||'')+' '+(r.paciente_cidade||'')).toLowerCase().includes(q)):_rows;
+  const m={};
+  filt.forEach(r=>{const k=_keyDe(r);(m[k]=m[k]||[]).push(r);});
+  return Object.entries(m).map(([k,v])=>({key:k,rows:v.sort((a,b)=>String(a.paciente_nome||'').localeCompare(String(b.paciente_nome||''),'pt'))})).sort((a,b)=>b.rows.length-a.rows.length);
+}
+
+async function _load(){
+  if(_loading)return;
+  const root=document.getElementById('jcid-root');
+  if(typeof sb==='undefined'){if(root)root.innerHTML='<div class="chart-card" style="text-align:center;padding:30px;color:#ef4444">Sistema indisponível</div>';return;}
+  _loading=true;
+  if(root)root.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Carregando…</div>';
+  try{const {data,error}=await sb.from('atendimentos_juridicos').select('*').eq('projeto',PROJ);_rows=(error||!Array.isArray(data))?[]:data;}catch(e){_rows=[];}
+  _loading=false;_loaded=true;_render();
+}
+window._jcidReload=function(){_loaded=false;_load();};
+
+function _render(){
+  const root=document.getElementById('jcid-root');if(!root)return;
+  const dt=document.getElementById('jcid-date');if(dt)dt.textContent='· '+_rows.length+' processo'+(_rows.length!==1?'s':'');
+  root.innerHTML=''
+    +'<div class="chart-card" style="margin-bottom:16px">'
+      +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between">'
+        +'<div id="jcid-toggle" style="display:inline-flex;background:var(--input-bg);border:1px solid var(--input-border);border-radius:10px;overflow:hidden"></div>'
+        +'<input id="jcid-search" placeholder="🔍 Buscar paciente, CPF, cidade…" style="flex:1;min-width:200px;padding:9px 14px;border:1px solid var(--input-border);border-radius:10px;background:var(--input-bg);color:var(--text-primary);font-size:13px">'
+      +'</div>'
+      +'<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px">'
+        +'<button class="btn-limpar" id="jcid-selall" style="padding:6px 12px;font-size:12px"><i class="fas fa-check-double"></i> Selecionar todas</button>'
+        +'<button class="btn-limpar" id="jcid-selnone" style="padding:6px 12px;font-size:12px"><i class="fas fa-times"></i> Limpar seleção</button>'
+        +'<div style="flex:1"></div>'
+        +'<span id="jcid-selinfo" style="font-size:12px;color:var(--text-muted)"></span>'
+        +'<button class="btn-primary" id="jcid-print-sel" style="padding:8px 16px;font-size:13px"><i class="fas fa-print"></i> Imprimir selecionadas</button>'
+      +'</div>'
+    +'</div>'
+    +'<div class="chart-card" style="margin-bottom:16px"><div class="chart-title" id="jcid-chart-title"></div><div style="height:300px"><canvas id="jcid-chart"></canvas></div></div>'
+    +'<div id="jcid-list"></div>';
+  _renderToggle();
+  const se=document.getElementById('jcid-search');if(se){se.value=_search;se.oninput=()=>{_search=se.value;_renderList();};}
+  document.getElementById('jcid-selall').onclick=()=>{_grupos().forEach(g=>_sel.add(g.key));_renderList();};
+  document.getElementById('jcid-selnone').onclick=()=>{_sel.clear();_renderList();};
+  document.getElementById('jcid-print-sel').onclick=()=>_printKeys([..._sel]);
+  _renderList();
+}
+function _renderToggle(){
+  const t=document.getElementById('jcid-toggle');if(!t)return;
+  const mk=(g,ic,lbl)=>'<button data-g="'+g+'" style="padding:8px 16px;border:none;background:'+(_groupBy===g?'var(--accent)':'transparent')+';color:'+(_groupBy===g?'#fff':'var(--text-secondary)')+';cursor:pointer;font-weight:600;font-size:13px"><i class="fas '+ic+'"></i> '+lbl+'</button>';
+  t.innerHTML=mk('cidade','fa-city','Por Cidade')+mk('regiao','fa-map-marked-alt','Por Região');
+  t.querySelectorAll('button').forEach(b=>b.onclick=()=>{if(_groupBy===b.dataset.g)return;_groupBy=b.dataset.g;_sel.clear();_render();});
+}
+function _updateSelInfo(gs){
+  const total=gs.filter(g=>_sel.has(g.key)).reduce((s,g)=>s+g.rows.length,0);
+  const info=document.getElementById('jcid-selinfo');if(info)info.textContent=_sel.size+' '+(_groupBy==='regiao'?'região(ões)':'cidade(s)')+' · '+total+' paciente(s)';
+  const pb=document.getElementById('jcid-print-sel');if(pb){pb.disabled=!_sel.size;pb.style.opacity=_sel.size?'1':'.5';}
+}
+function _renderList(){
+  const list=document.getElementById('jcid-list');if(!list)return;
+  const gs=_grupos();
+  const ct=document.getElementById('jcid-chart-title');if(ct)ct.textContent='Processos por '+(_groupBy==='regiao'?'Região':'Cidade')+' (clique na barra p/ selecionar)';
+  if(!gs.length){list.innerHTML='<div class="chart-card" style="text-align:center;padding:40px;color:var(--text-muted)">Nenhum processo encontrado.</div>';_updateSelInfo(gs);_drawChart(gs);return;}
+  let html='';
+  gs.forEach(g=>{
+    const on=_sel.has(g.key);
+    html+='<div class="chart-card" style="margin-bottom:10px;padding:0;overflow:hidden">'
+      +'<div class="jcid-head" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer">'
+        +'<input type="checkbox" class="jcid-chk" data-key="'+_esc(g.key)+'"'+(on?' checked':'')+' style="width:18px;height:18px;cursor:pointer;accent-color:var(--accent)">'
+        +'<i class="fas fa-map-marker-alt" style="color:var(--accent)"></i>'
+        +'<strong style="font-size:15px;color:var(--text-primary)">'+_esc(g.key)+'</strong>'
+        +'<span style="background:var(--accent);color:#fff;border-radius:10px;font-size:11px;font-weight:700;padding:2px 9px">'+g.rows.length+'</span>'
+        +'<div style="flex:1"></div>'
+        +'<button class="btn-limpar jcid-pone" data-key="'+_esc(g.key)+'" style="padding:5px 12px;font-size:12px"><i class="fas fa-print"></i> Imprimir '+(_groupBy==='regiao'?'região':'cidade')+'</button>'
+        +'<i class="fas fa-chevron-down jcid-caret" style="color:var(--text-muted);transition:transform .2s"></i>'
+      +'</div>'
+      +'<div class="jcid-body" style="display:none;border-top:1px solid var(--input-border)"><table style="width:100%;border-collapse:collapse;font-size:13px"><tbody>';
+    g.rows.forEach(r=>{
+      html+='<tr style="border-bottom:1px solid var(--input-border)">'
+        +'<td style="padding:9px 16px"><strong>'+_esc(r.paciente_nome||'—')+'</strong><div style="font-size:11px;color:var(--text-muted)">'+_esc(r.paciente_cpf||'')+(r.paciente_cidade?' · '+_esc(r.paciente_cidade):'')+'</div></td>'
+        +'<td style="padding:9px 12px;color:var(--text-secondary)">'+_esc(r.tipo_beneficio||'—')+'</td>'
+        +'<td style="padding:9px 12px;text-align:right"><button class="btn-limpar jcid-pind" data-id="'+_esc(r.id)+'" title="Imprimir este processo" style="padding:4px 10px;font-size:11px"><i class="fas fa-print"></i></button></td>'
+      +'</tr>';
+    });
+    html+='</tbody></table></div></div>';
+  });
+  list.innerHTML=html;
+  list.querySelectorAll('.jcid-chk').forEach(c=>c.onclick=e=>{e.stopPropagation();const k=c.dataset.key;if(c.checked)_sel.add(k);else _sel.delete(k);_updateSelInfo(_grupos());_drawChart(_grupos());});
+  list.querySelectorAll('.jcid-head').forEach(h=>h.onclick=e=>{if(e.target.closest('.jcid-chk')||e.target.closest('.jcid-pone'))return;const b=h.nextElementSibling;const car=h.querySelector('.jcid-caret');const open=b.style.display==='none';b.style.display=open?'block':'none';if(car)car.style.transform=open?'rotate(180deg)':'';});
+  list.querySelectorAll('.jcid-pone').forEach(b=>b.onclick=e=>{e.stopPropagation();_printKeys([b.dataset.key]);});
+  list.querySelectorAll('.jcid-pind').forEach(b=>b.onclick=e=>{e.stopPropagation();if(window.jurPrint)window.jurPrint(b.dataset.id);});
+  _updateSelInfo(gs);
+  _drawChart(gs);
+}
+function _drawChart(gs){
+  const cv=document.getElementById('jcid-chart');if(!cv||typeof Chart==='undefined')return;
+  if(_chart){try{_chart.destroy();}catch(e){}}
+  const top=gs.slice(0,14);
+  _chart=new Chart(cv.getContext('2d'),{type:'bar',
+    data:{labels:top.map(g=>g.key),datasets:[{label:'Processos',data:top.map(g=>g.rows.length),backgroundColor:top.map((g,i)=>_sel.has(g.key)?'#22c55e':_PAL[i%_PAL.length]),borderRadius:6}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      onClick:(e,els)=>{if(els&&els.length){const k=top[els[0].index].key;if(_sel.has(k))_sel.delete(k);else _sel.add(k);_renderList();}},
+      scales:{x:{beginAtZero:true,ticks:{precision:0}}}}});
+}
+function _printKeys(keys){
+  if(!keys||!keys.length){if(window.showToast)showToast('Selecione ao menos uma cidade',true);return;}
+  const setK=new Set(keys);
+  const gs=_grupos().filter(g=>setK.has(g.key));
+  if(!gs.length){if(window.showToast)showToast('Nada para imprimir',true);return;}
+  const e=_esc;
+  const sl={aguardando:'Aguardando',aprovado:'Aprovado',negado:'Negado',recurso:'Em Recurso',em_andamento:'Em Andamento',concluido:'Concluído',arquivado:'Arquivado'};
+  const dLbl=_groupBy==='regiao'?'Região':'Cidade';
+  let body='',totalPac=0;
+  gs.forEach(g=>{
+    totalPac+=g.rows.length;
+    body+='<h2>'+dLbl+': '+e(g.key)+' <span class="cnt">'+g.rows.length+' paciente'+(g.rows.length!==1?'s':'')+'</span></h2>';
+    body+='<table><thead><tr><th>#</th><th>Nome</th><th>CPF</th><th>Telefone</th><th>Cidade</th><th>Benefício</th><th>Status</th></tr></thead><tbody>';
+    g.rows.forEach((r,i)=>{body+='<tr><td>'+(i+1)+'</td><td>'+e(r.paciente_nome||'')+'</td><td>'+e(r.paciente_cpf||'')+'</td><td>'+e(r.paciente_telefone||'')+'</td><td>'+e(r.paciente_cidade||'')+'</td><td>'+e(r.tipo_beneficio||'')+'</td><td>'+e(sl[r.status_processo]||r.status_processo||'')+'</td></tr>';});
+    body+='</tbody></table>';
+  });
+  const html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Pacientes Jurídico por '+dLbl+'</title>'
+    +'<style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:12px;color:#1a1a1a;margin:0;padding:26px}'
+    +'h1{color:#1e40af;font-size:18px;margin:0 0 2px}p.sub{color:#6b7280;font-size:11px;margin:0 0 18px}'
+    +'h2{font-size:14px;color:#111827;margin:20px 0 6px;padding-bottom:4px;border-bottom:2px solid #1e40af;page-break-after:avoid}'
+    +'h2 .cnt{font-size:11px;color:#6b7280;font-weight:normal}'
+    +'table{width:100%;border-collapse:collapse;margin-bottom:8px}th{background:#f3f4f6;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#374151;padding:6px 8px;border:1px solid #e5e7eb}'
+    +'td{padding:6px 8px;border:1px solid #e5e7eb;vertical-align:top}tr:nth-child(even) td{background:#fafafa}'
+    +'.ft{margin-top:18px;font-size:10px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:8px}'
+    +'@media print{body{padding:1cm}@page{margin:1cm}h2{page-break-after:avoid}tr{page-break-inside:avoid}}</style></head>'
+    +'<body><h1>Pacientes do Jurídico — por '+dLbl+'</h1>'
+    +'<p class="sub">Sistema Dr. Malaquias · '+gs.length+' '+dLbl.toLowerCase()+'(s) · '+totalPac+' paciente(s) · Gerado em '+new Date().toLocaleString('pt-BR')+'</p>'
+    +body+'<div class="ft">Sistema Dr. Malaquias — Área Jurídica</div>'
+    +'<script>window.onload=function(){window.print();}<\/script></body></html>';
+  const w=window.open('','_blank');
+  if(w){w.document.write(html);w.document.close();}else if(window.showToast){showToast('Permita pop-ups para imprimir',true);}
+}
+function _init(){
+  if(!_isJurOrAdm())return;
+  const nav=document.getElementById('nav-jcidades');if(nav)nav.style.display='';
+  if(!window.showSection)return;
+  if(!window.showSection._jcidHk){
+    const _p=window.showSection;
+    window.showSection=function(id,el){_p.call(this,id,el);if(id==='juridico-cidades'){if(!_loaded)_load();else _render();}};
+    window.showSection._jcidHk=true;
+  }
+}
+if(typeof window.currentProfile!=='undefined'&&window.currentProfile)_init();
+window.addEventListener('malaquias:profile-ready',_init,{once:true});
+setTimeout(()=>{if(typeof window.currentProfile!=='undefined'&&window.currentProfile)_init();},2600);
 })();
 </script>
 
