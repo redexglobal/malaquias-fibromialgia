@@ -2616,6 +2616,8 @@ function enterApp() {
   if (isAdmin) {
     document.getElementById('project-switch').style.display = 'block';
     document.getElementById('nav-admin-section').style.display = 'block';
+    /* Relatório Jurídico também disponível pro admin */
+    try{ if(window._jcidInit) window._jcidInit(); }catch(e){}
     /* alerts-section removido — antes acessava .style.display de null e dava
        TypeError que abortava enterApp, sumindo com as abas do juridico
        (IIFEs esperavam evento profile-ready que nunca chegava) */
@@ -2632,6 +2634,10 @@ function enterApp() {
     if (nj) nj.style.display = 'block';
     const njd = document.getElementById('nav-jdash');
     if (njd) njd.style.display = '';
+    /* Relatório Jurídico (por cidade/região + impressão) — revela e inicializa */
+    const njc = document.getElementById('nav-jcidades');
+    if (njc) njc.style.display = '';
+    try{ if(window._jcidInit) window._jcidInit(); }catch(e){}
     /* cai direto no Painel Jurídico, não no dashboard de pacientes */
     setTimeout(function(){
       try {
@@ -16393,7 +16399,9 @@ setInterval(function(){ try{ window._kpiHeartbeat(); }catch(e){} }, 15000);
 const PROJ=(typeof window.PROJ!=='undefined')?window.PROJ:'fibromialgia';
 const _esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const _PAL=['#3b82f6','#22c55e','#ef4444','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#14b8a6','#a3a3a3','#f97316'];
-function _isJurOrAdm(){const p=window.currentProfile;return !!(p&&(p.papel==='juridico'||p.papel==='admin'));}
+/* currentProfile é um `let` global (NÃO fica em window) — lê o binding real, com fallback */
+function _prof(){try{return (typeof currentProfile!=='undefined'&&currentProfile)?currentProfile:(window.currentProfile||null);}catch(e){return window.currentProfile||null;}}
+function _isJurOrAdm(){const p=_prof();return !!(p&&(p.papel==='juridico'||p.papel==='admin'));}
 let _rows=[],_chart=null,_groupBy='cidade',_sel=new Set(),_search='',_loaded=false,_loading=false;
 
 /* normaliza a cidade digitada (texto livre) → nome canônico exibível */
@@ -16554,9 +16562,10 @@ function _init(){
     window.showSection._jcidHk=true;
   }
 }
-if(typeof window.currentProfile!=='undefined'&&window.currentProfile)_init();
-window.addEventListener('malaquias:profile-ready',_init,{once:true});
-setTimeout(()=>{if(typeof window.currentProfile!=='undefined'&&window.currentProfile)_init();},2600);
+window._jcidInit=_init; /* enterApp() chama isto no login (fonte confiável do papel) */
+if(_prof())_init();
+window.addEventListener('malaquias:profile-ready',_init);
+setTimeout(()=>{if(_prof())_init();},2600);
 })();
 </script>
 
