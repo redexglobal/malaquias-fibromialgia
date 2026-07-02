@@ -1209,6 +1209,36 @@ tr:last-child td { border-bottom: none; }
 
 /* admin main offset */
 .main.has-filter { padding-top:120px !important; }
+
+/* ====== BRILHO DIGITAL (2026-07-02) — só detalhes, zero estrutura ====== */
+/* botão principal ganha um halo verde suave ao passar o mouse */
+.btn-primary:hover {
+  box-shadow:0 0 0 1px rgba(0,230,118,.35), 0 4px 18px rgba(0,230,118,.28);
+}
+/* KPIs com respiro de luz no hover — dá vida sem pesar */
+.kpi-card:hover {
+  border-color:rgba(0,230,118,.4);
+  box-shadow:0 0 22px rgba(0,230,118,.10);
+}
+/* item de menu ativo com traço de luz verde na lateral */
+.nav-item.active {
+  box-shadow:inset 3px 0 0 var(--accent), 0 0 14px rgba(0,230,118,.10);
+}
+/* cartões de gráfico levemente iluminados no hover */
+.chart-card:hover { border-color:rgba(0,230,118,.22); }
+/* valor dos KPIs com brilho digital discreto */
+.kpi-value { text-shadow:0 0 14px rgba(0,230,118,.22); }
+/* navegação por teclado enxerga onde está (acessibilidade + look digital) */
+.nav-item:focus-visible, .btn-primary:focus-visible, .btn-limpar:focus-visible,
+.form-input:focus-visible, .jur-tab:focus-visible, .chip:focus-visible, .filter-btn:focus-visible {
+  outline:2px solid var(--accent); outline-offset:2px;
+}
+/* respeita quem pede menos animação no aparelho */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{ animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+}
+/* tema claro: texto auxiliar um pouco mais escuro (legibilidade) */
+[data-theme="light"] body, body[data-theme="light"] { --text-muted:#64748b; }
 </style>
 <style>
 /* ====== RESPONSIVIDADE GLOBAL (mobile/tablet) — AJUSTE 3+4 ====== */
@@ -1897,6 +1927,13 @@ tr:last-child td { border-bottom: none; }
         <button class="btn-primary" onclick="showSection('juridico',document.querySelector('[data-section=juridico]'))"><i class="fas fa-plus"></i> Novo Atendimento</button>
       </div>
 
+      <div id="jd-geo-bar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px">
+        <i class="fas fa-map-marked-alt" style="color:var(--accent)"></i>
+        <select class="form-input" id="jd-regiao" style="max-width:210px" title="Filtrar painel por região"></select>
+        <select class="form-input" id="jd-cidade" style="max-width:210px" title="Filtrar painel por cidade"></select>
+        <span id="jd-geo-info" style="font-size:12px;color:var(--text-muted)"></span>
+      </div>
+
       <div class="kpi-grid" style="margin-top:18px">
         <div class="kpi-card">
           <div class="kpi-header"><div class="kpi-icon"><i class="fas fa-folder-open"></i></div></div>
@@ -2082,6 +2119,12 @@ tr:last-child td { border-bottom: none; }
           <option value="em_andamento">Em Andamento</option>
           <option value="concluido">Concluído</option>
           <option value="arquivado">Arquivado</option>
+        </select>
+        <select class="form-input" id="jur-regiao-filter" onchange="jurRegiaoFilter(this.value)" style="max-width:180px" title="Filtrar por região">
+          <option value="">Todas as regiões</option>
+        </select>
+        <select class="form-input" id="jur-cidade-filter" onchange="jurCidadeFilter(this.value)" style="max-width:180px" title="Filtrar por cidade">
+          <option value="">Todas as cidades</option>
         </select>
         <span id="jur-counter" style="font-size:13px;color:var(--text-muted);white-space:nowrap;min-width:80px"></span>
         <button class="btn-limpar" onclick="jurExportCSV()" title="Exportar lista atual como CSV"><i class="fas fa-download"></i> CSV</button>
@@ -2753,7 +2796,7 @@ window._HEAVY_COLS = 'id,sintomas,medicacoes,pontos_dor,tempo_sintomas,precaucoe
 window._fetchAllRows = async function(tbl, ownId, cols){
   const SEL = cols || '*';
   const PAGE = 1000;
-  const MAX_ROWS = 20000; /* era 5000: cortava o admin (tabela já passou de 7 mil linhas) → contador travava no teto. 2026-06-24 */
+  const MAX_ROWS = 60000; /* era 20000: no ritmo de ~200 atendimentos/dia o teto chegaria em ~2 meses; 60k dá fôlego p/ anos. 2026-07-02 */
   try {
     /* Etapa 1: count exato server-side (head:true nao baixa dados) */
     let countQ = sb.from(tbl).select('id', { count: 'exact', head: true });
@@ -14675,7 +14718,10 @@ if(!_arInit()){const _t=setInterval(()=>{if(_arInit())clearInterval(_t);},600);s
 
 /* ---- STATE ---- */
 let _jurData=[],_jurEditId=null,_jurStep=1;
-let _jurSearch='',_jurStatusFilter='',_jurPage=1,_jurSortCol='criado_em',_jurSortAsc=false;
+let _jurSearch='',_jurStatusFilter='',_jurCidadeFilter='',_jurRegiaoFilter='',_jurPage=1,_jurSortCol='criado_em',_jurSortAsc=false;
+/* cidade/região canônicas — usa os helpers do Relatório Jurídico (expostos no window) com fallback simples */
+const _jurNC=c=>(window._jurNormCidade?window._jurNormCidade(c):String(c||'').trim()||'(sem cidade)');
+const _jurRG=c=>(window._jurRegiaoDe?window._jurRegiaoDe(c):'Outras');
 const _JUR_STEPS=6,_JUR_PG=25;
 let _jurProfMap={};
 let _jurNewRecordId=null;
@@ -14714,6 +14760,8 @@ function _jurGetFiltered(){
   let d=[..._jurData];
   if(_jurSearch){const q=_jurSearch.toLowerCase();d=d.filter(x=>(x.paciente_nome||'').toLowerCase().includes(q)||(x.paciente_cpf||'').toLowerCase().includes(q)||(x.diagnostico||'').toLowerCase().includes(q));}
   if(_jurStatusFilter)d=d.filter(x=>x.status_beneficio===_jurStatusFilter||x.status_processo===_jurStatusFilter);
+  if(_jurCidadeFilter)d=d.filter(x=>_jurNC(x.paciente_cidade)===_jurCidadeFilter);
+  if(_jurRegiaoFilter)d=d.filter(x=>_jurRG(_jurNC(x.paciente_cidade))===_jurRegiaoFilter);
   d.sort((a,b)=>{const av=String(a[_jurSortCol]||''),bv=String(b[_jurSortCol]||'');return _jurSortAsc?av.localeCompare(bv,'pt'):bv.localeCompare(av,'pt');});
   return d;
 }
@@ -14887,8 +14935,10 @@ window.jurSalvar=async function(){
     projeto:PROJ,atualizado_em:new Date().toISOString()
   };
   if(!payload.paciente_nome){if(typeof showToast==='function')showToast('Informe o nome do paciente',true);return;}
-  const{error}=await sb.from('atendimentos_juridicos').update(payload).eq('id',_jurEditId);
+  const{data:_upd,error}=await sb.from('atendimentos_juridicos').update(payload).eq('id',_jurEditId).select('id');
   if(error){console.error('[jur:edit:save]',error.message);if(typeof showToast==='function')showToast('Erro ao salvar: '+error.message,true);return;}
+  /* RLS pode "aceitar" o update e não gravar nada (0 linhas) — sucesso falso. Detecta e avisa. */
+  if(!_upd||!_upd.length){console.error('[jur:edit:save] update afetou 0 linhas (RLS?) id=',_jurEditId);if(typeof showToast==='function')showToast('⚠️ Sem permissão para editar este registro — nada foi salvo. Avise o suporte (RLS).',true);return;}
   if(typeof showToast==='function')showToast('Atendimento atualizado!');
   jurFechar();_jurCadLoad();
 };
@@ -14948,13 +14998,14 @@ async function _jurCadLoad(){
   if(typeof sb==='undefined'||typeof PROJ==='undefined')return;
   const panels=['visao','entrada','aposentadoria','dados-paciente','saude','advogado','controle','dashboard'];
   panels.forEach(t=>{const el=document.getElementById('jur-tbody-'+t);if(el)el.innerHTML='<tr><td colspan="99" style="text-align:center;padding:20px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></td></tr>';});
-  const{data,error}=await sb.from('atendimentos_juridicos').select('*').eq('projeto',PROJ).order('criado_em',{ascending:false}).limit(2000);
+  const{data,error}=await sb.from('atendimentos_juridicos').select('*').eq('projeto',PROJ).order('criado_em',{ascending:false}).limit(5000);
   if(error){console.error('[jur:cad:load]',error.message);return;}
   _jurData=data||[];window._jurDocCache=_jurData;
-  if(_isAdm()){
+  if(_jurIsAdmArea()){
     const{data:_profs}=await sb.from('profiles').select('id,nome_ponto,numero_ponto').eq('projeto',PROJ);
     _jurProfMap={};(_profs||[]).forEach(p=>{if(p&&p.id)_jurProfMap[p.id]=p;});
   }
+  _jurFillGeo();
   _jurPage=1;_jurCadRender();
 }
 
@@ -14962,7 +15013,7 @@ function _jurCadRender(){
   const fd=_jurGetFiltered();
   const start=(_jurPage-1)*_JUR_PG;
   const pg=fd.slice(start,start+_JUR_PG);
-  _rVg(pg,fd.length);_rEnt(pg,fd.length);_rApos(pg,fd.length);_rDad(pg,fd.length);_rSau(pg,fd.length);_rAdv(pg,fd.length);_rCtrl(pg,fd.length);_rDash();
+  _rVg(pg,fd.length);_rEnt(pg,fd.length);_rApos(pg,fd.length);_rDad(pg,fd.length);_rSau(pg,fd.length);_rAdv(pg,fd.length);_rCtrl(pg,fd.length);_rDash(fd);
   /* Contador */
   const ctr=document.getElementById('jur-counter');
   if(ctr)ctr.textContent=fd.length===_jurData.length?`${fd.length} processo${fd.length!==1?'s':''}`:`${fd.length} de ${_jurData.length}`;
@@ -14985,15 +15036,15 @@ const _em=(total,cols)=>`<tr><td colspan="${cols}" style="text-align:center;padd
 
 function _rVg(d,total){
   const tbody=document.getElementById('jur-tbody-visao');if(!tbody)return;
-  tbody.closest('table').querySelector('thead tr').innerHTML=`${_th('paciente_nome','Nome')}${_th('paciente_cpf','CPF')}${_th('paciente_cidade','Cidade')}${_th('diagnostico','Diagnóstico')}${_th('status_beneficio','Status INSS')}${_th('advogado_nome','Advogado')}${_th('proxima_data','Próxima Data')}${_isAdm()?'<th style="white-space:nowrap;font-size:11px">Ponto</th>':''}<th>Ações</th>`;
-  if(!d.length){tbody.innerHTML=_em(total,_isAdm()?9:8);return;}
+  tbody.closest('table').querySelector('thead tr').innerHTML=`${_th('paciente_nome','Nome')}${_th('paciente_cpf','CPF')}${_th('paciente_cidade','Cidade')}${_th('diagnostico','Diagnóstico')}${_th('status_beneficio','Status INSS')}${_th('advogado_nome','Advogado')}${_th('proxima_data','Próxima Data')}${_jurIsAdmArea()?'<th style="white-space:nowrap;font-size:11px">Ponto</th>':''}<th>Ações</th>`;
+  if(!d.length){tbody.innerHTML=_em(total,_jurIsAdmArea()?9:8);return;}
   const today=new Date();today.setHours(0,0,0,0);
   tbody.innerHTML=d.map(x=>{
     const nd=x.proxima_data?new Date(x.proxima_data+'T12:00:00'):null;
     const diff=nd?Math.floor((nd-today)/86400000):null;
     const rs=diff!==null&&diff<0?'style="background:rgba(239,68,68,.09)"':diff!==null&&diff<=7?'style="background:rgba(251,191,36,.09)"':'';
     const ttip=diff!==null?(diff<0?` title="${Math.abs(diff)} dia${Math.abs(diff)!==1?'s':''} atrasado"`:`title="${diff} dia${diff!==1?'s':''} restante${diff!==1?'s':''}"`):'';
-    return `<tr ${rs}><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.paciente_cpf||'—')}</td><td>${_esc(x.paciente_cidade||'—')}</td><td>${_esc(x.diagnostico||'—')}</td><td>${_badge(x.status_beneficio)}</td><td>${_esc(x.advogado_nome||'—')}</td><td${ttip}>${nd&&diff<0?'<span style="color:#ef4444;font-weight:600">':''}${_fmtD(x.proxima_data)}${nd&&diff<0?'</span>':''}</td>${_isAdm()?`<td style="text-align:center">${(()=>{const _p=_jurProfMap[x.cadastrado_por||''];return _p?`<span style="font-size:11px;background:rgba(0,230,118,.13);color:var(--accent);padding:2px 7px;border-radius:8px;font-weight:700;white-space:nowrap">P${_esc(String(_p.numero_ponto||'?'))}</span>`:'—';})()}</td>`:''}<td>${_acoes(x.id)}</td></tr>`;
+    return `<tr ${rs}><td>${_esc(x.paciente_nome||'—')}</td><td>${_esc(x.paciente_cpf||'—')}</td><td>${_esc(x.paciente_cidade||'—')}</td><td>${_esc(x.diagnostico||'—')}</td><td>${_badge(x.status_beneficio)}</td><td>${_esc(x.advogado_nome||'—')}</td><td${ttip}>${nd&&diff<0?'<span style="color:#ef4444;font-weight:600">':''}${_fmtD(x.proxima_data)}${nd&&diff<0?'</span>':''}</td>${_jurIsAdmArea()?`<td style="text-align:center">${(()=>{const _p=_jurProfMap[x.cadastrado_por||''];return _p?`<span title="${_esc(_p.nome_ponto||'')}" style="font-size:11px;background:rgba(0,230,118,.13);color:var(--accent);padding:2px 7px;border-radius:8px;font-weight:700;white-space:nowrap">P${_esc(String(_p.numero_ponto||'?'))}</span>`:'—';})()}</td>`:''}<td>${_acoes(x.id)}</td></tr>`;
   }).join('');
 }
 function _rEnt(d,total){
@@ -15026,8 +15077,9 @@ function _rCtrl(d,total){
   if(!d.length){tbody.innerHTML=_em(total,6);return;}
   tbody.innerHTML=d.map(x=>`<tr><td>${_esc(x.paciente_nome||'—')}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(x.andamento_processual||'')}">${_esc(x.andamento_processual||'—')}</td><td>${_fmtD(x.proxima_data)}</td><td>${_badge(x.status_processo)}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(x.observacoes_controle||'')}">${_esc(x.observacoes_controle||'—')}</td><td>${_acoes(x.id)}</td></tr>`).join('');
 }
-function _rDash(){
-  const d=_jurData,kpis=document.getElementById('jur-kpis'),tbody=document.getElementById('jur-tbody-dashboard');
+function _rDash(fd){
+  /* Dashboard respeita os filtros ativos (cidade/região/status/busca) */
+  const d=fd||_jurData,kpis=document.getElementById('jur-kpis'),tbody=document.getElementById('jur-tbody-dashboard');
   const today=new Date();today.setHours(0,0,0,0);
   if(kpis){
     const ag=d.filter(x=>x.status_beneficio==='aguardando').length,ap=d.filter(x=>x.status_beneficio==='aprovado').length,
@@ -15060,6 +15112,19 @@ window.showJurCadTab=function(tab,el){
 };
 window.jurCadSearch=function(v){_jurSearch=(v||'').trim();_jurPage=1;_jurCadRender();};
 window.jurStatusFilter=function(v){_jurStatusFilter=v||'';_jurPage=1;_jurCadRender();};
+window.jurCidadeFilter=function(v){_jurCidadeFilter=v||'';_jurPage=1;_jurCadRender();};
+window.jurRegiaoFilter=function(v){_jurRegiaoFilter=v||'';_jurCidadeFilter='';_jurFillGeo();_jurPage=1;_jurCadRender();};
+/* popula os selects de região/cidade a partir dos dados carregados (cidades canônicas) */
+function _jurFillGeo(){
+  const rs=document.getElementById('jur-regiao-filter'),cs=document.getElementById('jur-cidade-filter');
+  if(!rs||!cs)return;
+  const regioes=window._jurRegioes||['Entorno DF','Sul Goiano','Metropolitana de Goiânia','Outras'];
+  rs.innerHTML='<option value="">Todas as regiões</option>'+regioes.map(r=>'<option'+(r===_jurRegiaoFilter?' selected':'')+'>'+_esc(r)+'</option>').join('');
+  let cids=[...new Set(_jurData.map(x=>_jurNC(x.paciente_cidade)))];
+  if(_jurRegiaoFilter)cids=cids.filter(c=>_jurRG(c)===_jurRegiaoFilter);
+  cids.sort((a,b)=>a.localeCompare(b,'pt'));
+  cs.innerHTML='<option value="">Todas as cidades</option>'+cids.map(c=>'<option'+(c===_jurCidadeFilter?' selected':'')+'>'+_esc(c)+'</option>').join('');
+}
 window.jurPage=function(n){_jurPage=n;_jurCadRender();};
 window.jurSortBy=function(col){if(_jurSortCol===col)_jurSortAsc=!_jurSortAsc;else{_jurSortCol=col;_jurSortAsc=true;}_jurPage=1;_jurCadRender();};
 
@@ -15067,7 +15132,7 @@ window.jurSortBy=function(col){if(_jurSortCol===col)_jurSortAsc=!_jurSortAsc;els
 function _jurInit(){
   const nav=document.getElementById('nav-juridico-section');
   if(nav&&nav.style.display==='none')nav.style.display='block';
-  if(_isAdm()){const dt=document.getElementById('jur-cad-tab-dash');if(dt)dt.style.display='inline-flex';}
+  if(_jurIsAdmArea()){const dt=document.getElementById('jur-cad-tab-dash');if(dt)dt.style.display='inline-flex';}
   /* ===== Atendente (colaborador) x Administração (admin/André) =====
      Atendente só vê o cadastro até a etapa 2 (Entrada) e NÃO vê Cadastrados/Retorno.
      Etapas 3-6, Cadastrados e Retorno são só da Administração. */
@@ -15117,6 +15182,33 @@ const _LBL_PROC={em_andamento:'Em Andamento',concluido:'Concluído',arquivado:'A
 const _PAL=['#3b82f6','#22c55e','#ef4444','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#14b8a6','#a3a3a3','#f97316'];
 function _isJurOrAdm(){const p=window.currentProfile;return !!(p&&(p.papel==='juridico'||p.papel==='admin'));}
 function _parseD(s){if(!s)return null;const d=new Date(s.length<=10?s+'T00:00:00':s);return isNaN(d)?null:d;}
+/* ===== filtro por região/cidade (pedido: escolher a cidade → aparece todos de lá) ===== */
+let _jdCidade='',_jdRegiao='';
+const _jdNC=c=>(window._jurNormCidade?window._jurNormCidade(c):String(c||'').trim()||'(sem cidade)');
+const _jdRG=c=>(window._jurRegiaoDe?window._jurRegiaoDe(c):'Outras');
+function _jdFiltRows(){
+  let r=_jdRows||[];
+  if(_jdRegiao)r=r.filter(x=>_jdRG(_jdNC(x.paciente_cidade))===_jdRegiao);
+  if(_jdCidade)r=r.filter(x=>_jdNC(x.paciente_cidade)===_jdCidade);
+  return r;
+}
+function _jdFillGeo(){
+  const bar=document.getElementById('jd-geo-bar'),rs=document.getElementById('jd-regiao'),cs=document.getElementById('jd-cidade');
+  if(!bar||!rs||!cs)return;
+  if(!_isJurOrAdm()){bar.style.display='none';return;}
+  bar.style.display='flex';
+  const esc=_esc;
+  const regioes=window._jurRegioes||['Entorno DF','Sul Goiano','Metropolitana de Goiânia','Outras'];
+  rs.innerHTML='<option value="">🌎 Todas as regiões</option>'+regioes.map(r=>'<option'+(r===_jdRegiao?' selected':'')+'>'+esc(r)+'</option>').join('');
+  let cids=[...new Set((_jdRows||[]).map(x=>_jdNC(x.paciente_cidade)))];
+  if(_jdRegiao)cids=cids.filter(c=>_jdRG(c)===_jdRegiao);
+  cids.sort((a,b)=>a.localeCompare(b,'pt'));
+  cs.innerHTML='<option value="">🏙️ Todas as cidades</option>'+cids.map(c=>'<option'+(c===_jdCidade?' selected':'')+'>'+esc(c)+'</option>').join('');
+  if(!rs._hk){rs._hk=1;rs.onchange=()=>{_jdRegiao=rs.value;_jdCidade='';_jdFillGeo();_render();};}
+  if(!cs._hk){cs._hk=1;cs.onchange=()=>{_jdCidade=cs.value;_render();};}
+  const info=document.getElementById('jd-geo-info');
+  if(info){const n=_jdFiltRows().length,t=(_jdRows||[]).length;info.textContent=(_jdRegiao||_jdCidade)?('mostrando '+n+' de '+t+' processos'):'';}
+}
 
 function _mkChart(id,cfg){
   const cv=document.getElementById(id);if(!cv||typeof Chart==='undefined')return;
@@ -15138,7 +15230,8 @@ function _bar(id,agg,color){
 }
 
 function _render(){
-  const rows=_jdRows||[];
+  _jdFillGeo();
+  const rows=_jdFiltRows();
   const $=id=>document.getElementById(id);
   if($('jd-kpi-total'))$('jd-kpi-total').textContent=rows.length;
   const andamento=rows.filter(r=>(r.status_processo||'em_andamento')==='em_andamento').length;
@@ -15205,6 +15298,7 @@ async function _load(force){
    via RPC agregado get_juridico_meus_stats (zero dado de paciente). ===== */
 function _renderAtendente(stats){
   const $=id=>document.getElementById(id);
+  const gb=$('jd-geo-bar');if(gb)gb.style.display='none';
   stats=stats||{total:0,por_mes:[],por_status:[]};
   const t=$('jdash-title');
   if(t){const p=window.currentProfile;const nome=(p&&p.nome)?String(p.nome).split(' ')[0]:'';t.textContent=nome?('Seu resumo jurídico, '+nome):'Seu resumo jurídico';}
@@ -16402,7 +16496,8 @@ const _PAL=['#3b82f6','#22c55e','#ef4444','#f59e0b','#8b5cf6','#06b6d4','#ec4899
 /* currentProfile é um `let` global (NÃO fica em window) — lê o binding real, com fallback */
 function _prof(){try{return (typeof currentProfile!=='undefined'&&currentProfile)?currentProfile:(window.currentProfile||null);}catch(e){return window.currentProfile||null;}}
 function _isJurOrAdm(){const p=_prof();return !!(p&&(p.papel==='juridico'||p.papel==='admin'));}
-let _rows=[],_chart=null,_chartStatus=null,_chartBenef=null,_groupBy='cidade',_sel=new Set(),_search='',_loaded=false,_loading=false;
+let _rows=[],_chart=null,_chartStatus=null,_chartBenef=null,_chartMes=null,_groupBy='cidade',_sel=new Set(),_search='',_loaded=false,_loading=false;
+let _fCidade='',_fRegiao='',_drill=null;
 let _profMap={},_pontos=[];
 let _lastCount=null,_novos=0,_hbTimer=null;
 
@@ -16418,17 +16513,47 @@ function _normCidade(txt){
 /* mapa cidade→região (fácil de ajustar); cidade fora do mapa cai em "Outras" */
 const _REGIAO={'Jardim Ingá':'Entorno DF','Luziânia':'Entorno DF','Cidade Ocidental':'Entorno DF','Valparaíso':'Entorno DF','Cristalina':'Entorno DF','DF / Brasília':'Entorno DF','Caldas Novas':'Sul Goiano','Rio Verde':'Sul Goiano','Santa Helena':'Sul Goiano','Goiânia':'Metropolitana de Goiânia','Anápolis':'Metropolitana de Goiânia','Pirenópolis':'Metropolitana de Goiânia'};
 function _regiaoDe(c){return _REGIAO[c]||'Outras';}
+/* fonte única de cidade/região p/ as outras telas jurídicas (Cadastrados e Painel) */
+window._jurNormCidade=_normCidade;window._jurRegiaoDe=_regiaoDe;
+window._jurRegioes=[...new Set(Object.values(_REGIAO))].concat('Outras');
+/* normaliza o tipo de benefício digitado livre → categoria canônica (senão "APOSENTADORIA" e "aposentadoria" contam separado) */
+function _normBenef(t){
+  const s=String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  if(!s.trim())return '(não informado)';
+  if(/aposentad/.test(s))return 'Aposentadoria';
+  if(/auxilio.{0,3}doenca|doenca/.test(s))return 'Auxílio-doença';
+  if(/invalidez/.test(s))return 'Invalidez';
+  if(/bpc|loas|idoso/.test(s))return 'BPC / LOAS';
+  if(/pensao/.test(s))return 'Pensão';
+  return String(t).trim().replace(/\s+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+}
+const _MMPT=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+function _mesDe(r){const d=r.criado_em||r.data_entrada;return d?String(d).slice(0,7):'';}
+function _mesLbl(k){if(!k)return'—';const[y,m]=k.split('-');return (_MMPT[+m-1]||k)+'/'+String(y).slice(2);}
 function _pontoDe(r){const p=r.cadastrado_por&&_profMap[r.cadastrado_por];return (p&&(p.nome_ponto||p.nome))||'(sem ponto)';}
 function _keyDe(r){if(_groupBy==='ponto')return _pontoDe(r);const c=_normCidade(r.paciente_cidade);return _groupBy==='regiao'?_regiaoDe(c):c;}
+/* ===== filtros ativos: região/cidade (dropdown) + drill de gráfico (status/benefício/mês) ===== */
+function _base(){
+  let r=_rows;
+  if(_fRegiao)r=r.filter(x=>_regiaoDe(_normCidade(x.paciente_cidade))===_fRegiao);
+  if(_fCidade)r=r.filter(x=>_normCidade(x.paciente_cidade)===_fCidade);
+  if(_drill){
+    if(_drill.tipo==='status')r=r.filter(x=>(x.status_processo||'(sem status)')===_drill.valor);
+    else if(_drill.tipo==='benef')r=r.filter(x=>_normBenef(x.tipo_beneficio)===_drill.valor);
+    else if(_drill.tipo==='mes')r=r.filter(x=>_mesDe(x)===_drill.valor);
+  }
+  return r;
+}
 function _dimLabel(){return _groupBy==='regiao'?'Região':_groupBy==='ponto'?'Ponto':'Cidade';}
 function _dimLabelLow(){return _groupBy==='regiao'?'região':_groupBy==='ponto'?'ponto':'cidade';}
 
 function _grupos(){
   const q=_search.trim().toLowerCase();
-  const filt=q?_rows.filter(r=>((r.paciente_nome||'')+' '+(r.paciente_cpf||'')+' '+(r.paciente_cidade||'')+' '+_pontoDe(r)).toLowerCase().includes(q)):_rows;
+  const bs=_base();
+  const filt=q?bs.filter(r=>((r.paciente_nome||'')+' '+(r.paciente_cpf||'')+' '+(r.paciente_cidade||'')+' '+_pontoDe(r)).toLowerCase().includes(q)):bs;
   const m={};
-  /* Por Ponto: pré-preenche TODOS os pontos do fibro (aparecem mesmo com 0 processos) */
-  if(_groupBy==='ponto'){_pontos.forEach(p=>{const nm=p.nome_ponto||p.nome;if(nm&&!(nm in m))m[nm]=[];});}
+  /* Por Ponto: pré-preenche TODOS os pontos do fibro (aparecem mesmo com 0 processos) — só sem filtro geo/drill */
+  if(_groupBy==='ponto'&&!_fCidade&&!_fRegiao&&!_drill){_pontos.forEach(p=>{const nm=p.nome_ponto||p.nome;if(nm&&!(nm in m))m[nm]=[];});}
   filt.forEach(r=>{const k=_keyDe(r);(m[k]=m[k]||[]).push(r);});
   return Object.entries(m).map(([k,v])=>({key:k,rows:v.sort((a,b)=>String(a.paciente_nome||'').localeCompare(String(b.paciente_nome||''),'pt'))})).sort((a,b)=>b.rows.length-a.rows.length||a.key.localeCompare(b.key,'pt'));
 }
@@ -16452,14 +16577,18 @@ window._jcidReload=function(){_loaded=false;_load();};
 
 function _render(){
   const root=document.getElementById('jcid-root');if(!root)return;
-  const dt=document.getElementById('jcid-date');if(dt)dt.textContent='· '+_rows.length+' processo'+(_rows.length!==1?'s':'');
+  const dt=document.getElementById('jcid-date');
+  if(dt){const b=_base().length;dt.textContent=(b===_rows.length)?('· '+_rows.length+' processo'+(_rows.length!==1?'s':'')):('· '+b+' de '+_rows.length+' processos');}
   root.innerHTML=''
     +'<div id="jcid-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px"></div>'
     +'<div class="chart-card" style="margin-bottom:16px">'
       +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between">'
         +'<div id="jcid-toggle" style="display:inline-flex;background:var(--input-bg);border:1px solid var(--input-border);border-radius:10px;overflow:hidden;flex-wrap:wrap"></div>'
+        +'<select id="jcid-fregiao" class="form-input" style="max-width:190px;padding:9px 12px;font-size:13px" title="Filtrar por região"></select>'
+        +'<select id="jcid-fcidade" class="form-input" style="max-width:190px;padding:9px 12px;font-size:13px" title="Filtrar por cidade"></select>'
         +'<input id="jcid-search" placeholder="🔍 Buscar paciente, CPF, cidade…" style="flex:1;min-width:200px;padding:9px 14px;border:1px solid var(--input-border);border-radius:10px;background:var(--input-bg);color:var(--text-primary);font-size:13px">'
       +'</div>'
+      +'<div id="jcid-drill" style="margin-top:10px"></div>'
       +'<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px">'
         +'<button class="btn-limpar" id="jcid-selall" style="padding:6px 12px;font-size:12px"><i class="fas fa-check-double"></i> Selecionar todas</button>'
         +'<button class="btn-limpar" id="jcid-selnone" style="padding:6px 12px;font-size:12px"><i class="fas fa-times"></i> Limpar seleção</button>'
@@ -16470,25 +16599,56 @@ function _render(){
     +'</div>'
     +'<div class="chart-card" style="margin-bottom:16px"><div class="chart-title" id="jcid-chart-title"></div><div style="height:300px"><canvas id="jcid-chart"></canvas></div></div>'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:16px">'
-      +'<div class="chart-card"><div class="chart-title">Status do Processo</div><div style="height:220px"><canvas id="jcid-chart-status"></canvas></div></div>'
-      +'<div class="chart-card"><div class="chart-title">Top Benefícios (INSS)</div><div style="height:220px"><canvas id="jcid-chart-benef"></canvas></div></div>'
+      +'<div class="chart-card"><div class="chart-title">Status do Processo <span style="font-size:10px;color:var(--text-muted)">(clique p/ filtrar)</span></div><div style="height:220px"><canvas id="jcid-chart-status"></canvas></div></div>'
+      +'<div class="chart-card"><div class="chart-title">Top Benefícios (INSS) <span style="font-size:10px;color:var(--text-muted)">(clique p/ filtrar)</span></div><div style="height:220px"><canvas id="jcid-chart-benef"></canvas></div></div>'
+      +'<div class="chart-card"><div class="chart-title">Evolução Mensal <span style="font-size:10px;color:var(--text-muted)">(clique p/ filtrar)</span></div><div style="height:220px"><canvas id="jcid-chart-mes"></canvas></div></div>'
     +'</div>'
     +'<div id="jcid-list"></div>';
   _renderToggle();
+  _fillGeoSelects();
   const se=document.getElementById('jcid-search');if(se){se.value=_search;se.oninput=()=>{_search=se.value;_renderList();};}
   document.getElementById('jcid-selall').onclick=()=>{_grupos().forEach(g=>_sel.add(g.key));_renderList();};
   document.getElementById('jcid-selnone').onclick=()=>{_sel.clear();_renderList();};
   document.getElementById('jcid-print-sel').onclick=()=>_printKeys([..._sel]);
   _renderKPIs();
+  _renderDrillChip();
   _renderList();
   _drawExtraCharts();
 }
+/* selects de região/cidade: cidades = as dos processos + as das lojas/pontos do fibro (nome_ponto "Nome : Cidade") */
+function _fillGeoSelects(){
+  const rs=document.getElementById('jcid-fregiao'),cs=document.getElementById('jcid-fcidade');
+  if(!rs||!cs)return;
+  const regioes=window._jurRegioes;
+  rs.innerHTML='<option value="">🌎 Todas as regiões</option>'+regioes.map(r=>'<option'+(r===_fRegiao?' selected':'')+'>'+_esc(r)+'</option>').join('');
+  const set=new Set(_rows.map(r=>_normCidade(r.paciente_cidade)));
+  _pontos.forEach(p=>{const nm=p.nome_ponto||'';const c=nm.includes(':')?nm.split(':').pop().trim():'';if(c)set.add(_normCidade(c));});
+  let cids=[...set];
+  if(_fRegiao)cids=cids.filter(c=>_regiaoDe(c)===_fRegiao);
+  cids.sort((a,b)=>a.localeCompare(b,'pt'));
+  cs.innerHTML='<option value="">🏙️ Todas as cidades</option>'+cids.map(c=>'<option'+(c===_fCidade?' selected':'')+'>'+_esc(c)+'</option>').join('');
+  rs.onchange=()=>{_fRegiao=rs.value;_fCidade='';_render();};
+  cs.onchange=()=>{_fCidade=cs.value;_render();};
+}
+/* chip do filtro de gráfico ativo (drill) — clicável p/ limpar */
+function _renderDrillChip(){
+  const el=document.getElementById('jcid-drill');if(!el)return;
+  if(!_drill&&!_fCidade&&!_fRegiao){el.innerHTML='';return;}
+  let chips='';
+  const chip=(lbl,fn)=>'<span class="jcid-chip" data-fn="'+fn+'" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,230,118,.14);border:1px solid var(--accent);color:var(--accent);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;margin-right:8px" title="Clique para remover este filtro">'+lbl+' <i class="fas fa-times-circle"></i></span>';
+  if(_fRegiao)chips+=chip('🌎 '+_esc(_fRegiao),'regiao');
+  if(_fCidade)chips+=chip('🏙️ '+_esc(_fCidade),'cidade');
+  if(_drill)chips+=chip('📊 '+_esc(_drill.label),'drill');
+  el.innerHTML=chips+'<span style="font-size:11px;color:var(--text-muted)">'+_base().length+' de '+_rows.length+' processos</span>';
+  el.querySelectorAll('.jcid-chip').forEach(c=>c.onclick=()=>{const f=c.dataset.fn;if(f==='regiao'){_fRegiao='';}else if(f==='cidade'){_fCidade='';}else{_drill=null;}_render();});
+}
 function _kpis(){
-  const t=_rows.length;
-  const emand=_rows.filter(r=>r.status_processo==='em_andamento').length;
-  const aprov=_rows.filter(r=>r.status_beneficio==='aprovado').length;
+  const bs=_base();
+  const t=bs.length;
+  const emand=bs.filter(r=>r.status_processo==='em_andamento').length;
+  const aprov=bs.filter(r=>r.status_beneficio==='aprovado').length;
   const hoje=new Date(new Date().toDateString()), in30=new Date(hoje.getTime()+30*864e5);
-  const prazos=_rows.filter(r=>{if(!r.proxima_data)return false;const d=new Date(r.proxima_data+'T00:00:00');return !isNaN(d)&&d>=hoje&&d<=in30;}).length;
+  const prazos=bs.filter(r=>{if(!r.proxima_data)return false;const d=new Date(r.proxima_data+'T00:00:00');return !isNaN(d)&&d>=hoje&&d<=in30;}).length;
   return {t,emand,aprov,prazos};
 }
 function _renderKPIs(){
@@ -16499,18 +16659,29 @@ function _renderKPIs(){
 }
 function _drawExtraCharts(){
   if(typeof Chart==='undefined')return;
+  /* os gráficos respeitam região/cidade, mas NÃO o próprio drill (senão o gráfico clicado some) */
+  let geo=_rows;
+  if(_fRegiao)geo=geo.filter(x=>_regiaoDe(_normCidade(x.paciente_cidade))===_fRegiao);
+  if(_fCidade)geo=geo.filter(x=>_normCidade(x.paciente_cidade)===_fCidade);
+  const _setDrill=(tipo,valor,label)=>{_drill=(_drill&&_drill.tipo===tipo&&_drill.valor===valor)?null:{tipo,valor,label};_render();};
   const sc=document.getElementById('jcid-chart-status');
   if(sc){if(_chartStatus){try{_chartStatus.destroy();}catch(e){}}
-    const sl={em_andamento:'Em Andamento',concluido:'Concluído',arquivado:'Arquivado'};
-    const cnt={};_rows.forEach(r=>{const k=r.status_processo||'(sem status)';cnt[k]=(cnt[k]||0)+1;});
+    const sl={em_andamento:'Em Andamento',concluido:'Concluído',arquivado:'Arquivado',aguardando:'Aguardando'};
+    const cnt={};geo.forEach(r=>{const k=r.status_processo||'(sem status)';cnt[k]=(cnt[k]||0)+1;});
     const keys=Object.keys(cnt);
-    _chartStatus=new Chart(sc.getContext('2d'),{type:'doughnut',data:{labels:keys.map(k=>sl[k]||k),datasets:[{data:keys.map(k=>cnt[k]),backgroundColor:['#f59e0b','#22c55e','#a3a3a3','#ef4444','#3b82f6'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}}},cutout:'56%'}});
+    _chartStatus=new Chart(sc.getContext('2d'),{type:'doughnut',data:{labels:keys.map(k=>sl[k]||k),datasets:[{data:keys.map(k=>cnt[k]),backgroundColor:['#f59e0b','#22c55e','#a3a3a3','#ef4444','#3b82f6'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,onClick:(e,els)=>{if(els&&els.length){const k=keys[els[0].index];_setDrill('status',k,'Status: '+(sl[k]||k));}},plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}}},cutout:'56%'}});
   }
   const bc=document.getElementById('jcid-chart-benef');
   if(bc){if(_chartBenef){try{_chartBenef.destroy();}catch(e){}}
-    const cnt={};_rows.forEach(r=>{const k=((r.tipo_beneficio||'').trim())||'(não informado)';cnt[k]=(cnt[k]||0)+1;});
+    const cnt={};geo.forEach(r=>{const k=_normBenef(r.tipo_beneficio);cnt[k]=(cnt[k]||0)+1;});
     const ent=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,8);
-    _chartBenef=new Chart(bc.getContext('2d'),{type:'bar',data:{labels:ent.map(e=>e[0]),datasets:[{data:ent.map(e=>e[1]),backgroundColor:'#8b5cf6',borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{precision:0}}}}});
+    _chartBenef=new Chart(bc.getContext('2d'),{type:'bar',data:{labels:ent.map(e=>e[0]),datasets:[{data:ent.map(e=>e[1]),backgroundColor:ent.map(e=>(_drill&&_drill.tipo==='benef'&&_drill.valor===e[0])?'#22c55e':'#8b5cf6'),borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,onClick:(e,els)=>{if(els&&els.length){const k=ent[els[0].index][0];_setDrill('benef',k,'Benefício: '+k);}},plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{precision:0}}}}});
+  }
+  const mc=document.getElementById('jcid-chart-mes');
+  if(mc){if(_chartMes){try{_chartMes.destroy();}catch(e){}}
+    const cnt={};geo.forEach(r=>{const k=_mesDe(r);if(k)cnt[k]=(cnt[k]||0)+1;});
+    const keys=Object.keys(cnt).sort().slice(-12);
+    _chartMes=new Chart(mc.getContext('2d'),{type:'bar',data:{labels:keys.map(_mesLbl),datasets:[{data:keys.map(k=>cnt[k]),backgroundColor:keys.map(k=>(_drill&&_drill.tipo==='mes'&&_drill.valor===k)?'#22c55e':'#06b6d4'),borderRadius:5,maxBarThickness:40}]},options:{responsive:true,maintainAspectRatio:false,onClick:(e,els)=>{if(els&&els.length){const k=keys[els[0].index];_setDrill('mes',k,'Mês: '+_mesLbl(k));}},plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
   }
 }
 function _renderToggle(){
@@ -16558,6 +16729,11 @@ function _renderList(){
   list.querySelectorAll('.jcid-head').forEach(h=>h.onclick=e=>{if(e.target.closest('.jcid-chk')||e.target.closest('.jcid-pone'))return;const b=h.nextElementSibling;const car=h.querySelector('.jcid-caret');const open=b.style.display==='none';b.style.display=open?'block':'none';if(car)car.style.transform=open?'rotate(180deg)':'';});
   list.querySelectorAll('.jcid-pone').forEach(b=>b.onclick=e=>{e.stopPropagation();_printKeys([b.dataset.key]);});
   list.querySelectorAll('.jcid-pind').forEach(b=>b.onclick=e=>{e.stopPropagation();if(window.jurPrint)window.jurPrint(b.dataset.id);});
+  /* filtrou cidade/gráfico (ou sobrou 1 grupo)? já abre a lista de pacientes na hora */
+  if(_fCidade||_drill||gs.length===1){
+    list.querySelectorAll('.jcid-body').forEach(b=>{b.style.display='block';});
+    list.querySelectorAll('.jcid-caret').forEach(c=>{c.style.transform='rotate(180deg)';});
+  }
   _updateSelInfo(gs);
   _drawChart(gs);
 }

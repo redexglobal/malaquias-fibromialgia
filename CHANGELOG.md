@@ -4,6 +4,22 @@ Sistema Dr. Malaquias — Projeto Fibromialgia.
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/).
 
+## [Jurídico v3 + Brilho] - 2026-07-02 (sw v56)
+
+### Adicionado
+- Relatório Jurídico (André): dropdowns de Região e Cidade (inclui cidades dos pontos do fibro, mesmo sem processo), chips de filtro removíveis, gráfico novo "Evolução Mensal", drill-down clicável nos 3 gráficos (status/benefício/mês) e lista de pacientes auto-expandida quando há filtro.
+- Painel Jurídico (jdash): barra de filtro Região/Cidade acima dos KPIs — tudo (KPIs, gráficos, prazos) respeita o filtro.
+- Cadastrados (jurídico): filtros de Região e Cidade na barra; aba Dashboard agora visível também para o papel `juridico` e respeita os filtros ativos; coluna Ponto visível para o André jurídico.
+- CSS "Brilho Digital": glow verde sutil (botões, KPIs, nav ativo), `:focus-visible`, `prefers-reduced-motion`, contraste do texto auxiliar no tema claro.
+
+### Corrigido
+- Tipo de benefício agora é normalizado nos gráficos ("APOSENTADORIA"/"aposentadoria" contavam separado).
+- `jurSalvar` detecta update de 0 linhas (RLS) e avisa em vez de fingir sucesso.
+
+### Segurança / Banco
+- `supabase/juridico_rls_v2.sql` (RODAR NO DASHBOARD): papel `juridico` passa a poder editar registros criados pelas colaboradoras (antes o UPDATE era ignorado em silêncio). Bloco opcional endurece o SELECT (LGPD).
+- `MAX_ROWS` 20000 → 60000 (o teto seria atingido em ~2 meses no ritmo atual); lista de cadastrados jurídicos 2000 → 5000.
+
 ## [Pontos v2] - 2026-05-13
 
 ### Adicionado
