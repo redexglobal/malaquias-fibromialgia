@@ -1224,6 +1224,29 @@ tr:last-child td { border-bottom: none; }
 .nav-item.active {
   box-shadow:inset 3px 0 0 var(--accent), 0 0 14px rgba(0,230,118,.10);
 }
+/* ===== pedido do Vilson 2026-07-02: sidebar levanta + letra acende (fino, charmoso) ===== */
+.nav-item:hover {
+  transform:translateY(-1px);
+  text-shadow:0 0 10px rgba(0,230,118,.30);
+  box-shadow:0 3px 12px rgba(0,0,0,.16);
+}
+.nav-item i { transition:color .2s, filter .2s; }
+.nav-item:hover i {
+  color:var(--accent);
+  filter:drop-shadow(0 0 5px rgba(0,230,118,.5));
+}
+/* ===== KPIs do dashboard (Únicos/Hoje/Semana/Dor): brilho delicado no hover ===== */
+.kpi-icon { transition:all .25s ease; }
+.kpi-value { transition:text-shadow .25s ease; }
+.kpi-card::before { transition:filter .25s ease; }
+.kpi-card:hover::before { filter:brightness(1.55) saturate(1.15); }
+.kpi-card:hover .kpi-icon {
+  background:rgba(0,230,118,.16);
+  box-shadow:0 0 14px rgba(0,230,118,.28);
+  transform:scale(1.06);
+}
+.kpi-card:hover .kpi-value { text-shadow:0 0 18px rgba(0,230,118,.38); }
+.kpi-card.gold:hover .kpi-icon { box-shadow:0 0 14px rgba(201,168,76,.30); background:rgba(201,168,76,.16); }
 /* cartões de gráfico levemente iluminados no hover */
 .chart-card:hover { border-color:rgba(0,230,118,.22); }
 /* valor dos KPIs com brilho digital discreto */
@@ -2026,7 +2049,8 @@ tr:last-child td { border-bottom: none; }
           <div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" id="jf-paciente_nome" placeholder="Nome completo do paciente"></div>
           <div class="form-group"><label class="form-label">CPF *</label><input type="text" class="form-input" id="jf-paciente_cpf" placeholder="000.000.000-00"></div>
           <div class="form-group"><label class="form-label">Endereço *</label><input type="text" class="form-input" id="jf-paciente_endereco" placeholder="Rua, número, bairro"></div>
-          <div class="form-group"><label class="form-label">Cidade *</label><input type="text" class="form-input" id="jf-paciente_cidade" placeholder="Cidade"></div>
+          <div class="form-group"><label class="form-label">Cidade *</label><input type="text" class="form-input" id="jf-paciente_cidade" placeholder="Cidade" list="jur-cidades-sug"></div>
+          <datalist id="jur-cidades-sug"><option>Jardim Ingá</option><option>Luziânia</option><option>Caldas Novas</option><option>Cristalina</option><option>Cidade Ocidental</option><option>Valparaíso</option><option>DF / Brasília</option><option>Rio Verde</option><option>Anápolis</option><option>Goiânia</option><option>Santa Helena</option><option>Pirenópolis</option><option>Santa Maria</option></datalist>
           <div class="form-group"><label class="form-label">Telefone *</label><input type="text" class="form-input" id="jf-paciente_telefone" placeholder="(00) 00000-0000"></div>
           <div class="form-group"><label class="form-label">E-mail</label><input type="email" class="form-input" id="jf-paciente_email" placeholder="email@exemplo.com"></div>
         </div>
@@ -2400,7 +2424,7 @@ tr:last-child td { border-bottom: none; }
       <div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" id="jf-paciente_nome" placeholder="Nome completo do paciente"></div>
       <div class="form-group"><label class="form-label">CPF</label><input type="text" class="form-input" id="jf-paciente_cpf" placeholder="000.000.000-00"></div>
       <div class="form-group"><label class="form-label">Endereço</label><input type="text" class="form-input" id="jf-paciente_endereco" placeholder="Rua, número, bairro"></div>
-      <div class="form-group"><label class="form-label">Cidade</label><input type="text" class="form-input" id="jf-paciente_cidade" placeholder="Cidade"></div>
+      <div class="form-group"><label class="form-label">Cidade</label><input type="text" class="form-input" id="jf-paciente_cidade" placeholder="Cidade" list="jur-cidades-sug"></div>
     </div>
 
     <div class="jur-sec-header"><i class="fas fa-door-open"></i> Entrada</div>

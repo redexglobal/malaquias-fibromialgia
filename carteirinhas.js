@@ -280,15 +280,15 @@ function _injetar(){
     #sec-carteirinhas .ct-grid{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
     #sec-carteirinhas .ct-panel{flex:1;min-width:280px;max-width:380px}
     #sec-carteirinhas .ct-preview-wrap{flex:2;min-width:320px}
-    .ct-inp{width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:8px}
-    .ct-lbl{font-size:11px;color:#64748b;font-weight:700;margin-bottom:3px;display:block}
+    .ct-inp{width:100%;padding:8px 10px;border:1px solid var(--input-border,#cbd5e1);border-radius:8px;font-size:13px;margin-bottom:8px;background:var(--input-bg,#fff);color:var(--text-primary,#111)}
+    .ct-lbl{font-size:11px;color:var(--text-muted,#64748b);font-weight:700;margin-bottom:3px;display:block}
     .ct-tipo-btns{display:flex;gap:8px;margin-bottom:12px}
-    .ct-tipo-btn{flex:1;padding:10px;border:2px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;font-weight:700;font-size:13px;color:#475569;text-align:center}
-    .ct-tipo-btn.on{border-color:#1e9e3e;background:#ecfdf5;color:#15803d}
-    #ct-result{border:1px solid #e2e8f0;border-radius:8px;max-height:260px;overflow:auto;margin-bottom:10px;display:none;background:#fff}
-    .ct-hit-row{display:flex;align-items:center;gap:6px;border-bottom:1px solid #f1f5f9}
+    .ct-tipo-btn{flex:1;padding:10px;border:2px solid var(--input-border,#e2e8f0);border-radius:10px;background:var(--input-bg,#fff);cursor:pointer;font-weight:700;font-size:13px;color:var(--text-secondary,#475569);text-align:center}
+    .ct-tipo-btn.on{border-color:#1e9e3e;background:rgba(22,163,74,.14);color:var(--accent,#15803d)}
+    #ct-result{border:1px solid var(--input-border,#e2e8f0);border-radius:8px;max-height:260px;overflow:auto;margin-bottom:10px;display:none;background:var(--bg-card,#fff);color:var(--text-primary,#111)}
+    .ct-hit-row{display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border-glass,#f1f5f9)}
     .ct-hit{flex:1;padding:9px 10px;cursor:pointer;font-size:13px}
-    .ct-hit:hover{background:#f1f5f9}
+    .ct-hit:hover{background:rgba(0,230,118,.08)}
     .ct-hit small{color:#94a3b8;font-size:11px}
     .ct-hit-gen{flex:none;margin-right:8px;background:#16a34a;color:#fff;border:none;border-radius:7px;padding:6px 10px;font-size:11px;font-weight:800;cursor:pointer}
     .ct-btn{width:100%;padding:11px;border:none;border-radius:10px;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:8px;color:#fff}

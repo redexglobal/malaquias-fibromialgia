@@ -4,6 +4,17 @@ Sistema Dr. Malaquias — Projeto Fibromialgia.
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/).
 
+## [Charme Fino] - 2026-07-02 (sw v57)
+
+### Adicionado
+- Sidebar: item levanta no hover + letra/ícone acendem com luz verde suave (pedido do Vilson: fino, elegante, sem cibernético).
+- KPIs do dashboard (Únicos/Hoje/Semana/Dor): no hover a linha de luz do topo intensifica, ícone ganha halo e escala sutil, valor ganha brilho delicado.
+- Wizard jurídico: sugestões de cidade ao digitar (`datalist` com as 13 cidades canônicas) — limpa a grafia na raiz.
+- Painéis Carteirinhas e Monitor de Erros: controles (inputs, labels, listas) agora seguem o tema escuro/claro via CSS vars (cartões impressos continuam brancos, como devem).
+
+### Banco (rodado no dashboard em 2026-07-02)
+- Bloco LGPD do `juridico_rls_v2.sql` aplicado: colaboradora só lê o jurídico que ela mesma cadastrou (verificado ao vivo: ponto 23 vê 0 de 59; RPC do resumo dela segue OK).
+
 ## [Jurídico v3 + Brilho] - 2026-07-02 (sw v56)
 
 ### Adicionado
